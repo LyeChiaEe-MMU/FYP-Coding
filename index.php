@@ -135,17 +135,17 @@ $cats = $conn->query("SELECT c.category_name, COUNT(p.product_id) as cnt FROM ca
 <!-- Why Apex -->
 <section style="padding:72px 0;border-top:1px solid var(--border);">
   <div class="wrap">
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:32px;text-align:center;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
       <?php foreach([
-        ['🚀','HyperFoam™ Tech','Proprietary midsole returning 68% energy per stride.'],
-        ['🛡️','5-Year Sole Warranty','Premium durability on every pair, guaranteed.'],
-        ['🚚','Free Shipping >RM300','Fast 2–4 day delivery across Malaysia.'],
-        ['↩️','30-Day Returns','Hassle-free returns within 30 days.'],
+        ['HyperFoam™ Tech','Proprietary midsole returning 68% energy per stride.'],
+        ['5-Year Sole Warranty','Premium durability on every pair, guaranteed.'],
+        ['Free Shipping >RM300','Fast 2–4 day delivery across Malaysia.'],
+        ['30-Day Returns','Hassle-free returns within 30 days.'],
       ] as $f): ?>
-      <div>
-        <div style="font-size:2rem;margin-bottom:12px;"><?=$f[0]?></div>
-        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;letter-spacing:2px;color:var(--white);margin-bottom:8px;"><?=e($f[1])?></div>
-        <div style="font-size:.82rem;color:var(--muted);line-height:1.7;"><?=e($f[2])?></div>
+      <div style="background:var(--navy);padding:36px 28px;text-align:center;">
+        <div style="width:36px;height:2px;background:var(--accent);margin:0 auto 20px;"></div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--white);margin-bottom:10px;"><?=e($f[0])?></div>
+        <div style="font-size:.82rem;color:var(--muted);line-height:1.75;"><?=e($f[1])?></div>
       </div>
       <?php endforeach; ?>
     </div>

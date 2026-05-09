@@ -10,9 +10,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $pass    = $_POST['password']     ?? '';
     $pass2   = $_POST['password2']    ?? '';
     $phone   = trim($_POST['phone']   ?? '');
-    $address = trim($_POST['address'] ?? '');
-
-    if(!$name||!$email||!$pass||!$phone||!$address){
+    if(!$name||!$email||!$pass||!$phone){
         $error = "All fields are required.";
     } elseif(!filter_var($email,FILTER_VALIDATE_EMAIL)){
         $error = "Please enter a valid email address.";
@@ -27,8 +25,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $error = "An account with this email already exists.";
         } else {
             $hashed = password_hash($pass, PASSWORD_DEFAULT);
-            $ins = $conn->prepare("INSERT INTO users (name,email,password,phone,address) VALUES (?,?,?,?,?)");
-            $ins->bind_param("sssss",$name,$email,$hashed,$phone,$address);
+            $ins = $conn->prepare("INSERT INTO users (name,email,password,phone) VALUES (?,?,?,?)");
+            $ins->bind_param("ssss",$name,$email,$hashed,$phone);
             if($ins->execute()){
                 $success = "Account created! You can now login.";
             } else {
@@ -73,9 +71,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           </div>
         </div>
         <div class="form-group">
-          <label>Shipping Address</label>
-          <textarea name="address" placeholder="No. 1, Jalan Example, 63000 Cyberjaya, Selangor" required><?=e($_POST['address']??'')?></textarea>
-        </div>
+        
         <div class="form-row">
           <div class="form-group">
             <label>Password</label>
