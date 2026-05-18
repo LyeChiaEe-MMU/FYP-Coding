@@ -5,6 +5,7 @@ $pg    = basename($_SERVER['PHP_SELF']);
 $depth = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false) ? '../' : '';
 $q     = e($_GET['q'] ?? '');
 ?>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <nav class="navbar">
   <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;height:100%;gap:16px;">
 

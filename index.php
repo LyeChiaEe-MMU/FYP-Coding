@@ -20,6 +20,7 @@ $cats = $conn->query("SELECT c.category_name, COUNT(p.product_id) as cnt FROM ca
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Apex | Premium Sport Shoes</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
 
