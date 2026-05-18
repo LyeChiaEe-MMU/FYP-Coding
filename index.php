@@ -33,7 +33,7 @@ $cats = $conn->query("SELECT c.category_name, COUNT(p.product_id) as cnt FROM ca
     <div style="max-width:600px;">
       <p style="font-size:.7rem;letter-spacing:4px;text-transform:uppercase;color:var(--accent);margin-bottom:20px;display:flex;align-items:center;gap:8px;">
         <span style="width:30px;height:1px;background:var(--accent);display:inline-block;"></span>
-        New Season 2025
+        New Season 2026
       </p>
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(52px,7vw,96px);line-height:.9;letter-spacing:-1px;color:var(--white);margin-bottom:24px;">
         BUILT<br>TO <span style="color:var(--accent);">WIN.</span>
