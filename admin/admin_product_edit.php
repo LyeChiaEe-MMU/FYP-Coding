@@ -1,8 +1,7 @@
 <?php
-// Use the new auth check instead of old method
 require_once 'auth_check.php';
 
-$pid = (int)($_GET['id'] ?? 0);
+$pid     = (int)($_GET['id'] ?? 0);
 $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
 if(!$product){ header("Location: admin_products.php"); exit; }
 
@@ -14,21 +13,50 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $category_id = (int)($_POST['category_id'] ?? 0);
     $price       = floatval($_POST['price']    ?? 0);
     $stock       = (int)($_POST['stock']       ?? 0);
-    $image_url   = trim($_POST['image_url']    ?? '');
+    $image_url   = trim($_POST['image_url']    ?? $product['image_url']);
 
-    if(!$name || $price<=0){
-        $msg = "Name and price are required."; $mtype='err';
-    } else {
-        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,price=?,stock=?,image_url=? WHERE product_id=?");
-        $stmt->bind_param("ssidisi",$name,$description,$category_id,$price,$stock,$image_url,$pid);
-        $stmt->execute();
-        // Refresh product
-        $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
-        $msg = "Product updated successfully.";
+    // Handle file upload — takes priority over URL if file chosen
+    if(!empty($_FILES['image_file']['name'])){
+        $file    = $_FILES['image_file'];
+        $allowed = ['jpg','jpeg','png','gif','webp'];
+        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $maxSize = 5 * 1024 * 1024;
+
+        if(!in_array($ext, $allowed)){
+            $msg = "Image must be JPG, PNG, GIF or WEBP."; $mtype='err';
+        } elseif($file['size'] > $maxSize){
+            $msg = "Image must be under 5MB."; $mtype='err';
+        } else {
+            $filename  = 'product_' . time() . '_' . preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
+            $uploadDir = dirname(__DIR__) . '/uploads/';
+            if(!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+            if(move_uploaded_file($file['tmp_name'], $uploadDir . $filename)){
+                $image_url = 'uploads/' . $filename;
+            } else {
+                $msg = "Upload failed. Check folder permissions on uploads/."; $mtype='err';
+            }
+        }
+    }
+
+    if(!$msg){
+        if(!$name || $price<=0){
+            $msg = "Name and price are required."; $mtype='err';
+        } else {
+            $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,price=?,stock=?,image_url=? WHERE product_id=?");
+            $stmt->bind_param("ssidisi",$name,$description,$category_id,$price,$stock,$image_url,$pid);
+            $stmt->execute();
+            $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
+            $msg = "Product updated successfully.";
+        }
     }
 }
 
 $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
+
+// Build image src for preview
+$previewSrc = !empty($product['image_url'])
+    ? (str_starts_with($product['image_url'],'http') ? $product['image_url'] : '../' . $product['image_url'])
+    : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=80';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -53,12 +81,12 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
       <div class="flash flash-<?=$mtype?>"><?=e($msg)?></div>
       <?php endif; ?>
 
-      <div style="display:grid;grid-template-columns:1fr 280px;gap:24px;align-items:start;">
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start;">
 
         <!-- Form -->
         <div class="card a-form">
           <h2>EDITING: <?=e($product['name'])?></h2>
-          <form method="POST">
+          <form method="POST" enctype="multipart/form-data">
             <div class="form-grid-2">
               <div class="form-group">
                 <label>Product Name *</label>
@@ -82,10 +110,37 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
                 <label>Stock Quantity</label>
                 <input type="number" name="stock" min="0" value="<?=(int)$product['stock']?>">
               </div>
+
+              <!-- IMAGE: Upload or URL -->
               <div class="form-group span-2">
-                <label>Image URL</label>
-                <input type="url" name="image_url" value="<?=e($product['image_url'])?>" placeholder="https://...">
+                <label>Product Image</label>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+                  <!-- Upload -->
+                  <div style="background:rgba(100,255,218,.04);border:1px dashed rgba(100,255,218,.3);border-radius:var(--radius);padding:16px;">
+                    <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;font-weight:600;">
+                      ✅ Upload New Image
+                    </div>
+                    <input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"
+                           style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;"
+                           onchange="updatePreview(this)">
+                    <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Replaces current image. Max 5MB.</div>
+                  </div>
+
+                  <!-- URL -->
+                  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+                    <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:600;">
+                      Or Keep / Change URL
+                    </div>
+                    <input type="text" name="image_url" id="editImgUrl"
+                           value="<?=e($product['image_url'])?>"
+                           placeholder="https://... or uploads/filename.jpg"
+                           style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;">
+                    <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Leave blank to keep current. Used only if no file uploaded.</div>
+                  </div>
+                </div>
               </div>
+
               <div class="form-group span-2">
                 <label>Description</label>
                 <textarea name="description" rows="4"><?=e($product['description'])?></textarea>
@@ -98,10 +153,10 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
           </form>
         </div>
 
-        <!-- Preview -->
+        <!-- Live Preview -->
         <div class="card" style="padding:20px;">
-          <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Preview</div>
-          <img src="<?=!empty($product['image_url'])?e($product['image_url']):'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=80'?>"
+          <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Current Image</div>
+          <img id="editPreview" src="<?=e($previewSrc)?>"
                style="width:100%;border-radius:8px;object-fit:cover;height:200px;background:var(--navy2);">
           <div style="margin-top:14px;">
             <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">ID: #<?=$pid?></div>
@@ -115,6 +170,17 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
     </div>
   </main>
 </div>
+
+<script>
+function updatePreview(input){
+    const preview = document.getElementById('editPreview');
+    if(input.files && input.files[0]){
+        const reader = new FileReader();
+        reader.onload = e => preview.src = e.target.result;
+        reader.readAsDataURL(input.files[0]);
+        document.getElementById('editImgUrl').value = '';
+    }
+}
+</script>
 </body>
 </html>
-

@@ -1,5 +1,4 @@
 <?php
-// Use the new auth check instead of old method
 require_once 'auth_check.php';
 
 $msg = ''; $mtype = 'ok';
@@ -20,13 +19,38 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     $stock       = (int)($_POST['stock']       ?? 0);
     $image_url   = trim($_POST['image_url']    ?? '');
 
-    if(!$name || !$description || !$category_id || $price <= 0){
-        $msg = "All fields are required and price must be > 0."; $mtype='err';
-    } else {
-        $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,price,stock,image_url) VALUES (?,?,?,?,?,?)");
-        $stmt->bind_param("ssidis",$name,$description,$category_id,$price,$stock,$image_url);
-        $stmt->execute();
-        header("Location: admin_products.php?msg=Product+added+successfully."); exit;
+    // Handle file upload — takes priority over URL if file is chosen
+    if(!empty($_FILES['image_file']['name'])){
+        $file    = $_FILES['image_file'];
+        $allowed = ['jpg','jpeg','png','gif','webp'];
+        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $maxSize = 5 * 1024 * 1024; // 5MB
+
+        if(!in_array($ext, $allowed)){
+            $msg = "Image must be JPG, PNG, GIF or WEBP."; $mtype='err';
+        } elseif($file['size'] > $maxSize){
+            $msg = "Image must be under 5MB."; $mtype='err';
+        } else {
+            $filename  = 'product_' . time() . '_' . preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
+            $uploadDir = dirname(__DIR__) . '/uploads/';
+            if(!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+            if(move_uploaded_file($file['tmp_name'], $uploadDir . $filename)){
+                $image_url = 'uploads/' . $filename;
+            } else {
+                $msg = "Upload failed. Check folder permissions on uploads/."; $mtype='err';
+            }
+        }
+    }
+
+    if(!$msg){
+        if(!$name || !$description || !$category_id || $price <= 0){
+            $msg = "Name, description, category and price are required."; $mtype='err';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,price,stock,image_url) VALUES (?,?,?,?,?,?)");
+            $stmt->bind_param("ssidis",$name,$description,$category_id,$price,$stock,$image_url);
+            $stmt->execute();
+            header("Location: admin_products.php?msg=Product+added+successfully."); exit;
+        }
     }
 }
 
@@ -62,7 +86,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
       <!-- Add Form -->
       <div class="card a-form" style="max-width:100%;margin-bottom:24px;">
         <h2>ADD NEW PRODUCT</h2>
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
           <div class="form-grid-2">
             <div class="form-group">
               <label>Product Name *</label>
@@ -85,10 +109,38 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
               <label>Total Stock Qty *</label>
               <input type="number" name="stock" min="0" placeholder="50" required>
             </div>
+
+            <!-- IMAGE: Upload file OR paste URL -->
             <div class="form-group span-2">
-              <label>Image URL</label>
-              <input type="url" name="image_url" placeholder="https://images.unsplash.com/...">
+              <label>Product Image</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+
+                <!-- Option A: Upload from computer -->
+                <div style="background:rgba(100,255,218,.04);border:1px dashed rgba(100,255,218,.3);border-radius:var(--radius);padding:16px;">
+                  <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;font-weight:600;">
+                    ✅ Option A — Upload From Computer
+                  </div>
+                  <input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"
+                         style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;"
+                         onchange="previewImg(this)">
+                  <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">JPG, PNG, GIF, WEBP — max 5MB</div>
+                  <img id="imgPreview" src="" alt="" style="display:none;margin-top:10px;max-width:100%;height:100px;object-fit:contain;border-radius:6px;border:1px solid var(--border);">
+                </div>
+
+                <!-- Option B: Paste URL -->
+                <div style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+                  <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:600;">
+                    Option B — Paste Image URL
+                  </div>
+                  <input type="text" name="image_url" id="imageUrlInput"
+                         placeholder="https://images.unsplash.com/..."
+                         style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;">
+                  <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Used only if no file is uploaded above.</div>
+                </div>
+
+              </div>
             </div>
+
             <div class="form-group span-2">
               <label>Description *</label>
               <textarea name="description" rows="3" placeholder="Describe the shoe..." required></textarea>
@@ -108,11 +160,15 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
             </tr>
           </thead>
           <tbody>
-            <?php $products->data_seek(0); while($p=$products->fetch_assoc()): ?>
+            <?php $products->data_seek(0); while($p=$products->fetch_assoc()):
+              // Handle both local paths and full URLs
+              $imgSrc = !empty($p['image_url'])
+                ? (str_starts_with($p['image_url'],'http') ? e($p['image_url']) : '../' . e($p['image_url']))
+                : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=60&q=60';
+            ?>
             <tr>
               <td>
-                <img src="<?=!empty($p['image_url'])?e($p['image_url']):'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=60&q=60'?>"
-                     alt="" style="width:52px;height:52px;border-radius:6px;object-fit:cover;">
+                <img src="<?=$imgSrc?>" alt="" style="width:52px;height:52px;border-radius:6px;object-fit:cover;">
               </td>
               <td style="font-weight:600;color:var(--white);"><?=e($p['name'])?></td>
               <td style="color:var(--muted);"><?=e($p['category_name']??'—')?></td>
@@ -139,5 +195,21 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
     </div>
   </main>
 </div>
+
+<script>
+function previewImg(input){
+    const preview = document.getElementById('imgPreview');
+    if(input.files && input.files[0]){
+        const reader = new FileReader();
+        reader.onload = e => {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(input.files[0]);
+        // Clear URL field when file is chosen
+        document.getElementById('imageUrlInput').value = '';
+    }
+}
+</script>
 </body>
 </html>

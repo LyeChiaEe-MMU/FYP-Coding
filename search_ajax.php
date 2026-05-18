@@ -35,9 +35,14 @@ $sql = "
 $result = $conn->query($sql);
 $out = [];
 while ($row = $result->fetch_assoc()) {
-    // Use a fallback image if none set
+    // Fix image path — local uploads need full URL, external URLs stay as-is
     if (empty($row['image'])) {
         $row['image'] = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&q=60';
+    } elseif (!str_starts_with($row['image'], 'http')) {
+        // Local file — build absolute URL so it works in the live search dropdown
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host     = $_SERVER['HTTP_HOST'];
+        $row['image'] = $protocol . '://' . $host . '/' . ltrim($row['image'], '/');
     }
     $out[] = $row;
 }
