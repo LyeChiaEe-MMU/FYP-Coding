@@ -37,7 +37,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if($row){
             $nq = $row['quantity'] + $quantity;
             $conn->prepare("UPDATE cart_items SET quantity=? WHERE cart_id=?")->bind_param("ii",$nq,$row['cart_id']);
-            $conn->execute();
             // simpler:
             $conn->query("UPDATE cart_items SET quantity=$nq WHERE cart_id=".$row['cart_id']);
         } else {

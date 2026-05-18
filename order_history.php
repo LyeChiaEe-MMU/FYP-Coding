@@ -6,7 +6,7 @@ if(!is_logged()){ header("Location: login.php"); exit; }
 $uid = (int)$_SESSION['user_id'];
 $orders = $conn->prepare("
     SELECT o.order_id, o.total_amount, o.status, o.order_date, o.shipping_address,
-           COUNT(oi.id) AS item_count
+           COUNT(oi.order_item_id) AS item_count
     FROM orders o
     LEFT JOIN order_items oi ON oi.order_id = o.order_id
     WHERE o.user_id = ?

@@ -70,8 +70,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <input type="tel" name="phone" placeholder="01xxxxxxxx" value="<?=e($_POST['phone']??'')?>" required>
           </div>
         </div>
-        <div class="form-group">
-        
         <div class="form-row">
           <div class="form-group">
             <label>Password</label>
