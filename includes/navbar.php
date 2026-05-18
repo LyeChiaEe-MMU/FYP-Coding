@@ -12,10 +12,10 @@ $q     = e($_GET['q'] ?? '');
     <a href="<?=$depth?>index.php" class="nav-logo" style="flex-shrink:0;">APE<span>X</span></a>
 
     <!-- ── Search Bar ── -->
-    <div id="searchWrap" style="flex:1;max-width:420px;position:relative;">
-      <form action="<?=$depth?>products.php" method="GET" id="searchForm" autocomplete="off">
-        <div style="position:relative;">
-          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;pointer-events:none;">🔍</span>
+    <div style="position:relative;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:.9rem;pointer-events:none;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
           <input
             type="text"
             name="q"
