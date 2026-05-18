@@ -9,9 +9,6 @@ $featured = $conn->query("
     JOIN categories c ON p.category_id = c.category_id
     ORDER BY p.created_at DESC LIMIT 8
 ");
-
-// Category counts
-$cats = $conn->query("SELECT c.category_name, COUNT(p.product_id) as cnt FROM categories c LEFT JOIN products p ON p.category_id=c.category_id GROUP BY c.category_id");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,10 +40,10 @@ $cats = $conn->query("SELECT c.category_name, COUNT(p.product_id) as cnt FROM ca
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
         <a href="products.php" class="btn btn-primary btn-lg">Shop All Styles</a>
-        <a href="products.php?cat=Running" class="btn btn-outline btn-lg">Running →</a>
+        <a href="products.php?gender=Men" class="btn btn-outline btn-lg">Men's →</a>
       </div>
       <div style="display:flex;gap:40px;margin-top:52px;padding-top:36px;border-top:1px solid var(--border);">
-        <?php foreach([['10+','Models'],['4','Categories'],['RM259','Starting From']] as $s): ?>
+        <?php foreach([['10+','Models'],['3','Collections'],['RM259','Starting From']] as $s): ?>
         <div>
           <div style="font-family:'Oswald',sans-serif;font-size:1.8rem;color:var(--accent);"><?=e($s[0])?></div>
           <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:3px;"><?=e($s[1])?></div>
@@ -57,38 +54,7 @@ $cats = $conn->query("SELECT c.category_name, COUNT(p.product_id) as cnt FROM ca
   </div>
 </section>
 
-<!-- Categories -->
-<section class="section" style="padding-bottom:0;">
-  <div class="wrap">
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-      <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,3vw,38px);letter-spacing:2px;color:var(--white);">SHOP BY <span style="color:var(--accent);">CATEGORY</span></h2>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:60px;">
-      <?php
-      $cat_imgs = [
-        'Running'   => ['https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&q=80','🏃'],
-        'Basketball'=> ['https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=500&q=80','🏀'],
-        'Training'  => ['https://images.unsplash.com/photo-1539185441755-769473a23570?w=500&q=80','💪'],
-        'Lifestyle' => ['https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=500&q=80','✨'],
-      ];
-      foreach($cat_imgs as $name=>[$img,$icon]): ?>
-      <a href="products.php?cat=<?=urlencode($name)?>"
-         style="position:relative;border-radius:10px;overflow:hidden;height:180px;display:block;border:1px solid var(--border);transition:.25s;"
-         onmouseover="this.style.borderColor='rgba(100,255,218,.5)';this.style.transform='translateY(-4px)'"
-         onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
-        <img src="<?=$img?>" alt="<?=e($name)?>" style="width:100%;height:100%;object-fit:cover;transition:transform .4s;">
-        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(10,25,47,.9) 0%,transparent 55%);"></div>
-        <div style="position:absolute;bottom:16px;left:16px;">
-          <div style="font-size:1.3rem;margin-bottom:3px;"><?=$icon?></div>
-          <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--white);"><?=e($name)?></div>
-        </div>
-      </a>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</section>
-
-<!-- Products -->
+<!-- New Arrivals -->
 <section class="section" style="background:rgba(17,34,64,.4);padding:60px 0;">
   <div class="wrap">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px;padding-bottom:16px;border-bottom:1px solid var(--border);">
