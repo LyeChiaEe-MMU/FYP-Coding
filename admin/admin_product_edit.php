@@ -1,7 +1,6 @@
 <?php
-session_start();
-require '../db.php';
-if(!is_admin()){ header("Location: admin_login.php"); exit; }
+// Use the new auth check instead of old method
+require_once 'auth_check.php';
 
 $pid = (int)($_GET['id'] ?? 0);
 $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
@@ -118,3 +117,4 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 </div>
 </body>
 </html>
+

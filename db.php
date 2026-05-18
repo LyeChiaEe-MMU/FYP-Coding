@@ -26,7 +26,11 @@ function cart_count($conn){
 }
 
 function is_logged(){ return !empty($_SESSION['user_id']); }
-function is_admin(){  return !empty($_SESSION['admin_id']); }
+
+// SIMPLE is_admin - only checks session
+function is_admin(){ 
+    return !empty($_SESSION['admin_id']);
+}
 
 function status_badge($status){
     $map=['Processing'=>'st-processing','Shipped'=>'st-shipped','Completed'=>'st-completed','Cancelled'=>'st-cancelled'];

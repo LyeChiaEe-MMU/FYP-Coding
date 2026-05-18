@@ -1,7 +1,6 @@
 <?php
-session_start();
-require '../db.php';
-if(!is_admin()){ header("Location: admin_login.php"); exit; }
+// Use the new auth check instead of old method
+require_once 'auth_check.php';
 
 $customers = $conn->query("
     SELECT u.*,

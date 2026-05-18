@@ -1,7 +1,6 @@
 <?php
-session_start();
-require '../db.php';
-if(!is_admin()){ header("Location: admin_login.php"); exit; }
+// Use the new auth check instead of old method
+require_once 'auth_check.php';
 
 $msg = '';
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
@@ -29,7 +28,7 @@ $where  = $filter ? "WHERE o.status='".$conn->real_escape_string($filter)."'" : 
 
 $orders = $conn->query("
     SELECT o.*, u.name AS customer_name, u.email,
-           COUNT(oi.id) AS item_count
+           COUNT(oi.order_item_id) AS item_count
     FROM orders o
     JOIN users u ON o.user_id=u.user_id
     LEFT JOIN order_items oi ON oi.order_id=o.order_id

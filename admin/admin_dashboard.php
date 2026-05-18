@@ -1,7 +1,5 @@
 <?php
-session_start();
-require '../db.php';
-if(!is_admin()){ header("Location: admin_login.php"); exit; }
+require_once 'auth_check.php';
 
 $total_sales     = $conn->query("SELECT COALESCE(SUM(total_amount),0) AS s FROM orders WHERE status != 'Cancelled'")->fetch_assoc()['s'];
 $total_orders    = $conn->query("SELECT COUNT(*) AS c FROM orders")->fetch_assoc()['c'];
