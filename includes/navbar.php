@@ -16,7 +16,7 @@ $q     = e($_GET['q'] ?? '');
       <form action="<?=$depth?>products.php" method="GET" id="searchForm" autocomplete="off">
         <div style="position:relative;">
           <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:1rem;pointer-events:none;">
-            <i class="fa-brands fa-sistrix"></i>
+            <i class="fa-solid fa-magnifying-glass"></i>
           </span>
           <input
             type="text"
@@ -100,7 +100,7 @@ function liveSearch(val) {
                    style="display:block;text-align:center;padding:11px;font-size:.82rem;color:var(--accent);font-weight:600;letter-spacing:1px;border-top:1px solid var(--border);text-decoration:none;transition:background .15s;"
                    onmouseover="this.style.background='rgba(100,255,218,.06)'"
                    onmouseout="this.style.background='transparent'">
-                   <i class="fa-brands fa-sistrix"></i> See all results for "${q.replace(/</g,'&lt;')}"
+                   <i class="fa-solid fa-magnifying-glass"></i> See all results for "${q.replace(/</g,'&lt;')}"
                 </a>`;
                 drop.style.display = 'block';
             });
