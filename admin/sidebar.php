@@ -23,6 +23,9 @@ $pg = basename($_SERVER['PHP_SELF']);
   <a href="admin_customers.php" class="sidebar-link <?=$pg==='admin_customers.php'?'active':''?>">
     👥 &nbsp; Customers
   </a>
+  <a href="admin_requests.php" class="sidebar-link <?=$pg==='admin_requests.php'?'active':''?>">
+    ✏️ &nbsp; Design Requests
+  </a>
 
   <div class="sidebar-section">Account</div>
   <a href="../index.php" class="sidebar-link">🏠 &nbsp; View Store</a>

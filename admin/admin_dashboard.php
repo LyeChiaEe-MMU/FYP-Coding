@@ -5,6 +5,7 @@ $total_sales     = $conn->query("SELECT COALESCE(SUM(total_amount),0) AS s FROM 
 $total_orders    = $conn->query("SELECT COUNT(*) AS c FROM orders")->fetch_assoc()['c'];
 $total_customers = $conn->query("SELECT COUNT(*) AS c FROM users")->fetch_assoc()['c'];
 $total_products  = $conn->query("SELECT COUNT(*) AS c FROM products")->fetch_assoc()['c'];
+$pending_designs = $conn->query("SELECT COUNT(*) AS c FROM design_requests WHERE status='Pending'")->fetch_assoc()['c'];
 
 $recent_orders = $conn->query("
     SELECT o.order_id, u.name, o.total_amount, o.status, o.order_date
@@ -55,6 +56,11 @@ $by_status = $conn->query("SELECT status, COUNT(*) AS cnt FROM orders GROUP BY s
           <div class="kpi-label">Products</div>
           <div class="kpi-value"><?=$total_products?></div>
           <div class="kpi-sub"><a href="admin_products.php" style="color:var(--accent);">Manage →</a></div>
+        </div>
+        <div class="kpi-card" style="<?=$pending_designs>0?'border-color:rgba(255,200,0,.4);':''?>">
+          <div class="kpi-label">Design Requests</div>
+          <div class="kpi-value" style="<?=$pending_designs>0?'color:#ffc800':''?>"><?=$pending_designs?></div>
+          <div class="kpi-sub"><a href="admin_requests.php?filter=Pending" style="color:var(--accent);">Pending Review →</a></div>
         </div>
       </div>
 

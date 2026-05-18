@@ -50,8 +50,10 @@ $q     = e($_GET['q'] ?? '');
     <ul class="nav-links" id="navLinks">
       <li><a href="<?=$depth?>index.php"    class="<?=$pg==='index.php'   ?'active':''?>">Home</a></li>
       <li><a href="<?=$depth?>products.php" class="<?=$pg==='products.php'?'active':''?>">Shop</a></li>
+      <li><a href="<?=$depth?>leaderboard.php" class="<?=$pg==='leaderboard.php'?'active':''?>">🏆 Leaderboard</a></li>
       <?php if (is_logged()): ?>
         <li><a href="<?=$depth?>order_history.php" class="<?=$pg==='order_history.php'?'active':''?>">My Orders</a></li>
+        <li><a href="<?=$depth?>design_request.php" class="<?=$pg==='design_request.php'?'active':''?>">✏️ Design</a></li>
         <li><a href="<?=$depth?>logout.php">Logout</a></li>
       <?php else: ?>
         <li><a href="<?=$depth?>login.php"    class="<?=$pg==='login.php'   ?'active':''?>">Login</a></li>

@@ -21,12 +21,15 @@
           <li><a href="<?=$depth?>login.php">Login</a></li>
           <li><a href="<?=$depth?>register.php">Register</a></li>
           <li><a href="<?=$depth?>order_history.php">My Orders</a></li>
+          <li><a href="<?=$depth?>design_request.php">Design Your Shoe</a></li>
+          <li><a href="<?=$depth?>my_requests.php">My Requests</a></li>
           <li><a href="<?=$depth?>cart.php">Cart</a></li>
         </ul>
       </div>
       <div class="footer-col">
-        <h4>Info</h4>
+        <h4>Discover</h4>
         <ul>
+          <li><a href="<?=$depth?>leaderboard.php">🏆 Leaderboard</a></li>
           <li><a href="<?=$depth?>about.php">About Apex</a></li>
           <li><a href="<?=$depth?>size_guide.php">Size Guide</a></li>
           <li><a href="<?=$depth?>returns.php">Returns Policy</a></li>
