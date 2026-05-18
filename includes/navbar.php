@@ -17,6 +17,7 @@ $q     = e($_GET['q'] ?? '');
         <div style="position:relative;">
           <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:1rem;pointer-events:none;">
             <i class="fa-brands fa-sistrix"></i>
+          </span>
           <input
             type="text"
             name="q"
@@ -89,7 +90,7 @@ function liveSearch(val) {
                        onmouseout="this.style.background='transparent'">
                         <img src="${p.image}" style="width:46px;height:46px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--navy3);">
                         <div style="flex:1;min-width:0;">
-                            <div style="font-size:.88rem;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${highlight(p.name, '${q.replace(/'/g,"\\'")}')}</div>
+                            <div style="font-size:.88rem;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${highlight(p.name, q)}</div>
                             <div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${p.category}</div>
                         </div>
                         <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--accent);flex-shrink:0;">RM ${parseFloat(p.price).toFixed(2)}</div>
