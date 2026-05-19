@@ -27,11 +27,19 @@ if($tbl_check->num_rows > 0){
     $images = $img_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
-// Fallback: just the main image
-if(empty($images)){
-    $fb = !empty($product['image_url']) ? $product['image_url'] : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
-    $images = [['image_url' => $fb, 'color_name' => '']];
+// ALWAYS put main product image as FIRST slide
+$main_img = !empty($product['image_url']) ? $product['image_url'] : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
+array_unshift($images, ['image_url' => $main_img, 'color_name' => '']);
+
+// Remove duplicates (if main image was also added as variant)
+$seen = []; $unique = [];
+foreach($images as $img){
+    if(!in_array($img['image_url'], $seen)){
+        $seen[]   = $img['image_url'];
+        $unique[] = $img;
+    }
 }
+$images = $unique;
 
 $flash = ''; $ftype = '';
 if(isset($_SESSION['cart_msg'])){
@@ -88,9 +96,9 @@ if(isset($_SESSION['cart_msg'])){
 .thumb-img.on{border-color:var(--accent)}
 
 /* ── UK Size Buttons ── */
-.uk-size-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.uk-size-grid{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
 .uk-btn{
-    min-width:54px;height:54px;
+    width:48px;height:48px;
     border-radius:var(--radius);
     border:1px solid var(--border);
     background:var(--navy2);
@@ -98,13 +106,13 @@ if(isset($_SESSION['cart_msg'])){
     cursor:pointer;transition:all .2s;
     display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:1px;
-    padding:0 8px;
+    padding:0;flex-shrink:0;
 }
 .uk-btn:hover:not(.oos){border-color:var(--accent);color:var(--white);background:rgba(100,255,218,.08)}
 .uk-btn.active{background:var(--accent);border-color:var(--accent);color:var(--navy);font-weight:700}
 .uk-btn.oos{opacity:.35;cursor:not-allowed;text-decoration:line-through;border-style:dashed}
-.uk-num{font-size:.9rem;font-weight:700;line-height:1}
-.uk-lbl{font-size:.52rem;letter-spacing:1px;text-transform:uppercase;opacity:.7}
+.uk-num{font-size:.82rem;font-weight:700;line-height:1}
+.uk-lbl{font-size:.48rem;letter-spacing:.5px;text-transform:uppercase;opacity:.65}
 </style>
 </head>
 <body>
@@ -241,8 +249,15 @@ if(isset($_SESSION['cart_msg'])){
 <?php include 'includes/footer.php'; ?>
 
 <script>
-// Slider
-const imgs = <?=json_encode(array_values($images))?>;
+// Build images array — fix local paths to include full relative path from root
+const imgs = <?php
+    $js_imgs = array_map(function($img){
+        $url = $img['image_url'];
+        // Local path stays as-is — browser resolves from site root
+        return ['image_url' => $url, 'color_name' => $img['color_name'] ?? ''];
+    }, $images);
+    echo json_encode(array_values($js_imgs));
+?>;
 let cur = 0;
 
 function goTo(i){
@@ -255,10 +270,10 @@ function goTo(i){
     const nextBtn = document.getElementById('nextBtn');
 
     mainImg.style.opacity = '0';
-    setTimeout(()=>{ mainImg.src = imgs[cur].image_url; mainImg.style.opacity = '1'; }, 220);
+    setTimeout(()=>{ mainImg.src = imgs[cur].image_url; mainImg.style.opacity = '1'; }, 200);
 
     if(counter)  counter.textContent = (cur+1) + ' / ' + imgs.length;
-    if(colorLbl && imgs[cur].color_name) colorLbl.textContent = imgs[cur].color_name;
+    if(colorLbl){ colorLbl.textContent = imgs[cur].color_name || '—'; }
     if(prevBtn)  prevBtn.disabled = (cur === 0);
     if(nextBtn)  nextBtn.disabled = (cur === imgs.length - 1);
 
