@@ -297,7 +297,7 @@ $mega = [
         <a href="<?=$depth?>register.php" class="<?=$pg==='register.php'?'on':''?>">Register</a>
       <?php endif; ?>
       <a href="<?=$depth?>cart.php" class="apex-cart <?=$pg==='cart.php'?'on':''?>">
-        🛒&nbsp;Cart
+        <i class="fa-solid fa-cart-shopping"></i>&nbsp;Cart
         <?php if($cc>0): ?><span class="apex-cbadge"><?=$cc?></span><?php endif; ?>
       </a>
     </div>
@@ -365,7 +365,7 @@ $mega = [
 
       <!-- Static links -->
       <a href="<?=$depth?>products.php" class="mni-link <?=$pg==='products.php'&&empty($_GET['gender'])?'on':''?>">SHOP ALL</a>
-      <a href="<?=$depth?>leaderboard.php" class="mni-link <?=$pg==='leaderboard.php'?'on':''?>">🏆 LEADERBOARD</a>
+      <a href="<?=$depth?>leaderboard.php" class="mni-link <?=$pg==='leaderboard.php'?'on':''?>"><i class="fa-solid fa-ranking-star"></i> LEADERBOARD</a>
 
     </div>
   </nav>
@@ -391,7 +391,7 @@ $mega = [
   <a href="<?=$depth?>products.php?gender=Kids&cat=Lifestyle">  › Lifestyle</a>
   <div class="mob-group">More</div>
   <a href="<?=$depth?>products.php">Shop All</a>
-  <a href="<?=$depth?>leaderboard.php">🏆 Leaderboard</a>
+  <a href="<?=$depth?>leaderboard.php"><i class="fa-solid fa-ranking-star"></i> Leaderboard</a>
   <?php if(is_logged()): ?>
     <a href="<?=$depth?>order_history.php">My Orders</a>
     <a href="<?=$depth?>design_request.php">✏️ Design Your Shoe</a>
@@ -401,7 +401,7 @@ $mega = [
     <a href="<?=$depth?>register.php">Register</a>
   <?php endif; ?>
   <a href="<?=$depth?>cart.php" class="apex-cart" style="justify-content:center;margin-top:6px;border-radius:var(--radius);">
-    🛒 Cart <?php if($cc>0): ?><span class="apex-cbadge"><?=$cc?></span><?php endif; ?>
+    <i class="fa-solid fa-cart-shopping"></i> Cart <?php if($cc>0): ?><span class="apex-cbadge"><?=$cc?></span><?php endif; ?>
   </a>
 </div>
 
