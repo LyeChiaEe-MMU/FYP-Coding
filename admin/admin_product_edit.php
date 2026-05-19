@@ -5,73 +5,130 @@ $pid     = (int)($_GET['id'] ?? 0);
 $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
 if(!$product){ header("Location: admin_products.php"); exit; }
 
+// Ensure product_images table exists
+$conn->query("CREATE TABLE IF NOT EXISTS `product_images` (
+    `image_id`   int(11) NOT NULL AUTO_INCREMENT,
+    `product_id` int(11) NOT NULL,
+    `image_url`  varchar(300) NOT NULL,
+    `color_name` varchar(80) DEFAULT NULL,
+    `sort_order` int(11) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`image_id`),
+    KEY `product_id` (`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // Handle delete variant image
 if(isset($_GET['del_img'])){
     $iid = (int)$_GET['del_img'];
-    $tbl = $conn->query("SHOW TABLES LIKE 'product_images'");
-    if($tbl->num_rows > 0){
-        $row = $conn->query("SELECT image_url FROM product_images WHERE image_id=$iid")->fetch_assoc();
-        if($row && !str_starts_with($row['image_url'],'http')){
-            $fp = dirname(__DIR__) . '/' . $row['image_url'];
-            if(file_exists($fp)) unlink($fp);
-        }
-        $conn->query("DELETE FROM product_images WHERE image_id=$iid AND product_id=$pid");
+    $row = $conn->query("SELECT image_url FROM product_images WHERE image_id=$iid AND product_id=$pid")->fetch_assoc();
+    if($row && !str_starts_with($row['image_url'],'http')){
+        $fp = dirname(__DIR__) . '/' . $row['image_url'];
+        if(file_exists($fp)) unlink($fp);
     }
+    $conn->query("DELETE FROM product_images WHERE image_id=$iid AND product_id=$pid");
     header("Location: admin_product_edit.php?id=$pid&msg=Image+removed."); exit;
 }
 
-$msg = ''; $mtype = 'ok';
+// Handle add variant image
+if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_variant'])){
+    $color_name  = trim($_POST['color_name']  ?? '');
+    $variant_url = trim($_POST['variant_url'] ?? '');
+    $image_url   = $variant_url;
 
-if($_SERVER['REQUEST_METHOD']==='POST'){
+    if(!empty($_FILES['variant_image']['name'])){
+        $file    = $_FILES['variant_image'];
+        $allowed = ['jpg','jpeg','png','gif','webp'];
+        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        if(in_array($ext,$allowed) && $file['size'] <= 5*1024*1024){
+            $filename  = 'variant_'.$pid.'_'.time().'.'.$ext;
+            $uploadDir = dirname(__DIR__).'/uploads/';
+            if(!is_dir($uploadDir)) mkdir($uploadDir,0755,true);
+            if(move_uploaded_file($file['tmp_name'],$uploadDir.$filename)){
+                $image_url = 'uploads/'.$filename;
+            }
+        }
+    }
+    if($image_url){
+        $max  = $conn->query("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM product_images WHERE product_id=$pid")->fetch_assoc()['n'];
+        $stmt = $conn->prepare("INSERT INTO product_images (product_id,image_url,color_name,sort_order) VALUES (?,?,?,?)");
+        $stmt->bind_param("issi",$pid,$image_url,$color_name,$max);
+        $stmt->execute();
+    }
+    header("Location: admin_product_edit.php?id=$pid&msg=Variant+added."); exit;
+}
+
+// Handle delete size
+if(isset($_GET['del_size'])){
+    $sid = (int)$_GET['del_size'];
+    $conn->query("DELETE FROM product_size WHERE size_id=$sid AND product_id=$pid");
+    header("Location: admin_product_edit.php?id=$pid&msg=Size+removed."); exit;
+}
+
+// Handle add size
+if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_size'])){
+    $sz  = trim($_POST['new_size']  ?? '');
+    $stk = (int)($_POST['new_stock'] ?? 0);
+    if($sz){
+        // Check if size already exists
+        $chk = $conn->prepare("SELECT size_id FROM product_size WHERE product_id=? AND size=?");
+        $chk->bind_param("is",$pid,$sz); $chk->execute();
+        if($chk->get_result()->num_rows > 0){
+            $upd = $conn->prepare("UPDATE product_size SET stock_for_size=? WHERE product_id=? AND size=?");
+            $upd->bind_param("iis",$stk,$pid,$sz); $upd->execute();
+        } else {
+            $ins = $conn->prepare("INSERT INTO product_size (product_id,size,stock_for_size) VALUES (?,?,?)");
+            $ins->bind_param("isi",$pid,$sz,$stk); $ins->execute();
+        }
+    }
+    header("Location: admin_product_edit.php?id=$pid&msg=Size+saved."); exit;
+}
+
+// Handle main product update
+$msg = ''; $mtype = 'ok';
+if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     $name        = trim($_POST['name']        ?? '');
     $description = trim($_POST['description'] ?? '');
     $category_id = (int)($_POST['category_id'] ?? 0);
-    $price       = floatval($_POST['price']    ?? 0);
-    $stock       = (int)($_POST['stock']       ?? 0);
-    $image_url   = trim($_POST['image_url']    ?? $product['image_url']);
+    $price       = floatval($_POST['price']   ?? 0);
+    $stock       = (int)($_POST['stock']      ?? 0);
+    $image_url   = trim($_POST['image_url']   ?? $product['image_url']);
 
-    // Handle file upload — takes priority over URL if file chosen
     if(!empty($_FILES['image_file']['name'])){
         $file    = $_FILES['image_file'];
         $allowed = ['jpg','jpeg','png','gif','webp'];
         $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $maxSize = 5 * 1024 * 1024;
-
-        if(!in_array($ext, $allowed)){
-            $msg = "Image must be JPG, PNG, GIF or WEBP."; $mtype='err';
-        } elseif($file['size'] > $maxSize){
-            $msg = "Image must be under 5MB."; $mtype='err';
-        } else {
-            $filename  = 'product_' . time() . '_' . preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
-            $uploadDir = dirname(__DIR__) . '/uploads/';
-            if(!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-            if(move_uploaded_file($file['tmp_name'], $uploadDir . $filename)){
-                $image_url = 'uploads/' . $filename;
-            } else {
-                $msg = "Upload failed. Check folder permissions on uploads/."; $mtype='err';
+        if(in_array($ext,$allowed) && $file['size'] <= 5*1024*1024){
+            $filename  = 'product_'.time().'_'.preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
+            $uploadDir = dirname(__DIR__).'/uploads/';
+            if(!is_dir($uploadDir)) mkdir($uploadDir,0755,true);
+            if(move_uploaded_file($file['tmp_name'],$uploadDir.$filename)){
+                $image_url = 'uploads/'.$filename;
             }
         }
     }
 
-    if(!$msg){
-        if(!$name || $price<=0){
-            $msg = "Name and price are required."; $mtype='err';
-        } else {
-            $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,price=?,stock=?,image_url=? WHERE product_id=?");
-            $stmt->bind_param("ssidisi",$name,$description,$category_id,$price,$stock,$image_url,$pid);
-            $stmt->execute();
-            $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
-            $msg = "Product updated successfully.";
-        }
+    if(!$name || $price<=0){
+        $msg = "Name and price are required."; $mtype='err';
+    } else {
+        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,price=?,stock=?,image_url=? WHERE product_id=?");
+        $stmt->bind_param("ssidisi",$name,$description,$category_id,$price,$stock,$image_url,$pid);
+        $stmt->execute();
+        $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
+        $msg = "Product updated successfully.";
     }
 }
 
-$categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
+$msg   = $msg   ?: ($_GET['msg']   ?? '');
+$mtype = $mtype ?: 'ok';
 
-// Build image src for preview
+$categories  = $conn->query("SELECT * FROM categories ORDER BY category_name");
+$var_images  = $conn->query("SELECT * FROM product_images WHERE product_id=$pid ORDER BY sort_order");
+$prod_sizes  = $conn->query("SELECT * FROM product_size WHERE product_id=$pid ORDER BY CAST(size AS DECIMAL)");
+
 $previewSrc = !empty($product['image_url'])
-    ? (str_starts_with($product['image_url'],'http') ? $product['image_url'] : '../' . $product['image_url'])
+    ? (str_starts_with($product['image_url'],'http') ? $product['image_url'] : '../'.$product['image_url'])
     : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=80';
+
+$uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -96,88 +153,183 @@ $previewSrc = !empty($product['image_url'])
       <div class="flash flash-<?=$mtype?>"><?=e($msg)?></div>
       <?php endif; ?>
 
-      <div style="display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start;">
+      <div style="display:grid;grid-template-columns:1fr 280px;gap:24px;align-items:start;">
 
-        <!-- Form -->
-        <div class="card a-form">
-          <h2>EDITING: <?=e($product['name'])?></h2>
-          <form method="POST" enctype="multipart/form-data">
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label>Product Name *</label>
-                <input type="text" name="name" value="<?=e($product['name'])?>" required>
-              </div>
-              <div class="form-group">
-                <label>Category</label>
-                <select name="category_id">
-                  <?php while($c=$categories->fetch_assoc()): ?>
-                  <option value="<?=(int)$c['category_id']?>" <?=$product['category_id']==$c['category_id']?'selected':''?>>
-                    <?=e($c['category_name'])?>
-                  </option>
-                  <?php endwhile; ?>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Price (RM) *</label>
-                <input type="number" name="price" step="0.01" min="0.01" value="<?=e($product['price'])?>" required>
-              </div>
-              <div class="form-group">
-                <label>Stock Quantity</label>
-                <input type="number" name="stock" min="0" value="<?=(int)$product['stock']?>">
-              </div>
-
-              <!-- IMAGE: Upload or URL -->
-              <div class="form-group span-2">
-                <label>Product Image</label>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-
-                  <!-- Upload -->
-                  <div style="background:rgba(100,255,218,.04);border:1px dashed rgba(100,255,218,.3);border-radius:var(--radius);padding:16px;">
-                    <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;font-weight:600;">
-                      ✅ Upload New Image
+        <!-- ── Main Edit Form ── -->
+        <div>
+          <div class="card a-form" style="margin-bottom:20px;">
+            <h2>PRODUCT DETAILS</h2>
+            <form method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="update_product" value="1">
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label>Product Name *</label>
+                  <input type="text" name="name" value="<?=e($product['name'])?>" required>
+                </div>
+                <div class="form-group">
+                  <label>Category</label>
+                  <select name="category_id">
+                    <?php while($c=$categories->fetch_assoc()): ?>
+                    <option value="<?=(int)$c['category_id']?>" <?=$product['category_id']==$c['category_id']?'selected':''?>>
+                      <?=e($c['category_name'])?>
+                    </option>
+                    <?php endwhile; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Price (RM) *</label>
+                  <input type="number" name="price" step="0.01" min="0.01" value="<?=e($product['price'])?>" required>
+                </div>
+                <div class="form-group">
+                  <label>Total Stock</label>
+                  <input type="number" name="stock" min="0" value="<?=(int)$product['stock']?>">
+                </div>
+                <div class="form-group span-2">
+                  <label>Main Product Image</label>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div style="background:rgba(100,255,218,.04);border:1px dashed rgba(100,255,218,.3);border-radius:var(--radius);padding:14px;">
+                      <div style="font-size:.68rem;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:8px;">✅ Upload File</div>
+                      <input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"
+                             style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:.82rem;"
+                             onchange="prevMain(this)">
                     </div>
-                    <input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"
-                           style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;"
-                           onchange="updatePreview(this)">
-                    <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Replaces current image. Max 5MB.</div>
-                  </div>
-
-                  <!-- URL -->
-                  <div style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
-                    <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:600;">
-                      Or Keep / Change URL
+                    <div style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+                      <div style="font-size:.68rem;letter-spacing:2px;color:var(--muted);font-weight:700;margin-bottom:8px;">Or URL</div>
+                      <input type="text" name="image_url" id="editImgUrl"
+                             value="<?=e($product['image_url'])?>"
+                             placeholder="https://... or uploads/filename.jpg"
+                             style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:.82rem;">
                     </div>
-                    <input type="text" name="image_url" id="editImgUrl"
-                           value="<?=e($product['image_url'])?>"
-                           placeholder="https://... or uploads/filename.jpg"
-                           style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;">
-                    <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Leave blank to keep current. Used only if no file uploaded.</div>
                   </div>
                 </div>
+                <div class="form-group span-2">
+                  <label>Description</label>
+                  <textarea name="description" rows="4"><?=e($product['description'])?></textarea>
+                </div>
               </div>
+              <button type="submit" class="btn btn-primary" style="margin-top:8px;">SAVE CHANGES</button>
+              <a href="admin_products.php" class="btn btn-secondary" style="margin-left:10px;">Cancel</a>
+            </form>
+          </div>
 
-              <div class="form-group span-2">
-                <label>Description</label>
-                <textarea name="description" rows="4"><?=e($product['description'])?></textarea>
+          <!-- ── UK SIZE MANAGEMENT ── -->
+          <div class="card a-form" style="margin-bottom:20px;">
+            <h2>UK SIZE STOCK</h2>
+
+            <!-- Existing sizes -->
+            <?php if($prod_sizes->num_rows > 0): ?>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+              <?php while($sz=$prod_sizes->fetch_assoc()): ?>
+              <div style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;text-align:center;position:relative;min-width:70px;">
+                <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;color:<?=$sz['stock_for_size']>0?'var(--white)':'var(--danger)'?>;">
+                  UK <?=e($sz['size'])?>
+                </div>
+                <div style="font-size:.72rem;color:var(--muted);"><?=(int)$sz['stock_for_size']?> pairs</div>
+                <a href="admin_product_edit.php?id=<?=$pid?>&del_size=<?=(int)$sz['size_id']?>"
+                   onclick="return confirm('Remove UK <?=e($sz['size'])?>?')"
+                   style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;text-decoration:none;">✕</a>
               </div>
+              <?php endwhile; ?>
             </div>
-            <div style="display:flex;gap:12px;margin-top:8px;">
-              <button type="submit" class="btn btn-primary">SAVE CHANGES</button>
-              <a href="admin_products.php" class="btn btn-secondary">Cancel</a>
+            <?php else: ?>
+            <p style="color:var(--muted);font-size:.875rem;margin-bottom:16px;">No sizes set yet. Add sizes below.</p>
+            <?php endif; ?>
+
+            <!-- Add size form -->
+            <form method="POST" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+              <input type="hidden" name="add_size" value="1">
+              <div class="form-group" style="margin:0;min-width:140px;">
+                <label>UK Size</label>
+                <select name="new_size" style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
+                  <option value="">-- Pick --</option>
+                  <?php foreach($uk_sizes as $s): ?>
+                  <option value="<?=$s?>">UK <?=$s?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0;min-width:120px;">
+                <label>Stock Qty</label>
+                <input type="number" name="new_stock" min="0" value="10"
+                       style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;">
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm" style="margin-bottom:0;">+ Add Size</button>
+            </form>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:10px;">
+              Adding an existing size will update its stock quantity.
             </div>
-          </form>
+          </div>
+
+          <!-- ── COLOUR VARIANT IMAGES ── -->
+          <div class="card a-form">
+            <h2>COLOUR VARIANT IMAGES</h2>
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:20px;">
+              Each variant image becomes a slide in the product gallery. Add one per colour.
+            </p>
+
+            <!-- Existing variants -->
+            <?php if($var_images->num_rows > 0): ?>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+              <?php while($vi=$var_images->fetch_assoc()):
+                $vsrc = str_starts_with($vi['image_url'],'http') ? e($vi['image_url']) : '../'.e($vi['image_url']);
+              ?>
+              <div style="text-align:center;position:relative;">
+                <img src="<?=$vsrc?>"
+                     style="width:90px;height:90px;border-radius:8px;object-fit:cover;border:1px solid var(--border);display:block;">
+                <div style="font-size:.7rem;color:var(--muted);margin-top:5px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                  <?=e($vi['color_name'] ?: 'Variant')?>
+                </div>
+                <a href="admin_product_edit.php?id=<?=$pid?>&del_img=<?=(int)$vi['image_id']?>"
+                   onclick="return confirm('Remove this variant image?')"
+                   style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.65rem;text-decoration:none;line-height:1;">✕</a>
+              </div>
+              <?php endwhile; ?>
+            </div>
+            <?php else: ?>
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:18px;">No variant images yet.</p>
+            <?php endif; ?>
+
+            <!-- Add variant form -->
+            <form method="POST" enctype="multipart/form-data" style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;">
+              <input type="hidden" name="add_variant" value="1">
+              <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;font-weight:600;">Add Colour Variant</div>
+              <div class="form-grid-2" style="gap:14px;">
+                <div class="form-group" style="margin:0;">
+                  <label>Colour Name</label>
+                  <input type="text" name="color_name" placeholder="e.g. Navy Blue, Red, Black"
+                         style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
+                </div>
+                <div class="form-group" style="margin:0;">
+                  <label>Upload Image File</label>
+                  <input type="file" name="variant_image" accept=".jpg,.jpeg,.png,.gif,.webp"
+                         style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:.82rem;"
+                         onchange="prevVariant(this)">
+                </div>
+                <div class="form-group span-2" style="margin:0;">
+                  <label>Or Paste Image URL</label>
+                  <input type="text" name="variant_url" placeholder="https://... (leave blank if uploading file)"
+                         style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;margin-top:14px;">
+                <button type="submit" class="btn btn-primary btn-sm">+ Add Variant</button>
+                <img id="variantPreview" src="" alt="" style="display:none;width:60px;height:60px;border-radius:6px;object-fit:cover;border:1px solid var(--border);">
+              </div>
+            </form>
+          </div>
         </div>
 
-        <!-- Live Preview -->
-        <div class="card" style="padding:20px;">
-          <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Current Image</div>
-          <img id="editPreview" src="<?=e($previewSrc)?>"
-               style="width:100%;border-radius:8px;object-fit:cover;height:200px;background:var(--navy2);">
-          <div style="margin-top:14px;">
-            <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">ID: #<?=$pid?></div>
-            <div style="font-weight:600;color:var(--white);margin-top:4px;"><?=e($product['name'])?></div>
-            <div style="font-family:'Oswald',sans-serif;font-size:1.4rem;color:var(--accent);margin-top:4px;">RM <?=number_format($product['price'],2)?></div>
-            <div style="font-size:.78rem;color:var(--muted);margin-top:4px;">Stock: <?=(int)$product['stock']?> pairs</div>
+        <!-- ── Right: Preview ── -->
+        <div style="position:sticky;top:90px;">
+          <div class="card" style="padding:20px;">
+            <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Preview</div>
+            <img id="editPreview" src="<?=e($previewSrc)?>"
+                 style="width:100%;border-radius:8px;object-fit:cover;height:180px;background:var(--navy2);">
+            <div style="margin-top:12px;">
+              <div style="font-size:.68rem;color:var(--muted);">ID: #<?=$pid?></div>
+              <div style="font-weight:600;color:var(--white);margin-top:3px;"><?=e($product['name'])?></div>
+              <div style="font-family:'Oswald',sans-serif;font-size:1.3rem;color:var(--accent);margin-top:3px;">RM <?=number_format($product['price'],2)?></div>
+              <div style="font-size:.78rem;color:var(--muted);margin-top:3px;">Stock: <?=(int)$product['stock']?> pairs</div>
+            </div>
           </div>
         </div>
 
@@ -187,13 +339,21 @@ $previewSrc = !empty($product['image_url'])
 </div>
 
 <script>
-function updatePreview(input){
-    const preview = document.getElementById('editPreview');
+function prevMain(input){
+    const p = document.getElementById('editPreview');
     if(input.files && input.files[0]){
-        const reader = new FileReader();
-        reader.onload = e => preview.src = e.target.result;
-        reader.readAsDataURL(input.files[0]);
+        const r = new FileReader();
+        r.onload = e => p.src = e.target.result;
+        r.readAsDataURL(input.files[0]);
         document.getElementById('editImgUrl').value = '';
+    }
+}
+function prevVariant(input){
+    const p = document.getElementById('variantPreview');
+    if(input.files && input.files[0]){
+        const r = new FileReader();
+        r.onload = e => { p.src = e.target.result; p.style.display='block'; };
+        r.readAsDataURL(input.files[0]);
     }
 }
 </script>

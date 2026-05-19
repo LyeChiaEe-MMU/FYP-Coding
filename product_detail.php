@@ -51,10 +51,11 @@ if(isset($_SESSION['cart_msg'])){
 .slider-wrap{
     position:relative;border-radius:14px;overflow:hidden;
     border:1px solid var(--border);background:var(--navy2);
-    aspect-ratio:1/1;
+    width:100%;max-width:520px;height:480px;
 }
 .slider-main{
-    width:100%;height:100%;object-fit:cover;display:block;
+    width:100%;height:100%;object-fit:contain;display:block;
+    padding:12px;
     transition:opacity .25s ease;
 }
 .sl-btn{
