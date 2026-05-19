@@ -113,6 +113,12 @@ if(isset($_SESSION['cart_msg'])){
 .uk-btn.oos{opacity:.35;cursor:not-allowed;text-decoration:line-through;border-style:dashed}
 .uk-num{font-size:.82rem;font-weight:700;line-height:1}
 .uk-lbl{font-size:.48rem;letter-spacing:.5px;text-transform:uppercase;opacity:.65}
+
+/* ── Colour Swatch Buttons ── */
+.color-swatch-btn:hover{border-color:rgba(100,255,218,.5)!important}
+.color-swatch-btn:hover span{color:var(--white)!important}
+.color-swatch-btn.color-active{border-color:var(--accent)!important;background:rgba(100,255,218,.08)!important}
+.color-swatch-btn.color-active span{color:var(--accent)!important;font-weight:600!important}
 </style>
 </head>
 <body>
@@ -179,6 +185,37 @@ if(isset($_SESSION['cart_msg'])){
       <input type="hidden" name="action" value="add">
       <input type="hidden" name="product_id" value="<?=$pid?>">
       <input type="hidden" name="size" id="sizeInput" value="">
+      <input type="hidden" name="color" id="colorInput" value="">
+
+      <!-- ── COLOUR SELECTOR ── -->
+      <?php
+      // Only show colour selector if there are named variants (skip the main image which has no color_name)
+      $named_variants = array_filter($images, fn($img) => !empty($img['color_name']));
+      if(!empty($named_variants)):
+      ?>
+      <div style="margin-bottom:22px;">
+        <div class="size-label" style="margin-bottom:10px;">
+          SELECT COLOUR:
+          <span id="colorSelectedLbl" style="color:var(--accent);font-weight:700;font-size:.8rem;margin-left:6px;text-transform:none;letter-spacing:0;">— None selected —</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <?php foreach($images as $idx => $img):
+            if(empty($img['color_name'])) continue;
+            $csrc = str_starts_with($img['image_url'],'http') ? e($img['image_url']) : e($img['image_url']);
+          ?>
+          <button type="button"
+            class="color-swatch-btn"
+            onclick="pickColor(this, <?=$idx?>, '<?=e(addslashes($img['color_name']))?>')"
+            title="<?=e($img['color_name'])?>"
+            style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:var(--radius);border:2px solid var(--border);background:var(--navy2);cursor:pointer;transition:all .2s;">
+            <img src="<?=$csrc?>" alt="<?=e($img['color_name'])?>"
+                 style="width:30px;height:30px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);">
+            <span style="font-size:.82rem;color:var(--muted);transition:color .2s;"><?=e($img['color_name'])?></span>
+          </button>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <?php endif; ?>
 
       <div class="size-label" style="margin-bottom:12px;">SELECT SIZE (UK)</div>
       <div class="uk-size-grid">
@@ -281,6 +318,17 @@ function goTo(i){
 }
 
 function slide(dir){ goTo(cur + dir); }
+
+// Colour selection — also jumps slider to that image
+function pickColor(btn, slideIdx, colorName){
+    document.querySelectorAll('.color-swatch-btn').forEach(b => b.classList.remove('color-active'));
+    btn.classList.add('color-active');
+    document.getElementById('colorInput').value = colorName;
+    const lbl = document.getElementById('colorSelectedLbl');
+    if(lbl) lbl.textContent = colorName;
+    // Jump slider to that colour's image
+    goTo(slideIdx);
+}
 
 // Size selection
 function pickSize(btn, size){

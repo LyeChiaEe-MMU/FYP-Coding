@@ -20,6 +20,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if($action==='add'){
         $product_id = (int)$_POST['product_id'];
         $size       = trim($_POST['size']);
+        $color      = trim($_POST['color'] ?? '');
         $quantity   = max(1,(int)$_POST['quantity']);
 
         if(!$size){
