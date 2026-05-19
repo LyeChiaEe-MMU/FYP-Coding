@@ -189,9 +189,10 @@ if(isset($_SESSION['cart_msg'])){
 
       <!-- ── COLOUR SELECTOR ── -->
       <?php
-      // Only show colour selector if there are named variants (skip the main image which has no color_name)
-      $named_variants = array_filter($images, fn($img) => !empty($img['color_name']));
-      if(!empty($named_variants)):
+      // Show colour selector if there are ANY variants (with or without color_name)
+      // Skip index 0 which is always the main image with no color_name
+      $variants_for_select = array_slice($images, 1);
+      if(!empty($variants_for_select)):
       ?>
       <div style="margin-bottom:22px;">
         <div class="size-label" style="margin-bottom:10px;">
@@ -199,18 +200,29 @@ if(isset($_SESSION['cart_msg'])){
           <span id="colorSelectedLbl" style="color:var(--accent);font-weight:700;font-size:.8rem;margin-left:6px;text-transform:none;letter-spacing:0;">— None selected —</span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <!-- Main / Default colour (index 0) -->
+          <button type="button"
+            class="color-swatch-btn"
+            onclick="pickColor(this, 0, 'Default')"
+            title="Default"
+            style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:var(--radius);border:2px solid var(--border);background:var(--navy2);cursor:pointer;transition:all .2s;">
+            <img src="<?=e($images[0]['image_url'])?>" alt="Default"
+                 style="width:30px;height:30px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);">
+            <span style="font-size:.82rem;color:var(--muted);transition:color .2s;">Default</span>
+          </button>
           <?php foreach($images as $idx => $img):
-            if(empty($img['color_name'])) continue;
-            $csrc = str_starts_with($img['image_url'],'http') ? e($img['image_url']) : e($img['image_url']);
+            if($idx === 0) continue; // already shown above
+            $csrc     = e($img['image_url']);
+            $clabel   = !empty($img['color_name']) ? e($img['color_name']) : 'Colour ' . $idx;
           ?>
           <button type="button"
             class="color-swatch-btn"
-            onclick="pickColor(this, <?=$idx?>, '<?=e(addslashes($img['color_name']))?>')"
-            title="<?=e($img['color_name'])?>"
+            onclick="pickColor(this, <?=$idx?>, '<?=addslashes($clabel)?>')"
+            title="<?=$clabel?>"
             style="display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:var(--radius);border:2px solid var(--border);background:var(--navy2);cursor:pointer;transition:all .2s;">
-            <img src="<?=$csrc?>" alt="<?=e($img['color_name'])?>"
+            <img src="<?=$csrc?>" alt="<?=$clabel?>"
                  style="width:30px;height:30px;border-radius:4px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);">
-            <span style="font-size:.82rem;color:var(--muted);transition:color .2s;"><?=e($img['color_name'])?></span>
+            <span style="font-size:.82rem;color:var(--muted);transition:color .2s;"><?=$clabel?></span>
           </button>
           <?php endforeach; ?>
         </div>

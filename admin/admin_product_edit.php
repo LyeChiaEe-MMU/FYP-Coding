@@ -59,6 +59,10 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_variant'])){
     $variant_url = trim($_POST['variant_url'] ?? '');
     $image_url   = $variant_url;
 
+    if(!$color_name){
+        header("Location: admin_product_edit.php?id=$pid&msg=Colour+name+is+required.&mtype=err"); exit;
+    }
+
     if(!empty($_FILES['variant_image']['name'])){
         $file    = $_FILES['variant_image'];
         $allowed = ['jpg','jpeg','png','gif','webp'];
@@ -291,8 +295,8 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
               <input type="hidden" name="add_variant" value="1">
               <div class="form-grid-2" style="gap:14px;">
                 <div class="form-group" style="margin:0;">
-                  <label>Colour Name (e.g. Red, Navy, White)</label>
-                  <input type="text" name="color_name" placeholder="e.g. Red / Gold"
+                  <label>Colour Name (e.g. Red, Navy, White) *</label>
+                  <input type="text" name="color_name" placeholder="e.g. Red / Gold" required
                          style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
                 </div>
                 <div class="form-group" style="margin:0;">
