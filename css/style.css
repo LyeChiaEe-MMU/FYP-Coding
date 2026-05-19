@@ -312,24 +312,24 @@ input,select,textarea,button { font-family:'Inter',sans-serif; }
 .register-form-head p { color:var(--muted); font-size:.9rem; }
 .register-mobile-logo { display:none; }
 
-/* ── Input with icon ── */
+/* ── Input with icon (higher specificity to override .form-group) ── */
 .input-icon-wrap { position:relative; }
-.input-icon-wrap > i:first-child { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:.85rem; pointer-events:none; }
-.input-icon-wrap input,
-.input-icon-wrap select {
+.input-icon-wrap > i:first-child { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:.85rem; pointer-events:none; z-index:1; }
+.form-group .input-icon-wrap input,
+.form-group .input-icon-wrap select {
     width:100%; padding:13px 16px 13px 42px;
     background:var(--navy2); border:1px solid var(--border);
     border-radius:var(--radius); color:var(--white); font-size:.9rem;
     transition:border-color .2s; outline:none;
 }
-.input-icon-wrap input:focus,
-.input-icon-wrap select:focus { border-color:var(--accent); }
-.input-icon-wrap input::placeholder { color:var(--muted); }
+.form-group .input-icon-wrap input:focus,
+.form-group .input-icon-wrap select:focus { border-color:var(--accent); }
+.form-group .input-icon-wrap input::placeholder { color:var(--muted); }
 
 /* ── Password toggle & rules ── */
 .pw-toggle {
     position:absolute; right:12px; top:50%; transform:translateY(-50%);
-    background:none; border:none; color:var(--muted); cursor:pointer; padding:4px; font-size:.9rem;
+    background:none; border:none; color:var(--muted); cursor:pointer; padding:4px; font-size:.9rem; z-index:1;
 }
 .pw-toggle:hover { color:var(--accent); }
 .pw-rules {
@@ -347,7 +347,7 @@ input,select,textarea,button { font-family:'Inter',sans-serif; }
 /* ── Shopping Preference Cards ── */
 .pref-options { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .pref-card { cursor:pointer; }
-.pref-card input { display:none; }
+.form-group .pref-card input[type="radio"] { display:none; }
 .pref-card-inner {
     display:flex; flex-direction:column; align-items:center; gap:8px;
     padding:18px 12px; background:var(--navy2); border:2px solid var(--border);
@@ -362,14 +362,14 @@ input,select,textarea,button { font-family:'Inter',sans-serif; }
 
 /* ── Date of Birth ── */
 .dob-row { display:grid; grid-template-columns:1fr 1.4fr 1fr; gap:10px; }
-.dob-row select {
+.form-group .dob-row select {
     width:100%; padding:13px 14px;
     background:var(--navy2); border:1px solid var(--border);
     border-radius:var(--radius); color:var(--white); font-size:.88rem;
     appearance:auto; cursor:pointer; transition:border-color .2s; outline:none;
 }
-.dob-row select:focus { border-color:var(--accent); }
-.dob-row select option { background:var(--navy2); }
+.form-group .dob-row select:focus { border-color:var(--accent); }
+.form-group .dob-row select option { background:var(--navy2); }
 .dob-hint { margin-top:8px; font-size:.78rem; color:var(--accent); opacity:.7; }
 .dob-hint i { margin-right:4px; }
 
