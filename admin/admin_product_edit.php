@@ -5,6 +5,21 @@ $pid     = (int)($_GET['id'] ?? 0);
 $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
 if(!$product){ header("Location: admin_products.php"); exit; }
 
+// Handle delete variant image
+if(isset($_GET['del_img'])){
+    $iid = (int)$_GET['del_img'];
+    $tbl = $conn->query("SHOW TABLES LIKE 'product_images'");
+    if($tbl->num_rows > 0){
+        $row = $conn->query("SELECT image_url FROM product_images WHERE image_id=$iid")->fetch_assoc();
+        if($row && !str_starts_with($row['image_url'],'http')){
+            $fp = dirname(__DIR__) . '/' . $row['image_url'];
+            if(file_exists($fp)) unlink($fp);
+        }
+        $conn->query("DELETE FROM product_images WHERE image_id=$iid AND product_id=$pid");
+    }
+    header("Location: admin_product_edit.php?id=$pid&msg=Image+removed."); exit;
+}
+
 $msg = ''; $mtype = 'ok';
 
 if($_SERVER['REQUEST_METHOD']==='POST'){

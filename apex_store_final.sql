@@ -245,3 +245,18 @@ COMMIT;
 -- reviews           → product reviews (review_id, product_id, user_id, rating, comment)
 -- design_requests   → custom shoe ideas (request_id, user_id, shoe_name, category, status) ← NEW
 -- ================================================================
+
+-- ────────────────────────────────────────────
+-- 14. PRODUCT IMAGES (multi-image slider)
+-- Run this if you already imported apex_store_final.sql
+-- ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `product_images` (
+  `image_id`   int(11)      NOT NULL AUTO_INCREMENT,
+  `product_id` int(11)      NOT NULL,
+  `image_url`  varchar(300) NOT NULL,
+  `color_name` varchar(80)  DEFAULT NULL,
+  `sort_order` int(11)      NOT NULL DEFAULT 0,
+  PRIMARY KEY (`image_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `product_images_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;

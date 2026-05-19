@@ -15,14 +15,29 @@ if(!$product){ header("Location: products.php"); exit; }
 $sz_stmt = $conn->prepare("SELECT size, stock_for_size FROM product_size WHERE product_id=? ORDER BY CAST(size AS DECIMAL)");
 $sz_stmt->bind_param("i",$pid);
 $sz_stmt->execute();
-$sizes = $sz_stmt->get_result();
+$sizes_arr = $sz_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Extra images (from product_images table if exists)
+$images = [];
+$tbl_check = $conn->query("SHOW TABLES LIKE 'product_images'");
+if($tbl_check->num_rows > 0){
+    $img_stmt = $conn->prepare("SELECT image_url, color_name FROM product_images WHERE product_id=? ORDER BY sort_order ASC");
+    $img_stmt->bind_param("i",$pid);
+    $img_stmt->execute();
+    $images = $img_stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+}
+
+// Fallback: just the main image
+if(empty($images)){
+    $fb = !empty($product['image_url']) ? $product['image_url'] : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
+    $images = [['image_url' => $fb, 'color_name' => '']];
+}
 
 $flash = ''; $ftype = '';
 if(isset($_SESSION['cart_msg'])){
     $flash = $_SESSION['cart_msg']; $ftype = $_SESSION['cart_msg_type'] ?? 'ok';
     unset($_SESSION['cart_msg'], $_SESSION['cart_msg_type']);
 }
-$img = !empty($product['image_url']) ? e($product['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -31,11 +46,70 @@ $img = !empty($product['image_url']) ? e($product['image_url']) : 'https://image
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title><?=e($product['name'])?> | Apex</title>
 <link rel="stylesheet" href="css/style.css">
+<style>
+/* ── Slider ── */
+.slider-wrap{
+    position:relative;border-radius:14px;overflow:hidden;
+    border:1px solid var(--border);background:var(--navy2);
+    aspect-ratio:1/1;
+}
+.slider-main{
+    width:100%;height:100%;object-fit:cover;display:block;
+    transition:opacity .25s ease;
+}
+.sl-btn{
+    position:absolute;top:50%;transform:translateY(-50%);
+    background:rgba(10,25,47,.8);border:1px solid var(--border);
+    color:var(--white);width:42px;height:42px;border-radius:50%;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;
+    font-size:1.3rem;transition:all .2s;z-index:2;
+}
+.sl-btn:hover{background:var(--accent);color:var(--navy);border-color:var(--accent)}
+.sl-btn:disabled{opacity:.25;cursor:default;pointer-events:none}
+.sl-prev{left:12px}
+.sl-next{right:12px}
+.sl-counter{
+    position:absolute;bottom:10px;right:12px;
+    background:rgba(10,25,47,.7);color:var(--muted);
+    font-size:.7rem;padding:4px 10px;border-radius:100px;
+    border:1px solid var(--border);
+}
+/* Thumbnails */
+.thumb-row{display:flex;gap:10px;margin-top:12px;overflow-x:auto;padding-bottom:4px}
+.thumb-row::-webkit-scrollbar{height:4px}
+.thumb-row::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.thumb-img{
+    width:72px;height:72px;border-radius:8px;object-fit:cover;
+    cursor:pointer;border:2px solid var(--border);
+    transition:all .2s;flex-shrink:0;
+}
+.thumb-img:hover{border-color:rgba(100,255,218,.5)}
+.thumb-img.on{border-color:var(--accent)}
+
+/* ── UK Size Buttons ── */
+.uk-size-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.uk-btn{
+    min-width:54px;height:54px;
+    border-radius:var(--radius);
+    border:1px solid var(--border);
+    background:var(--navy2);
+    color:var(--text);
+    cursor:pointer;transition:all .2s;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:1px;
+    padding:0 8px;
+}
+.uk-btn:hover:not(.oos){border-color:var(--accent);color:var(--white);background:rgba(100,255,218,.08)}
+.uk-btn.active{background:var(--accent);border-color:var(--accent);color:var(--navy);font-weight:700}
+.uk-btn.oos{opacity:.35;cursor:not-allowed;text-decoration:line-through;border-style:dashed}
+.uk-num{font-size:.9rem;font-weight:700;line-height:1}
+.uk-lbl{font-size:.52rem;letter-spacing:1px;text-transform:uppercase;opacity:.7}
+</style>
 </head>
 <body>
 <?php include 'includes/navbar.php'; ?>
 
-<div style="background:var(--navy2);border-bottom:1px solid var(--border);padding:32px 0;">
+<div style="background:var(--navy2);border-bottom:1px solid var(--border);padding:28px 0;">
   <div class="wrap">
     <div class="breadcrumb">
       <a href="index.php">Home</a><span class="sep">/</span>
@@ -51,12 +125,41 @@ $img = !empty($product['image_url']) ? e($product['image_url']) : 'https://image
 <?php endif; ?>
 
 <div class="detail-grid">
-  <!-- Image -->
-  <div class="detail-img">
-    <img src="<?=$img?>" alt="<?=e($product['name'])?>">
+
+  <!-- ── LEFT: Image Slider ── -->
+  <div>
+    <div class="slider-wrap">
+      <img id="mainImg" src="<?=e($images[0]['image_url'])?>" alt="<?=e($product['name'])?>" class="slider-main">
+
+      <?php if(count($images) > 1): ?>
+      <button class="sl-btn sl-prev" id="prevBtn" onclick="slide(-1)" disabled>&#8249;</button>
+      <button class="sl-btn sl-next" id="nextBtn" onclick="slide(1)">&#8250;</button>
+      <div class="sl-counter" id="slCounter">1 / <?=count($images)?></div>
+      <?php endif; ?>
+    </div>
+
+    <!-- Color name -->
+    <?php if(!empty($images[0]['color_name'])): ?>
+    <div style="font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:10px;">
+      Colour: <span id="colorLbl" style="color:var(--white);font-weight:600;"><?=e($images[0]['color_name'])?></span>
+    </div>
+    <?php endif; ?>
+
+    <!-- Thumbnails -->
+    <?php if(count($images) > 1): ?>
+    <div class="thumb-row">
+      <?php foreach($images as $i => $img): ?>
+      <img src="<?=e($img['image_url'])?>"
+           class="thumb-img <?=$i===0?'on':''?>"
+           onclick="goTo(<?=$i?>)"
+           title="<?=e($img['color_name'] ?: 'View ' . ($i+1))?>"
+           alt="">
+      <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
   </div>
 
-  <!-- Info -->
+  <!-- ── RIGHT: Info ── -->
   <div>
     <div class="detail-cat"><?=e($product['category_name'])?></div>
     <h1 class="detail-name"><?=e($product['name'])?></h1>
@@ -66,82 +169,121 @@ $img = !empty($product['image_url']) ? e($product['image_url']) : 'https://image
     <form action="cart_action.php" method="POST">
       <input type="hidden" name="action" value="add">
       <input type="hidden" name="product_id" value="<?=$pid?>">
-
-      <div class="size-label">SELECT SIZE (UK)</div>
-      <div class="size-grid" id="sizeGrid">
-        <?php
-        $sizes->data_seek(0);
-        $has_sizes = false;
-        while($sz = $sizes->fetch_assoc()):
-          $has_sizes = true;
-          $oos = $sz['stock_for_size'] < 1;
-        ?>
-        <button type="button"
-          class="size-btn <?=$oos?'oos':''?>"
-          <?=$oos?'disabled':''?>
-          onclick="selectSize(this,'<?=e($sz['size'])?>')"
-          title="<?=$oos?'Out of stock':'UK '.$sz['size'].' — '.$sz['stock_for_size'].' left'?>">
-          <?=e($sz['size'])?>
-        </button>
-        <?php endwhile;
-        if(!$has_sizes): ?>
-        <button type="button" class="size-btn active" onclick="selectSize(this,'Standard')">Standard</button>
-        <?php endif; ?>
-      </div>
       <input type="hidden" name="size" id="sizeInput" value="">
 
-      <div class="stock-info">
+      <div class="size-label" style="margin-bottom:12px;">SELECT SIZE (UK)</div>
+      <div class="uk-size-grid">
+        <?php if(!empty($sizes_arr)): ?>
+          <?php foreach($sizes_arr as $sz):
+            $oos = $sz['stock_for_size'] < 1;
+          ?>
+          <button type="button"
+            class="uk-btn <?=$oos?'oos':''?>"
+            <?=$oos?'disabled':''?>
+            onclick="pickSize(this,'<?=e($sz['size'])?>')"
+            title="<?=$oos?'Out of stock':'UK '.$sz['size'].' — '.$sz['stock_for_size'].' pairs left'?>">
+            <span class="uk-num"><?=e($sz['size'])?></span>
+            <span class="uk-lbl">UK</span>
+          </button>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <!-- Default UK range if no sizes set up yet -->
+          <?php foreach(['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','12'] as $s): ?>
+          <button type="button" class="uk-btn" onclick="pickSize(this,'<?=$s?>')">
+            <span class="uk-num"><?=$s?></span>
+            <span class="uk-lbl">UK</span>
+          </button>
+          <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
+
+      <div class="stock-info" style="margin-bottom:20px;">
         Total stock: <strong><?=(int)$product['stock']?> pairs</strong>
       </div>
 
       <?php if($product['stock'] > 0): ?>
-      <button type="submit" class="btn btn-primary btn-full" style="margin-bottom:12px;">ADD TO CART</button>
+      <button type="submit" class="btn btn-primary btn-full" style="margin-bottom:12px;" id="addCartBtn" disabled>
+        SELECT A SIZE TO ADD TO CART
+      </button>
       <?php else: ?>
       <button class="btn btn-secondary btn-full" disabled style="margin-bottom:12px;">OUT OF STOCK</button>
       <?php endif; ?>
     </form>
 
     <a href="products.php?cat=<?=urlencode($product['category_name'])?>" class="btn btn-outline btn-full">
-      ← Back to <?=e($product['category_name'])?>
+      &#8592; Back to <?=e($product['category_name'])?>
     </a>
 
-    <!-- Accordion info -->
+    <!-- Accordion -->
     <div style="margin-top:28px;border-top:1px solid var(--border);">
       <?php foreach([
-        ['Free Shipping','Free standard shipping on orders above RM300. Estimated delivery 2–4 business days.'],
+        ['Free Shipping','Free standard shipping on orders above RM300. Estimated 2–4 business days.'],
         ['Returns Policy','30-day hassle-free returns on all unworn shoes in original packaging.'],
-        ['Authenticity','Every Apex pair comes with a certificate of authenticity and quality-control seal.'],
+        ['Authenticity','Every Apex pair includes a certificate of authenticity and quality-control seal.'],
       ] as $i=>[$title,$body]): ?>
       <div style="border-bottom:1px solid var(--border);">
-        <button onclick="toggleAccord(this)"
+        <button onclick="toggleAcc(this)"
           style="display:flex;justify-content:space-between;width:100%;background:none;border:none;color:var(--text);padding:14px 0;font-size:.9rem;font-weight:500;cursor:pointer;">
-          <?=e($title)?> <span class="acc-ico">+</span>
+          <?=e($title)?> <span class="acc-ico" style="font-size:1.1rem;color:var(--muted);">+</span>
         </button>
-        <div class="acc-body" style="display:<?=$i===0?'block':'none'?>;padding-bottom:14px;color:var(--muted);font-size:.875rem;line-height:1.75;">
+        <div style="display:<?=$i===0?'block':'none'?>;padding-bottom:14px;color:var(--muted);font-size:.875rem;line-height:1.75;">
           <?=e($body)?>
         </div>
       </div>
       <?php endforeach; ?>
     </div>
   </div>
+
 </div>
 </div>
 
 <?php include 'includes/footer.php'; ?>
 
 <script>
-function selectSize(btn, size) {
-    document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+// Slider
+const imgs = <?=json_encode(array_values($images))?>;
+let cur = 0;
+
+function goTo(i){
+    if(i < 0 || i >= imgs.length) return;
+    cur = i;
+    const mainImg = document.getElementById('mainImg');
+    const counter = document.getElementById('slCounter');
+    const colorLbl= document.getElementById('colorLbl');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    mainImg.style.opacity = '0';
+    setTimeout(()=>{ mainImg.src = imgs[cur].image_url; mainImg.style.opacity = '1'; }, 220);
+
+    if(counter)  counter.textContent = (cur+1) + ' / ' + imgs.length;
+    if(colorLbl && imgs[cur].color_name) colorLbl.textContent = imgs[cur].color_name;
+    if(prevBtn)  prevBtn.disabled = (cur === 0);
+    if(nextBtn)  nextBtn.disabled = (cur === imgs.length - 1);
+
+    document.querySelectorAll('.thumb-img').forEach((t,idx)=>t.classList.toggle('on', idx===cur));
+}
+
+function slide(dir){ goTo(cur + dir); }
+
+// Size selection
+function pickSize(btn, size){
+    document.querySelectorAll('.uk-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('sizeInput').value = size;
+    const addBtn = document.getElementById('addCartBtn');
+    if(addBtn){ addBtn.disabled = false; addBtn.textContent = 'ADD TO CART'; }
 }
-function toggleAccord(btn) {
+
+// Accordion
+function toggleAcc(btn){
     const body = btn.nextElementSibling;
     const ico  = btn.querySelector('.acc-ico');
     const open = body.style.display === 'block';
     body.style.display = open ? 'none' : 'block';
     ico.textContent    = open ? '+' : '−';
 }
-// Auto-select first available size
-document.querySelectorAll('.size-btn:not(.oos)')[0]?.click();
+
+// Auto-click first available size
+document.querySelectorAll('.uk-btn:not(.oos)')[0]?.click();
 </script>
