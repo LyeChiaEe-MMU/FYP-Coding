@@ -18,10 +18,12 @@ USE `apex_store`;
 -- 1. ADMINS
 -- ────────────────────────────────────────────
 CREATE TABLE `admins` (
-  `admin_id`   int(11)      NOT NULL AUTO_INCREMENT,
-  `username`   varchar(50)  NOT NULL,
-  `password`   varchar(255) NOT NULL,
-  `created_at` timestamp    NOT NULL DEFAULT current_timestamp(),
+  `admin_id`       int(11)      NOT NULL AUTO_INCREMENT,
+  `username`       varchar(50)  NOT NULL,
+  `password`       varchar(255) NOT NULL,
+  `created_at`     timestamp    NOT NULL DEFAULT current_timestamp(),
+  `remember_token` varchar(255) DEFAULT NULL,
+  `token_expiry`   int(11)      DEFAULT NULL,
   PRIMARY KEY (`admin_id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
