@@ -34,10 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $file    = $_FILES['ref_image'];
         $allowed = ['jpg','jpeg','png','gif','webp'];
         $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $maxSize = 5 * 1024 * 1024;
+        
 
         if (!in_array($ext, $allowed))    $errors[] = "Image must be JPG, PNG, GIF or WEBP.";
-        elseif ($file['size'] > $maxSize) $errors[] = "Image must be under 5MB.";
+        
         else {
             $filename  = 'design_' . $uid . '_' . time() . '.' . $ext;
             $uploadDir = __DIR__ . '/uploads/designs/';
@@ -180,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       <!-- Reference image -->
       <div class="form-group">
-        <label>Reference Image <span style="color:var(--muted);font-size:.75rem;font-weight:400;">(optional — max 5MB, JPG/PNG/GIF/WEBP)</span></label>
+        <label>Reference Image <span style="color:var(--muted);font-size:.75rem;font-weight:400;">(optional — JPG, PNG, GIF, WEBP)</span></label>
         <input type="file" name="ref_image" accept=".jpg,.jpeg,.png,.gif,.webp"
                style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;color:var(--white);font-size:.9rem;">
         <div style="font-size:.75rem;color:var(--muted);margin-top:6px;">Upload a sketch, reference photo or mood board to help us understand your vision.</div>

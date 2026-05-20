@@ -24,12 +24,12 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
         $file    = $_FILES['image_file'];
         $allowed = ['jpg','jpeg','png','gif','webp'];
         $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $maxSize = 5 * 1024 * 1024; // 5MB
+        // No file size limit
 
         if(!in_array($ext, $allowed)){
             $msg = "Image must be JPG, PNG, GIF or WEBP."; $mtype='err';
-        } elseif($file['size'] > $maxSize){
-            $msg = "Image must be under 5MB."; $mtype='err';
+        // size check removed
+            
         } else {
             $filename  = 'product_' . time() . '_' . preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
             $uploadDir = dirname(__DIR__) . '/uploads/';
@@ -123,7 +123,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
                   <input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"
                          style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;"
                          onchange="previewImg(this)">
-                  <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">JPG, PNG, GIF, WEBP — max 5MB</div>
+                  <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">JPG, PNG, GIF, WEBP</div>
                   <img id="imgPreview" src="" alt="" style="display:none;margin-top:10px;max-width:100%;height:100px;object-fit:contain;border-radius:6px;border:1px solid var(--border);">
                 </div>
 

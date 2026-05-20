@@ -67,7 +67,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_variant'])){
         $file    = $_FILES['variant_image'];
         $allowed = ['jpg','jpeg','png','gif','webp'];
         $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if(in_array($ext,$allowed) && $file['size'] <= 5*1024*1024){
+        if(in_array($ext,$allowed)){
             $filename  = 'variant_'.$pid.'_'.time().'.'.$ext;
             $uploadDir = dirname(__DIR__).'/uploads/';
             if(!is_dir($uploadDir)) mkdir($uploadDir,0755,true);
@@ -101,7 +101,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
         $file    = $_FILES['main_image_file'];
         $allowed = ['jpg','jpeg','png','gif','webp'];
         $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if(in_array($ext,$allowed) && $file['size'] <= 5*1024*1024){
+        if(in_array($ext,$allowed)){
             $filename  = 'product_'.time().'_'.preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
             $uploadDir = dirname(__DIR__).'/uploads/';
             if(!is_dir($uploadDir)) mkdir($uploadDir,0755,true);
