@@ -1,7 +1,8 @@
 -- ================================================================
---  APEX STORE — Complete Database (Combined)
---  Includes original tables + new design_requests for FYP features
---  Run this FRESH in phpMyAdmin to set up everything at once
+--  APEX STORE — Complete Combined Database
+--  Generated: May 2026
+--  Matches real apex_store structure + adds new feature tables
+--  Run this FRESH in phpMyAdmin to set everything up at once
 -- ================================================================
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
@@ -9,39 +10,40 @@ START TRANSACTION;
 SET time_zone = "+00:00";
 SET NAMES utf8mb4;
 
-DROP DATABASE IF EXISTS apex_store;
-CREATE DATABASE apex_store CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
-USE apex_store;
+DROP DATABASE IF EXISTS `apex_store`;
+CREATE DATABASE `apex_store` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `apex_store`;
 
 -- ────────────────────────────────────────────
 -- 1. ADMINS
 -- ────────────────────────────────────────────
 CREATE TABLE `admins` (
-  `admin_id`       int(11)      NOT NULL AUTO_INCREMENT,
-  `username`       varchar(50)  NOT NULL,
-  `password`       varchar(255) NOT NULL,
-  `created_at`     timestamp    NOT NULL DEFAULT current_timestamp(),
-  `remember_token` varchar(255) DEFAULT NULL,
-  `token_expiry`   int(11)      DEFAULT NULL,
+  `admin_id`   int(11)      NOT NULL AUTO_INCREMENT,
+  `username`   varchar(50)  NOT NULL,
+  `password`   varchar(255) NOT NULL,
+  `created_at` timestamp    NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`admin_id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Default admin (password: admin123)
+-- Default login: admin / admin123 (properly hashed)
 INSERT INTO `admins` (`username`, `password`) VALUES
 ('admin', '$2y$10$iMb4ED02vNT6tJueiFRhuu3PxnlCJcxGPASAag7rVQzg4Ai44axoS');
 
 -- ────────────────────────────────────────────
 -- 2. USERS
+--    Includes shopping_preference & date_of_birth
 -- ────────────────────────────────────────────
 CREATE TABLE `users` (
-  `user_id`    int(11)      NOT NULL AUTO_INCREMENT,
-  `name`       varchar(100) NOT NULL,
-  `email`      varchar(100) NOT NULL,
-  `password`   varchar(255) NOT NULL,
-  `phone`      varchar(20)  NOT NULL,
-  `address`    text         NOT NULL,
-  `created_at` timestamp    NOT NULL DEFAULT current_timestamp(),
+  `user_id`             int(11)                   NOT NULL AUTO_INCREMENT,
+  `name`                varchar(100)              NOT NULL,
+  `email`               varchar(100)              NOT NULL,
+  `password`            varchar(255)              NOT NULL,
+  `phone`               varchar(20)               NOT NULL,
+  `shopping_preference` enum('men','women','kids') DEFAULT NULL,
+  `date_of_birth`       date                      DEFAULT NULL,
+  `address`             text                      NOT NULL,
+  `created_at`          timestamp                 NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -66,70 +68,85 @@ INSERT INTO `categories` (`category_id`, `category_name`) VALUES
 -- 4. PRODUCTS
 -- ────────────────────────────────────────────
 CREATE TABLE `products` (
-  `product_id`  int(11)        NOT NULL AUTO_INCREMENT,
-  `name`        varchar(100)   NOT NULL,
-  `description` text           NOT NULL,
-  `category_id` int(11)        DEFAULT NULL,
-  `price`       decimal(10,2)  NOT NULL,
-  `stock`       int(11)        NOT NULL DEFAULT 0,
-  `image_url`   varchar(255)   NOT NULL DEFAULT '',
-  `created_at`  timestamp      NOT NULL DEFAULT current_timestamp(),
+  `product_id`  int(11)       NOT NULL AUTO_INCREMENT,
+  `name`        varchar(100)  NOT NULL,
+  `description` text          NOT NULL,
+  `category_id` int(11)       DEFAULT NULL,
+  `price`       decimal(10,2) NOT NULL,
+  `stock`       int(11)       NOT NULL DEFAULT 0,
+  `image_url`   varchar(255)  NOT NULL DEFAULT '',
+  `created_at`  timestamp     NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`product_id`),
   KEY `category_id` (`category_id`),
   CONSTRAINT `products_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 5. PRODUCT SIZE (per-size inventory)
+-- 5. PRODUCT SIZE (per-size inventory tracking)
 -- ────────────────────────────────────────────
 CREATE TABLE `product_size` (
-  `size_id`       int(11)     NOT NULL AUTO_INCREMENT,
-  `product_id`    int(11)     DEFAULT NULL,
-  `size`          varchar(10) NOT NULL,
-  `stock_for_size` int(11)    NOT NULL DEFAULT 0,
+  `size_id`        int(11)     NOT NULL AUTO_INCREMENT,
+  `product_id`     int(11)     DEFAULT NULL,
+  `size`           varchar(10) NOT NULL,
+  `stock_for_size` int(11)     NOT NULL DEFAULT 0,
   PRIMARY KEY (`size_id`),
   KEY `product_id` (`product_id`),
   CONSTRAINT `product_size_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 6. PROMO CODES
+-- 6. PRODUCT IMAGES (colour variant slider) ← NEW
+-- ────────────────────────────────────────────
+CREATE TABLE `product_images` (
+  `image_id`   int(11)      NOT NULL AUTO_INCREMENT,
+  `product_id` int(11)      NOT NULL,
+  `image_url`  varchar(300) NOT NULL,
+  `color_name` varchar(80)  DEFAULT NULL,
+  `sort_order` int(11)      NOT NULL DEFAULT 0,
+  PRIMARY KEY (`image_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `product_images_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ────────────────────────────────────────────
+-- 7. PROMO CODES
 -- ────────────────────────────────────────────
 CREATE TABLE `promo_codes` (
-  `promo_id`            int(11)       NOT NULL AUTO_INCREMENT,
-  `code`                varchar(20)   NOT NULL,
-  `discount_percentage` decimal(5,2)  NOT NULL,
-  `expiry_date`         date          NOT NULL,
+  `promo_id`            int(11)      NOT NULL AUTO_INCREMENT,
+  `code`                varchar(20)  NOT NULL,
+  `discount_percentage` decimal(5,2) NOT NULL,
+  `expiry_date`         date         NOT NULL,
   PRIMARY KEY (`promo_id`),
   UNIQUE KEY `code` (`code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Sample promo codes
 INSERT INTO `promo_codes` (`code`, `discount_percentage`, `expiry_date`) VALUES
-('APEX10',   10.00, '2026-12-31'),
-('WELCOME20',20.00, '2026-12-31'),
-('FYP2026',  15.00, '2026-12-31');
+('APEX10',    10.00, '2026-12-31'),
+('WELCOME20', 20.00, '2026-12-31'),
+('FYP2026',   15.00, '2026-12-31');
 
 -- ────────────────────────────────────────────
--- 7. ORDERS
+-- 8. ORDERS
+--    + shipping_address (was missing from original)
 -- ────────────────────────────────────────────
 CREATE TABLE `orders` (
-  `order_id`       int(11)       NOT NULL AUTO_INCREMENT,
-  `user_id`        int(11)       DEFAULT NULL,
-  `total_amount`   decimal(10,2) NOT NULL,
-  `promo_id`       int(11)       DEFAULT NULL,
-  `status`         varchar(30)   DEFAULT 'Processing',
-  `shipping_address` text        DEFAULT NULL,
-  `order_date`     timestamp     NOT NULL DEFAULT current_timestamp(),
+  `order_id`         int(11)       NOT NULL AUTO_INCREMENT,
+  `user_id`          int(11)       DEFAULT NULL,
+  `total_amount`     decimal(10,2) NOT NULL,
+  `promo_id`         int(11)       DEFAULT NULL,
+  `status`           varchar(30)   DEFAULT 'Processing',
+  `shipping_address` text          DEFAULT NULL,
+  `order_date`       timestamp     NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`order_id`),
   KEY `user_id`  (`user_id`),
   KEY `promo_id` (`promo_id`),
-  CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`)  REFERENCES `users` (`user_id`),
+  CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`)  REFERENCES `users`       (`user_id`),
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`promo_id`) REFERENCES `promo_codes` (`promo_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 8. ORDER ITEMS
+-- 9. ORDER ITEMS
+--    + size column (was missing from original)
 -- ────────────────────────────────────────────
 CREATE TABLE `order_items` (
   `order_item_id` int(11)       NOT NULL AUTO_INCREMENT,
@@ -146,7 +163,7 @@ CREATE TABLE `order_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 9. ORDER STATUS HISTORY
+-- 10. ORDER STATUS HISTORY
 -- ────────────────────────────────────────────
 CREATE TABLE `order_status_history` (
   `history_id` int(11)     NOT NULL AUTO_INCREMENT,
@@ -159,7 +176,7 @@ CREATE TABLE `order_status_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 10. CART ITEMS
+-- 11. CART ITEMS
 -- ────────────────────────────────────────────
 CREATE TABLE `cart_items` (
   `cart_id`    int(11)     NOT NULL AUTO_INCREMENT,
@@ -175,7 +192,7 @@ CREATE TABLE `cart_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 11. WISHLIST
+-- 12. WISHLIST
 -- ────────────────────────────────────────────
 CREATE TABLE `wishlist` (
   `wishlist_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -189,7 +206,7 @@ CREATE TABLE `wishlist` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 12. REVIEWS
+-- 13. REVIEWS
 -- ────────────────────────────────────────────
 CREATE TABLE `reviews` (
   `review_id`  int(11)   NOT NULL AUTO_INCREMENT,
@@ -206,7 +223,7 @@ CREATE TABLE `reviews` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ────────────────────────────────────────────
--- 13. DESIGN REQUESTS ← NEW FEATURE
+-- 14. DESIGN REQUESTS ← NEW FEATURE
 -- ────────────────────────────────────────────
 CREATE TABLE `design_requests` (
   `request_id`     int(11)      NOT NULL AUTO_INCREMENT,
@@ -229,34 +246,25 @@ CREATE TABLE `design_requests` (
 COMMIT;
 
 -- ================================================================
---  QUICK REFERENCE — Table Summary
+--  QUICK REFERENCE — All 14 Tables
 -- ================================================================
--- admins            → admin login (admin_id, username, password)
--- users             → customers (user_id, name, email, phone, address)
--- categories        → shoe categories (category_id, category_name)
--- products          → shoes (product_id, name, price, stock, image_url)
--- product_size      → per-size stock (size_id, product_id, size, stock_for_size)
--- promo_codes       → discount codes (promo_id, code, discount_percentage, expiry_date)
--- orders            → customer orders (order_id, user_id, total_amount, status, order_date)
--- order_items       → items in each order (order_item_id, order_id, product_id, size, quantity, price)
--- order_status_history → order audit trail (history_id, order_id, status, changed_at)
--- cart_items        → shopping cart (cart_id, user_id, product_id, size, quantity)
--- wishlist          → saved items (wishlist_id, user_id, product_id)
--- reviews           → product reviews (review_id, product_id, user_id, rating, comment)
--- design_requests   → custom shoe ideas (request_id, user_id, shoe_name, category, status) ← NEW
+--  admins              → admin login
+--  users               → customers (+ shopping_preference, date_of_birth)
+--  categories          → Running, Basketball, Lifestyle, Training
+--  products            → shoe catalog
+--  product_size        → per-size stock (UK 6~12)
+--  product_images      → colour variant images / slider  ← NEW
+--  promo_codes         → discount codes (APEX10, WELCOME20, FYP2026)
+--  orders              → customer orders (+ shipping_address)
+--  order_items         → items per order (+ size)
+--  order_status_history→ order audit trail
+--  cart_items          → shopping cart
+--  wishlist            → saved products
+--  reviews             → product ratings & comments
+--  design_requests     → custom shoe design submissions ← NEW
 -- ================================================================
-
--- ────────────────────────────────────────────
--- 14. PRODUCT IMAGES (multi-image slider)
--- Run this if you already imported apex_store_final.sql
--- ────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS `product_images` (
-  `image_id`   int(11)      NOT NULL AUTO_INCREMENT,
-  `product_id` int(11)      NOT NULL,
-  `image_url`  varchar(300) NOT NULL,
-  `color_name` varchar(80)  DEFAULT NULL,
-  `sort_order` int(11)      NOT NULL DEFAULT 0,
-  PRIMARY KEY (`image_id`),
-  KEY `product_id` (`product_id`),
-  CONSTRAINT `product_images_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+--
+--  Admin login:  admin / admin123
+--  ⚠️  After import, re-register any customer accounts
+--     OR add your user INSERT manually if you want to keep them
+-- ================================================================

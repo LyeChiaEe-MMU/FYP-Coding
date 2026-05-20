@@ -4,61 +4,66 @@ $pg    = basename($_SERVER['PHP_SELF']);
 $depth = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false) ? '../' : '';
 $q     = e($_GET['q'] ?? '');
 
-// Mega menu structure: Gender → Column → Links
+// Mega menu structure — same categories for ALL genders (no discrimination!)
 $mega = [
     'Men' => [
         'New & Trending' => [
-            'New Arrivals'      => '?gender=Men&sort=newest',
-            'Best Sellers'      => '?gender=Men&sort=popular',
-            'Sale'              => '?gender=Men&sale=1',
+            'New Arrivals'    => '?gender=Men&sort=newest',
+            'Best Sellers'    => '?gender=Men&sort=popular',
+            'Sale'            => '?gender=Men&sale=1',
         ],
         'Shoes' => [
-            'Running'           => '?gender=Men&cat=Running',
-            'Basketball'        => '?gender=Men&cat=Basketball',
-            'Training'          => '?gender=Men&cat=Training',
-            'Lifestyle'         => '?gender=Men&cat=Lifestyle',
-            "All Men's Shoes"   => '?gender=Men',
+            'Running'         => '?gender=Men&cat=Running',
+            'Basketball'      => '?gender=Men&cat=Basketball',
+            'Training'        => '?gender=Men&cat=Training',
+            'Lifestyle'       => '?gender=Men&cat=Lifestyle',
+            "All Men's Shoes" => '?gender=Men',
         ],
         'By Sport' => [
-            'Running'           => '?gender=Men&cat=Running',
-            'Basketball'        => '?gender=Men&cat=Basketball',
-            'Gym & Training'    => '?gender=Men&cat=Training',
-            'Street & Casual'   => '?gender=Men&cat=Lifestyle',
+            'Running'         => '?gender=Men&cat=Running',
+            'Basketball'      => '?gender=Men&cat=Basketball',
+            'Gym & Training'  => '?gender=Men&cat=Training',
+            'Street & Casual' => '?gender=Men&cat=Lifestyle',
         ],
     ],
     'Women' => [
         'New & Trending' => [
-            'New Arrivals'        => '?gender=Women&sort=newest',
-            'Best Sellers'        => '?gender=Women&sort=popular',
-            'Sale'                => '?gender=Women&sale=1',
+            'New Arrivals'      => '?gender=Women&sort=newest',
+            'Best Sellers'      => '?gender=Women&sort=popular',
+            'Sale'              => '?gender=Women&sale=1',
         ],
         'Shoes' => [
-            'Running'             => '?gender=Women&cat=Running',
-            'Training'            => '?gender=Women&cat=Training',
-            'Lifestyle'           => '?gender=Women&cat=Lifestyle',
-            "All Women's Shoes"   => '?gender=Women',
+            'Running'           => '?gender=Women&cat=Running',
+            'Basketball'        => '?gender=Women&cat=Basketball',
+            'Training'          => '?gender=Women&cat=Training',
+            'Lifestyle'         => '?gender=Women&cat=Lifestyle',
+            "All Women's Shoes" => '?gender=Women',
         ],
         'By Sport' => [
-            'Running'             => '?gender=Women&cat=Running',
-            'Yoga & Training'     => '?gender=Women&cat=Training',
-            'Walking & Lifestyle' => '?gender=Women&cat=Lifestyle',
+            'Running'           => '?gender=Women&cat=Running',
+            'Basketball'        => '?gender=Women&cat=Basketball',
+            'Gym & Training'    => '?gender=Women&cat=Training',
+            'Street & Casual'   => '?gender=Women&cat=Lifestyle',
         ],
     ],
     'Kids' => [
         'New & Trending' => [
-            'New Arrivals'      => '?gender=Kids&sort=newest',
-            'Best Sellers'      => '?gender=Kids&sort=popular',
+            'New Arrivals'    => '?gender=Kids&sort=newest',
+            'Best Sellers'    => '?gender=Kids&sort=popular',
+            'Sale'            => '?gender=Kids&sale=1',
         ],
         'Shoes' => [
-            'Running'           => '?gender=Kids&cat=Running',
-            'Training'          => '?gender=Kids&cat=Training',
-            'Lifestyle'         => '?gender=Kids&cat=Lifestyle',
-            "All Kids' Shoes"   => '?gender=Kids',
+            'Running'         => '?gender=Kids&cat=Running',
+            'Basketball'      => '?gender=Kids&cat=Basketball',
+            'Training'        => '?gender=Kids&cat=Training',
+            'Lifestyle'       => '?gender=Kids&cat=Lifestyle',
+            "All Kids' Shoes" => '?gender=Kids',
         ],
-        'By Age' => [
-            'Infant (0–2 yrs)'  => '?gender=Kids&age=infant',
-            'Kids (3–8 yrs)'    => '?gender=Kids&age=kids',
-            'Junior (9–14 yrs)' => '?gender=Kids&age=junior',
+        'By Sport' => [
+            'Running'         => '?gender=Kids&cat=Running',
+            'Basketball'      => '?gender=Kids&cat=Basketball',
+            'Gym & Training'  => '?gender=Kids&cat=Training',
+            'Street & Casual' => '?gender=Kids&cat=Lifestyle',
         ],
     ],
 ];
