@@ -361,7 +361,7 @@ $mega = [
               View All <?=$gender?>'s Shoes →
             </a>
             <span style="font-size:.75rem;color:var(--muted);">
-              <?=$gender==='Men'?'Running · Basketball · Training · Lifestyle':($gender==='Women'?'Running · Training · Lifestyle':'Running · Training · Lifestyle')?>
+              Running · Basketball · Training · Lifestyle
             </span>
           </div>
         </div>

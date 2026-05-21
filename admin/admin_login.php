@@ -26,24 +26,10 @@ function check_remember_me_cookie(){
     return false;
 }
 
-// Check if already logged in via session
-if(!empty($_SESSION['admin_id']) && isset($_SESSION['login_method'])){
-    // If logged in via remember me, allow
-    if($_SESSION['login_method'] == 'remember_me'){
-        header("Location: admin_dashboard.php");
-        exit;
-    }
-    // If logged in via normal login, but session might still exist
-    // We need to check if it's a restored session
-    if(!isset($_COOKIE['admin_remember'])){
-        // No remember me cookie, but session exists - this is a browser restore
-        // Force logout to be safe
-        session_unset();
-        session_destroy();
-    } else {
-        header("Location: admin_dashboard.php");
-        exit;
-    }
+// Check if already logged in
+if(!empty($_SESSION['admin_id'])){
+    header("Location: admin_dashboard.php");
+    exit;
 }
 
 // Check cookie for auto-login

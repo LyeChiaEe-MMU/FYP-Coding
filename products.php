@@ -2,9 +2,10 @@
 session_start();
 require 'db.php';
 
-$cat  = $_GET['cat']  ?? '';
-$sort = $_GET['sort'] ?? 'newest';
-$q    = trim($_GET['q'] ?? '');    // ← search query
+$cat    = $_GET['cat']    ?? '';
+$sort   = $_GET['sort']   ?? 'newest';
+$q      = trim($_GET['q'] ?? '');
+$gender = $_GET['gender'] ?? '';   // ← gender from mega menu
 
 // ── Build WHERE ──────────────────────────────────────────────
 $conditions = ['1=1'];
@@ -13,6 +14,17 @@ $conditions = ['1=1'];
 if ($cat) {
     $cat_safe = $conn->real_escape_string($cat);
     $conditions[] = "c.category_name = '$cat_safe'";
+}
+
+// Gender filter — stored in products via category or name convention
+// Since DB has no gender column, filter by shopping_preference-friendly label shown in navbar
+// (Men/Women/Kids links just pass ?gender= for future use — show all for now but keep param)
+// If you add a gender column to products table later, replace this with a proper filter
+if ($gender) {
+    // Gender param noted — currently shows all (no gender column in products table)
+    // Uncomment below if you add a gender column:
+    // $g_safe = $conn->real_escape_string($gender);
+    // $conditions[] = "p.gender = '$g_safe'";
 }
 
 // Keyword search — split on spaces, every word must match

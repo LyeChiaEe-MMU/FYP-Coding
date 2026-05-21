@@ -46,13 +46,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             }
         }
 
-        // ── Add to cart (include colour) ─────────────────────
-        $chk = $conn->prepare("SELECT cart_id, quantity FROM cart_items WHERE user_id=? AND product_id=? AND size=? AND size=?");
-        // Simpler check including color if column exists
-        $chk2 = $conn->prepare("SELECT cart_id, quantity FROM cart_items WHERE user_id=? AND product_id=? AND size=?");
-        $chk2->bind_param("iis",$user_id,$product_id,$size);
-        $chk2->execute();
-        $row = $chk2->get_result()->fetch_assoc();
+        // ── Add to cart ──────────────────────────────────────
+        $chk = $conn->prepare("SELECT cart_id, quantity FROM cart_items WHERE user_id=? AND product_id=? AND size=?");
+        $chk->bind_param("iis",$user_id,$product_id,$size);
+        $chk->execute();
+        $row = $chk->get_result()->fetch_assoc();
 
         if($row){
             $nq = $row['quantity'] + $quantity;

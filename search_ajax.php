@@ -39,10 +39,12 @@ while ($row = $result->fetch_assoc()) {
     if (empty($row['image'])) {
         $row['image'] = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&q=60';
     } elseif (!str_starts_with($row['image'], 'http')) {
-        // Local file — build absolute URL so it works in the live search dropdown
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $host     = $_SERVER['HTTP_HOST'];
-        $row['image'] = $protocol . '://' . $host . '/' . ltrim($row['image'], '/');
+        // Local file — build absolute URL including the subfolder (apex_final)
+        $protocol  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host      = $_SERVER['HTTP_HOST'];
+        // Get the base path e.g. /apex_final/ from the current script path
+        $base_path = rtrim(dirname(dirname($_SERVER['SCRIPT_NAME'])), '/\\') . '/';
+        $row['image'] = $protocol . '://' . $host . $base_path . ltrim($row['image'], '/');
     }
     $out[] = $row;
 }
