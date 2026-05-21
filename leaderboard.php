@@ -2,9 +2,23 @@
 session_start();
 require 'db.php';
 
-// ── Leaderboard Score Formula ─────────────────────────────────
-// Score = (avg_rating * 40) + (review_count * 5) + (units_sold * 3)
-// Uses real column names: product_id, order_item_id, user_id from apex_store
+// ── NEW Leaderboard Score Formula ──────────────────────────────
+//
+//  RULES (as per lecturer feedback):
+//  1. Only show shoes that have AT LEAST 1 unit sold
+//  2. Good reviews  (rating 4-5) → ADDS +10 pts each
+//  3. Bad reviews   (rating 1-2) → DEDUCTS -10 pts each
+//  4. Neutral       (rating 3)   → 0 pts (no effect)
+//  5. Average rating             → × 40 pts (quality measure)
+//  6. Units sold                 → × 3 pts each (sales performance)
+//
+//  Final Score = (avg_rating × 40)
+//              + (good_reviews × 10)
+//              - (bad_reviews  × 10)
+//              + (units_sold   × 3)
+//
+//  Minimum score is capped at 0 (cannot go negative)
+// ──────────────────────────────────────────────────────────────
 
 $leaderboard = $conn->query("
     SELECT
@@ -14,21 +28,26 @@ $leaderboard = $conn->query("
         p.image_url,
         c.category_name,
 
-        COALESCE(AVG(r.rating), 0)              AS avg_rating,
-        COUNT(DISTINCT r.review_id)              AS review_count,
-        COALESCE(SUM(oi.quantity), 0)            AS units_sold,
+        COALESCE(AVG(r.rating), 0)                                    AS avg_rating,
+        COUNT(DISTINCT r.review_id)                                    AS review_count,
+        COUNT(DISTINCT CASE WHEN r.rating >= 4 THEN r.review_id END)  AS good_reviews,
+        COUNT(DISTINCT CASE WHEN r.rating <= 2 THEN r.review_id END)  AS bad_reviews,
+        COUNT(DISTINCT CASE WHEN r.rating = 3  THEN r.review_id END)  AS neutral_reviews,
+        COALESCE(SUM(oi.quantity), 0)                                  AS units_sold,
 
-        ROUND(
-            (COALESCE(AVG(r.rating), 0)        * 40) +
-            (COUNT(DISTINCT r.review_id)       *  5) +
-            (COALESCE(SUM(oi.quantity), 0)     *  3)
-        , 1) AS score
+        GREATEST(0, ROUND(
+            (COALESCE(AVG(r.rating), 0)                                      * 40) +
+            (COUNT(DISTINCT CASE WHEN r.rating >= 4 THEN r.review_id END)    * 10) -
+            (COUNT(DISTINCT CASE WHEN r.rating <= 2 THEN r.review_id END)    * 10) +
+            (COALESCE(SUM(oi.quantity), 0)                                   *  3)
+        , 1)) AS score
 
     FROM products p
-    JOIN categories c        ON p.category_id  = c.category_id
-    LEFT JOIN reviews r      ON r.product_id   = p.product_id
-    LEFT JOIN order_items oi ON oi.product_id  = p.product_id
+    JOIN categories c        ON p.category_id = c.category_id
+    LEFT JOIN reviews r      ON r.product_id  = p.product_id
+    LEFT JOIN order_items oi ON oi.product_id = p.product_id
     GROUP BY p.product_id, p.name, p.price, p.image_url, c.category_name
+    HAVING units_sold > 0
     ORDER BY c.category_name ASC, score DESC
 ");
 
@@ -62,13 +81,13 @@ $medals = ['🥇','🥈','🥉'];
     border-radius:10px; overflow:hidden;
     margin-bottom:12px; transition:all .2s;
     display:grid;
-    grid-template-columns:56px 80px 1fr 180px;
+    grid-template-columns:56px 80px 1fr 200px;
     align-items:center;
 }
 .lb-row:hover { border-color:rgba(100,255,218,.4); transform:translateX(4px); }
-.lb-row.gold   { border-color:rgba(255,215,0,.4);   background:rgba(255,215,0,.03); }
+.lb-row.gold   { border-color:rgba(255,215,0,.4);  background:rgba(255,215,0,.03); }
 .lb-row.silver { border-color:rgba(192,192,192,.3); }
-.lb-row.bronze { border-color:rgba(205,127,50,.3);  }
+.lb-row.bronze { border-color:rgba(205,127,50,.3); }
 
 .lb-rank {
     text-align:center; font-family:'Oswald',sans-serif;
@@ -83,24 +102,18 @@ $medals = ['🥇','🥈','🥉'];
 .lb-name { font-weight:600; font-size:.95rem; color:var(--white); margin-bottom:6px; }
 .lb-name a { color:inherit; transition:color .2s; }
 .lb-name a:hover { color:var(--accent); }
-.lb-stats {
-    display:flex; gap:18px; font-size:.78rem;
-    color:var(--muted); flex-wrap:wrap;
-}
+.lb-stats { display:flex; gap:14px; font-size:.78rem; color:var(--muted); flex-wrap:wrap; }
 .lb-stats .v { color:var(--text); font-weight:600; }
 .stars-s { color:var(--accent); font-size:.8rem; letter-spacing:1px; }
+.good-rev { color:#22c55e; font-weight:600; }
+.bad-rev  { color:#ef4444; font-weight:600; }
 
-.lb-score-col {
-    padding:14px 20px 14px 0; text-align:right;
-}
+.lb-score-col { padding:14px 20px 14px 0; text-align:right; }
 .lb-score-num {
     font-family:'Oswald',sans-serif; font-size:1.6rem;
     color:var(--accent); letter-spacing:1px;
 }
-.lb-score-lbl {
-    font-size:.62rem; letter-spacing:2px;
-    text-transform:uppercase; color:var(--muted); margin-bottom:6px;
-}
+.lb-score-lbl { font-size:.62rem; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
 .lb-bar { height:6px; background:var(--border); border-radius:100px; margin-top:8px; overflow:hidden; }
 .lb-bar-fill {
     height:100%; border-radius:100px;
@@ -109,14 +122,18 @@ $medals = ['🥇','🥈','🥉'];
 }
 .lb-row.gold .lb-bar-fill { background:linear-gradient(90deg,#ffd700,#ffb300); }
 
+/* Breakdown shown on hover */
 .lb-breakdown {
-    display:none; margin-top:6px; font-size:.7rem;
+    display:none; margin-top:8px; font-size:.72rem;
     color:var(--muted); gap:10px; flex-wrap:wrap;
+    border-top:1px solid var(--border); padding-top:8px;
 }
 .lb-row:hover .lb-breakdown { display:flex; }
+.bd-good { color:#22c55e; }
+.bd-bad  { color:#ef4444; }
 
 .lb-empty {
-    text-align:center; padding:36px;
+    text-align:center; padding:48px;
     color:var(--muted); font-size:.875rem;
     background:var(--card); border:1px solid var(--border);
     border-radius:10px;
@@ -135,27 +152,36 @@ $medals = ['🥇','🥈','🥉'];
   <div class="wrap">
     <div class="breadcrumb"><a href="index.php">Home</a><span class="sep">/</span><span>Leaderboard</span></div>
     <h1>SHOE <span style="color:var(--accent)">LEADERBOARD</span></h1>
-    <p style="color:var(--muted);margin-top:8px;max-width:540px;">
-      Auto-ranked by real customer data — ratings, reviews and sales. Updated live. No bias, just numbers.
+    <p style="color:var(--muted);margin-top:8px;max-width:580px;">
+      Only shoes with real sales are ranked. Rankings are driven by customer reviews and sales performance — updated automatically.
     </p>
   </div>
 </div>
 
-<!-- Score formula -->
+<!-- Score formula explainer -->
 <div style="background:var(--navy);border-bottom:1px solid var(--border);padding:20px 0;">
   <div class="wrap">
-    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Score =</span>
-      <?php foreach([
-        ['⭐ Rating','× 40 pts'],
-        ['📝 Reviews','× 5 pts each'],
-        ['🛒 Units Sold','× 3 pts each'],
-      ] as $f): ?>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.15);border-radius:6px;padding:7px 14px;">
-        <span style="font-size:.85rem;"><?=$f[0]?></span>
-        <span style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:.85rem;"><?=$f[1]?></span>
+        <span style="font-size:.85rem;">⭐ Rating</span>
+        <span style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:.85rem;">× 40 pts</span>
       </div>
-      <?php endforeach; ?>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:7px 14px;">
+        <span style="font-size:.85rem;">👍 Good Review (4–5★)</span>
+        <span style="font-family:'Oswald',sans-serif;color:#22c55e;font-size:.85rem;">+10 pts</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:7px 14px;">
+        <span style="font-size:.85rem;">👎 Bad Review (1–2★)</span>
+        <span style="font-family:'Oswald',sans-serif;color:#ef4444;font-size:.85rem;">−10 pts</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.15);border-radius:6px;padding:7px 14px;">
+        <span style="font-size:.85rem;">🛒 Units Sold</span>
+        <span style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:.85rem;">× 3 pts</span>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);padding:7px 0;">
+        · Only shoes with <strong style="color:var(--white)">at least 1 sale</strong> appear here
+      </div>
     </div>
   </div>
 </div>
@@ -166,69 +192,105 @@ $medals = ['🥇','🥈','🥉'];
 <?php if (empty($by_cat)): ?>
   <div style="text-align:center;padding:80px 0;color:var(--muted);">
     <div style="font-size:3rem;margin-bottom:14px;">🏆</div>
-    <h3 style="font-family:'Oswald',sans-serif;font-size:1.2rem;color:var(--white);margin-bottom:8px;">No Data Yet</h3>
-    <p>Rankings will appear once products are added and customers start buying and reviewing.</p>
-    <a href="products.php" class="btn btn-primary" style="margin-top:24px;">Browse Shoes</a>
+    <h3 style="font-family:'Oswald',sans-serif;font-size:1.2rem;color:var(--white);margin-bottom:8px;">No Rankings Yet</h3>
+    <p style="margin-bottom:20px;">Rankings appear automatically once customers start purchasing shoes.</p>
+    <a href="products.php" class="btn btn-primary">Browse Shoes</a>
   </div>
 
 <?php else:
   foreach ($by_cat as $category => $shoes):
     $max_score = max(array_column($shoes, 'score'));
-    $max_score = max($max_score, 1);
+    $max_score = max((float)$max_score, 1);
     $cat_icons = ['Running'=>'🏃','Basketball'=>'🏀','Training'=>'💪','Lifestyle'=>'✨'];
     $icon = $cat_icons[$category] ?? '👟';
 ?>
 <div class="lb-section">
   <div class="lb-cat-head">
     <?=$icon?> <?=strtoupper(e($category))?> RANKING
+    <span style="font-size:.7rem;letter-spacing:1px;color:var(--muted);font-family:'Inter',sans-serif;font-weight:400;">
+      — <?=count($shoes)?> shoe<?=count($shoes)!=1?'s':''?> ranked
+    </span>
   </div>
 
   <?php foreach ($shoes as $idx => $shoe):
-    $rank  = $idx + 1;
-    $cls   = match($rank){ 1=>'gold', 2=>'silver', 3=>'bronze', default=>'' };
-    $medal = $medals[$idx] ?? "#$rank";
-    $pct   = round(($shoe['score'] / $max_score) * 100);
-    $img   = !empty($shoe['image_url']) ? e($shoe['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120&q=70';
+    $rank     = $idx + 1;
+    $cls      = match($rank){ 1=>'gold', 2=>'silver', 3=>'bronze', default=>'' };
+    $pct      = $max_score > 0 ? round(((float)$shoe['score'] / $max_score) * 100) : 0;
+    $img      = !empty($shoe['image_url'])
+                    ? (str_starts_with($shoe['image_url'],'http') ? e($shoe['image_url']) : e($shoe['image_url']))
+                    : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120&q=70';
 
-    // Build star display
-    $avg = round((float)$shoe['avg_rating'], 1);
-    $full = floor($avg); $half = ($avg - $full) >= 0.5 ? 1 : 0; $empty = 5 - $full - $half;
-    $stars = str_repeat('★',$full) . ($half?'½':'') . str_repeat('☆',$empty);
+    $avg      = round((float)$shoe['avg_rating'], 1);
+    $full     = floor($avg);
+    $half     = ($avg - $full) >= 0.5 ? 1 : 0;
+    $empty    = 5 - $full - $half;
+    $stars    = str_repeat('★',$full) . ($half?'½':'') . str_repeat('☆',$empty);
+
+    $good     = (int)$shoe['good_reviews'];
+    $bad      = (int)$shoe['bad_reviews'];
+    $neutral  = (int)$shoe['neutral_reviews'];
+    $sold     = (int)$shoe['units_sold'];
+    $score    = (float)$shoe['score'];
+
+    // Score breakdown
+    $rating_pts  = round($avg * 40, 1);
+    $good_pts    = $good * 10;
+    $bad_pts     = $bad  * 10;
+    $sales_pts   = $sold * 3;
   ?>
   <div class="lb-row <?=$cls?>">
+
+    <!-- Rank -->
     <div class="lb-rank"><?=$rank<=3?$medals[$idx]:"#$rank"?></div>
 
+    <!-- Image -->
     <a href="product_detail.php?id=<?=(int)$shoe['product_id']?>">
       <img src="<?=$img?>" class="lb-img" alt="<?=e($shoe['name'])?>">
     </a>
 
+    <!-- Info -->
     <div class="lb-info">
       <div class="lb-name">
         <a href="product_detail.php?id=<?=(int)$shoe['product_id']?>"><?=e($shoe['name'])?></a>
       </div>
       <div class="lb-stats">
         <span>
-          <span class="stars-s"><?=$shoe['avg_rating']>0?$stars:'☆☆☆☆☆'?></span>
-          <span class="v">&nbsp;<?=$avg>0?$avg:'—'?></span>
+          <span class="stars-s"><?=$avg>0?$stars:'☆☆☆☆☆'?></span>
+          <span class="v">&nbsp;<?=$avg>0?number_format($avg,1):'—'?></span>
         </span>
-        <span>📝 <span class="v"><?=(int)$shoe['review_count']?></span> review<?=$shoe['review_count']!=1?'s':''?></span>
-        <span>🛒 <span class="v"><?=(int)$shoe['units_sold']?></span> sold</span>
+        <?php if($good > 0): ?>
+        <span>👍 <span class="good-rev"><?=$good?> good</span></span>
+        <?php endif; ?>
+        <?php if($bad > 0): ?>
+        <span>👎 <span class="bad-rev"><?=$bad?> bad</span></span>
+        <?php endif; ?>
+        <span>🛒 <span class="v"><?=$sold?></span> sold</span>
         <span>RM <span class="v"><?=number_format($shoe['price'],2)?></span></span>
       </div>
+      <!-- Score breakdown on hover -->
       <div class="lb-breakdown">
-        <span>Rating pts: <strong style="color:var(--accent)"><?=round($avg*40,1)?></strong></span>
-        <span>Review pts: <strong style="color:var(--accent)"><?=(int)$shoe['review_count']*5?></strong></span>
-        <span>Sales pts:  <strong style="color:var(--accent)"><?=(int)$shoe['units_sold']*3?></strong></span>
+        <span>Rating pts: <strong style="color:var(--accent)"><?=$rating_pts?></strong></span>
+        <span class="bd-good">+Good review pts: <strong><?=$good_pts?></strong></span>
+        <?php if($bad_pts > 0): ?>
+        <span class="bd-bad">−Bad review pts: <strong><?=$bad_pts?></strong></span>
+        <?php endif; ?>
+        <span>+Sales pts: <strong style="color:var(--accent)"><?=$sales_pts?></strong></span>
+        <span style="color:var(--white);font-weight:700;">= <?=number_format($score,0)?></span>
       </div>
     </div>
 
+    <!-- Score -->
     <div class="lb-score-col">
       <div class="lb-score-lbl">Score</div>
-      <div class="lb-score-num"><?=number_format((float)$shoe['score'],0)?></div>
+      <div class="lb-score-num"><?=number_format($score,0)?></div>
       <div class="lb-bar">
         <div class="lb-bar-fill" style="width:<?=$pct?>%"></div>
       </div>
+      <?php if($bad > 0): ?>
+      <div style="font-size:.65rem;color:#ef4444;margin-top:4px;">−<?=$bad_pts?> from bad reviews</div>
+      <?php endif; ?>
     </div>
+
   </div>
   <?php endforeach; ?>
 
