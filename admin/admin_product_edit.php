@@ -35,8 +35,48 @@ if(isset($_GET['del_size'])){
     header("Location: admin_product_edit.php?id=$pid&msg=Size+removed."); exit;
 }
 
-// ── Handle add size ──────────────────────────────
+// ── Ensure product_stock table exists ────────────
+$conn->query("CREATE TABLE IF NOT EXISTS `product_stock` (
+    `stock_id` int(11) NOT NULL AUTO_INCREMENT,
+    `product_id` int(11) NOT NULL,
+    `color_name` varchar(80) NOT NULL DEFAULT 'Default',
+    `size` varchar(10) NOT NULL,
+    `stock` int(11) NOT NULL DEFAULT 0,
+    PRIMARY KEY (`stock_id`),
+    UNIQUE KEY `uq_pcs` (`product_id`,`color_name`,`size`),
+    KEY `product_id` (`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// ── Handle add/update stock (colour + size) ───────
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_size'])){
+    $sz    = trim($_POST['new_size']   ?? '');
+    $stk   = (int)($_POST['new_stock'] ?? 0);
+    $color = trim($_POST['stock_color'] ?? 'Default');
+    if(!$color) $color = 'Default';
+
+    if($sz){
+        $chk = $conn->prepare("SELECT stock_id FROM product_stock WHERE product_id=? AND color_name=? AND size=?");
+        $chk->bind_param("iss",$pid,$color,$sz); $chk->execute();
+        if($chk->get_result()->num_rows > 0){
+            $upd = $conn->prepare("UPDATE product_stock SET stock=? WHERE product_id=? AND color_name=? AND size=?");
+            $upd->bind_param("iiss",$stk,$pid,$color,$sz); $upd->execute();
+        } else {
+            $ins = $conn->prepare("INSERT INTO product_stock (product_id,color_name,size,stock) VALUES (?,?,?,?)");
+            $ins->bind_param("issi",$pid,$color,$sz,$stk); $ins->execute();
+        }
+    }
+    header("Location: admin_product_edit.php?id=$pid&msg=Stock+saved."); exit;
+}
+
+// ── Handle delete stock entry ─────────────────────
+if(isset($_GET['del_stock'])){
+    $sid = (int)$_GET['del_stock'];
+    $conn->query("DELETE FROM product_stock WHERE stock_id=$sid AND product_id=$pid");
+    header("Location: admin_product_edit.php?id=$pid&msg=Stock+removed."); exit;
+}
+
+// ── Handle add size (legacy - keep for compat) ────
+if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_size_legacy'])){
     $sz  = trim($_POST['new_size']  ?? '');
     $stk = (int)($_POST['new_stock'] ?? 0);
     if($sz){
@@ -128,6 +168,26 @@ $mtype = $mtype ?: ($_GET['mtype'] ?? 'ok');
 $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 $var_images = $conn->query("SELECT * FROM product_images WHERE product_id=$pid ORDER BY sort_order");
 $prod_sizes = $conn->query("SELECT * FROM product_size WHERE product_id=$pid ORDER BY CAST(size AS DECIMAL)");
+$prod_stocks= $conn->query("SELECT * FROM product_stock WHERE product_id=$pid ORDER BY color_name, CAST(size AS DECIMAL)");
+
+// Get colour list for the stock form dropdown
+$available_colors = ['Default'];
+if($var_images && $var_images->num_rows > 0){
+    $var_images->data_seek(0);
+    while($vi=$var_images->fetch_assoc()){
+        if(!empty($vi['color_name']) && !in_array($vi['color_name'],$available_colors))
+            $available_colors[] = $vi['color_name'];
+    }
+    $var_images->data_seek(0);
+}
+
+// Group existing stock by colour
+$stock_by_color = [];
+if($prod_stocks && $prod_stocks->num_rows > 0){
+    $prod_stocks->data_seek(0);
+    while($sr=$prod_stocks->fetch_assoc())
+        $stock_by_color[$sr['color_name']][] = $sr;
+}
 
 $previewSrc = !empty($product['image_url'])
     ? (str_starts_with($product['image_url'],'http') ? $product['image_url'] : '../'.$product['image_url'])
@@ -220,45 +280,77 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
             </form>
           </div>
 
-          <!-- ── 2. UK SIZE STOCK ── -->
+          <!-- ── 2. STOCK PER COLOUR + SIZE ── -->
           <div class="card a-form" style="margin-bottom:20px;">
-            <h2>UK SIZE STOCK</h2>
+            <h2>STOCK PER COLOUR &amp; SIZE</h2>
+            <p style="color:var(--muted);font-size:.82rem;margin-bottom:20px;">
+              Set stock for each <strong style="color:var(--white)">Colour + Size</strong> combination.
+              Use <strong style="color:var(--white)">"Default"</strong> if your product has no colour variants.
+            </p>
 
-            <?php if($prod_sizes->num_rows > 0): ?>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
-              <?php while($sz=$prod_sizes->fetch_assoc()): ?>
-              <div style="background:var(--navy2);border:1px solid <?=$sz['stock_for_size']>0?'var(--border)':'var(--danger)'?>;border-radius:var(--radius);padding:10px 14px;text-align:center;position:relative;min-width:72px;">
-                <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:<?=$sz['stock_for_size']>0?'var(--white)':'var(--danger)'?>;">UK <?=e($sz['size'])?></div>
-                <div style="font-size:.72rem;color:var(--muted);"><?=(int)$sz['stock_for_size']?> pairs</div>
-                <a href="admin_product_edit.php?id=<?=$pid?>&del_size=<?=(int)$sz['size_id']?>"
-                   onclick="return confirm('Remove UK <?=e($sz['size'])?>?')"
-                   style="position:absolute;top:-7px;right:-7px;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;text-decoration:none;line-height:1;">✕</a>
+            <!-- Existing stock table -->
+            <?php if(!empty($stock_by_color)): ?>
+            <?php foreach($stock_by_color as $col_name => $entries): ?>
+            <div style="margin-bottom:20px;">
+              <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:10px;">
+                <?=e($col_name)?>
               </div>
-              <?php endwhile; ?>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <?php foreach($entries as $entry): ?>
+                <div style="background:var(--navy2);border:1px solid <?=$entry['stock']>0?'var(--border)':'var(--danger)'?>;border-radius:var(--radius);padding:10px 12px;text-align:center;position:relative;min-width:72px;">
+                  <div style="font-family:'Oswald',sans-serif;font-size:.95rem;color:<?=$entry['stock']>0?'var(--white)':'var(--danger)'?>;">UK <?=e($entry['size'])?></div>
+                  <div style="font-size:.7rem;color:<?=$entry['stock']<=3&&$entry['stock']>0?'#f97316':'var(--muted)'?>;">
+                    <?php if($entry['stock']<=3&&$entry['stock']>0): ?>⚠️ <?php endif; ?>
+                    <?=(int)$entry['stock']?> pcs
+                  </div>
+                  <a href="admin_product_edit.php?id=<?=$pid?>&del_stock=<?=(int)$entry['stock_id']?>"
+                     onclick="return confirm('Remove UK <?=e($entry['size'])?> / <?=e($col_name)?>?')"
+                     style="position:absolute;top:-7px;right:-7px;background:var(--danger);color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:.6rem;text-decoration:none;line-height:1;">✕</a>
+                </div>
+                <?php endforeach; ?>
+              </div>
             </div>
+            <?php endforeach; ?>
+            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
             <?php else: ?>
-            <p style="color:var(--muted);font-size:.875rem;margin-bottom:16px;">No sizes added yet. Add below.</p>
+            <p style="color:var(--muted);font-size:.875rem;margin-bottom:16px;">No stock entries yet. Add below.</p>
             <?php endif; ?>
 
-            <form method="POST" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+            <!-- Add stock form -->
+            <form method="POST" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
               <input type="hidden" name="add_size" value="1">
-              <div class="form-group" style="margin:0;min-width:140px;">
+
+              <div class="form-group" style="margin:0;min-width:160px;">
+                <label>Colour</label>
+                <select name="stock_color" style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
+                  <?php foreach($available_colors as $ac): ?>
+                  <option value="<?=e($ac)?>"><?=e($ac)?></option>
+                  <?php endforeach; ?>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin:0;min-width:130px;">
                 <label>UK Size</label>
-                <select name="new_size" style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
-                  <option value="">-- Pick Size --</option>
+                <select name="new_size" style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
+                  <option value="">-- Pick --</option>
                   <?php foreach($uk_sizes as $s): ?>
                   <option value="<?=$s?>">UK <?=$s?></option>
                   <?php endforeach; ?>
                 </select>
               </div>
-              <div class="form-group" style="margin:0;min-width:120px;">
+
+              <div class="form-group" style="margin:0;min-width:100px;">
                 <label>Stock Qty</label>
                 <input type="number" name="new_stock" min="0" value="10"
-                       style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
+                       style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:.875rem;width:100%;">
               </div>
-              <button type="submit" class="btn btn-primary btn-sm">+ Add Size</button>
+
+              <button type="submit" class="btn btn-primary btn-sm">+ Save Stock</button>
             </form>
-            <div style="font-size:.72rem;color:var(--muted);margin-top:8px;">Adding an existing size updates its stock.</div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:8px;">
+              Adding an existing Colour+Size combination updates its stock.
+              Add each colour variant's sizes separately — colours appear above once you add them as Variant Images.
+            </div>
           </div>
 
           <!-- ── 3. COLOUR VARIANT IMAGES ── -->

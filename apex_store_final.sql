@@ -270,3 +270,23 @@ COMMIT;
 --  ⚠️  After import, re-register any customer accounts
 --     OR add your user INSERT manually if you want to keep them
 -- ================================================================
+
+-- ────────────────────────────────────────────
+-- 15. PRODUCT STOCK (per size + per colour tracking)
+--     Replaces product_size for colour-aware inventory
+--     color_name = 'Default' for products with no colour variants
+-- ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS `product_stock` (
+  `stock_id`   int(11)     NOT NULL AUTO_INCREMENT,
+  `product_id` int(11)     NOT NULL,
+  `color_name` varchar(80) NOT NULL DEFAULT 'Default',
+  `size`       varchar(10) NOT NULL,
+  `stock`      int(11)     NOT NULL DEFAULT 0,
+  PRIMARY KEY (`stock_id`),
+  UNIQUE KEY `uq_product_color_size` (`product_id`, `color_name`, `size`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `product_stock_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- Run in phpMyAdmin if you already have the DB:
+-- CREATE TABLE IF NOT EXISTS `product_stock` ( ... same as above ... );
