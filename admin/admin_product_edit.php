@@ -154,6 +154,11 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     if(!$name || $price<=0){
         $msg = "Name and price are required."; $mtype='err';
     } else {
+        // If new image was uploaded, delete the OLD local image file
+        if($image_url !== $product['image_url'] && !str_starts_with($product['image_url'],'http') && !empty($product['image_url'])){
+            $old_file = dirname(__DIR__) . '/' . $product['image_url'];
+            if(file_exists($old_file)) unlink($old_file);
+        }
         $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,price=?,stock=?,image_url=? WHERE product_id=?");
         $stmt->bind_param("ssidisi",$name,$description,$category_id,$price,$stock,$image_url,$pid);
         $stmt->execute();
@@ -283,10 +288,16 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
           <!-- ── 2. STOCK PER COLOUR + SIZE ── -->
           <div class="card a-form" style="margin-bottom:20px;">
             <h2>STOCK PER COLOUR &amp; SIZE</h2>
-            <p style="color:var(--muted);font-size:.82rem;margin-bottom:20px;">
-              Set stock for each <strong style="color:var(--white)">Colour + Size</strong> combination.
-              Use <strong style="color:var(--white)">"Default"</strong> if your product has no colour variants.
-            </p>
+
+            <!-- Step guide -->
+            <div style="background:rgba(100,255,218,.05);border:1px solid rgba(100,255,218,.2);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;font-size:.82rem;color:var(--muted);line-height:1.8;">
+              <strong style="color:var(--accent);display:block;margin-bottom:6px;">📋 HOW TO ADD STOCK:</strong>
+              <strong style="color:var(--white);">Step 1:</strong> First add your colour variants below in the "Colour Variant Images" section.<br>
+              <strong style="color:var(--white);">Step 2:</strong> Come back here — the Colour dropdown will show your variants.<br>
+              <strong style="color:var(--white);">Step 3:</strong> Pick a Colour → Pick a UK Size → Enter stock quantity → Click Save Stock.<br>
+              <strong style="color:var(--white);">Step 4:</strong> Repeat for each size for each colour.<br>
+              <em>Use "Default" if your product has only one colour.</em>
+            </div>
 
             <!-- Existing stock table -->
             <?php if(!empty($stock_by_color)): ?>

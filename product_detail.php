@@ -329,7 +329,7 @@ function updateSizeGrid(colorName){
                     stockAll[colorName]=obj;
                     renderSizes(grid, obj);
                 } else {
-                    grid.innerHTML='<span style="color:var(--muted);font-size:.875rem;">No sizes available for this colour yet.</span>';
+                    grid.innerHTML='<div style="color:var(--muted);font-size:.82rem;padding:10px 0;">No sizes set for this colour yet.<br><small>Admin: go to Edit Product → Stock Per Colour & Size to add stock.</small></div>';
                 }
             });
         return;
@@ -371,8 +371,8 @@ function pickSize(btn, size){
     const stk = (stockAll[activeColor]||{})[size];
     const bar = document.getElementById('stockBar');
     bar.style.display='block';
-    if(stk === undefined){
-        bar.className='stock-bar'; bar.textContent='Stock info unavailable.';
+    if(stk === undefined || stk === null){
+        bar.className='stock-bar'; bar.textContent='ℹ️ Stock info not set up yet for this colour.';
     } else if(stk===0){
         bar.className='stock-bar out'; bar.textContent='❌ Out of stock for this size.';
     } else if(stk<=3){
