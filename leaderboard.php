@@ -20,6 +20,23 @@ require 'db.php';
 //  Minimum score is capped at 0 (cannot go negative)
 // ──────────────────────────────────────────────────────────────
 
+// ── Filter & Sort parameters ─────────────────────────────────────
+$sort_options = [
+    'score_desc'  => ['label' => '🏆 Top Score',     'sql' => 'score DESC'],
+    'score_asc'   => ['label' => '📉 Lowest Score',  'sql' => 'score ASC'],
+    'rating_desc' => ['label' => '⭐ Highest Rated', 'sql' => 'avg_rating DESC'],
+    'rating_asc'  => ['label' => '☆ Lowest Rated',  'sql' => 'avg_rating ASC'],
+    'sold_desc'   => ['label' => '🛒 Most Sold',     'sql' => 'units_sold DESC'],
+];
+$sort = $_GET['sort'] ?? 'score_desc';
+if(!array_key_exists($sort, $sort_options)) $sort = 'score_desc';
+$sort_sql = $sort_options[$sort]['sql'];
+
+$allowed_cats = ['Running','Basketball','Training','Lifestyle'];
+$cat_filter   = $_GET['cat'] ?? '';
+if($cat_filter && !in_array($cat_filter, $allowed_cats)) $cat_filter = '';
+$cat_where = $cat_filter ? "AND c.category_name = '" . $conn->real_escape_string($cat_filter) . "'" : '';
+
 $leaderboard = $conn->query("
     SELECT
         p.product_id,
@@ -46,9 +63,10 @@ $leaderboard = $conn->query("
     JOIN categories c        ON p.category_id = c.category_id
     LEFT JOIN reviews r      ON r.product_id  = p.product_id
     LEFT JOIN order_items oi ON oi.product_id = p.product_id
+    WHERE 1=1 $cat_where
     GROUP BY p.product_id, p.name, p.price, p.image_url, c.category_name
     HAVING units_sold > 0
-    ORDER BY c.category_name ASC, score DESC
+    ORDER BY c.category_name ASC, $sort_sql
 ");
 
 // Group by category
@@ -182,6 +200,45 @@ $medals = ['🥇','🥈','🥉'];
       <div style="font-size:.75rem;color:var(--muted);padding:7px 0;">
         · Only shoes with <strong style="color:var(--white)">at least 1 sale</strong> appear here
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter & Sort bar -->
+<div style="background:var(--navy2);border-bottom:1px solid var(--border);padding:16px 0;">
+  <div class="wrap">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+
+      <!-- Category filter -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);flex-shrink:0;">Category:</span>
+        <?php
+        $cats_nav = ['' => 'All'] + array_combine($allowed_cats, $allowed_cats);
+        foreach($cats_nav as $val => $label):
+          $active = ($cat_filter === $val);
+          $url = '?cat='.urlencode($val).'&sort='.urlencode($sort);
+        ?>
+        <a href="<?=$url?>"
+           style="padding:5px 14px;border-radius:100px;font-size:.78rem;font-weight:<?=$active?'700':'500'?>;text-decoration:none;border:1px solid <?=$active?'var(--accent)':'var(--border)'?>;color:<?=$active?'var(--navy)':'var(--muted)'?>;background:<?=$active?'var(--accent)':'transparent'?>;transition:.2s;">
+          <?=e($label)?>
+        </a>
+        <?php endforeach; ?>
+      </div>
+
+      <!-- Sort dropdown -->
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Sort by:</span>
+        <form method="GET" style="margin:0;">
+          <input type="hidden" name="cat" value="<?=e($cat_filter)?>">
+          <select name="sort" onchange="this.form.submit()"
+                  style="background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;color:var(--text);font-size:.82rem;cursor:pointer;">
+            <?php foreach($sort_options as $key => $opt): ?>
+            <option value="<?=$key?>" <?=$sort===$key?'selected':''?>><?=$opt['label']?></option>
+            <?php endforeach; ?>
+          </select>
+        </form>
+      </div>
+
     </div>
   </div>
 </div>

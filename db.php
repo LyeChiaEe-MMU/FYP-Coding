@@ -33,7 +33,7 @@ function is_admin(){
 }
 
 function status_badge($status){
-    $map=['Processing'=>'st-processing','Shipped'=>'st-shipped','Completed'=>'st-completed','Cancelled'=>'st-cancelled'];
+    $map=['Processing'=>'st-processing','Delivered'=>'st-shipped','Completed'=>'st-completed','Cancelled'=>'st-cancelled'];
     $cls=$map[$status]??'st-processing';
     return '<span class="status-badge '.$cls.'">'.e($status).'</span>';
 }

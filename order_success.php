@@ -39,26 +39,8 @@ $items = $conn->query("
       <h1 style="font-family:'Oswald',sans-serif;font-size:1.8rem;letter-spacing:2px;color:var(--white);margin-bottom:8px;">ORDER CONFIRMED!</h1>
       <p style="color:var(--muted);margin-bottom:28px;">Thank you <?=e($_SESSION['user_name']??'')?>! Your order has been placed and is being processed.</p>
 
-      <!-- Order items preview -->
-      <div style="margin-bottom:24px;">
-        <?php while($it=$items->fetch_assoc()):
-          $img = !empty($it['image_url']) ? e($it['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&q=60';
-        ?>
-        <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);text-align:left;">
-          <img src="<?=$img?>" style="width:58px;height:58px;border-radius:8px;object-fit:cover;flex-shrink:0;">
-          <div style="flex:1;">
-            <div style="font-weight:600;font-size:.9rem;color:var(--white);"><?=e($it['name'])?></div>
-            <div style="font-size:.75rem;color:var(--muted);">UK <?=e($it['size'] ?? '—')?> × <?=(int)$it['quantity']?></div>
-          </div>
-          <div style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:1.05rem;">
-            RM <?=number_format($it['price']*$it['quantity'],2)?>
-          </div>
-        </div>
-        <?php endwhile; ?>
-      </div>
-
       <!-- Order meta -->
-      <div class="order-meta" style="text-align:left;">
+      <div class="order-meta" style="text-align:left;margin-bottom:24px;">
         <div class="om-row">
           <span>Order ID</span>
           <span>#<?=str_pad($oid,6,'0',STR_PAD_LEFT)?></span>
@@ -79,6 +61,24 @@ $items = $conn->query("
           <span>Shipping To</span>
           <span style="max-width:220px;text-align:right;font-size:.8rem;"><?=e($order['shipping_address'])?></span>
         </div>
+      </div>
+
+      <!-- Order items preview -->
+      <div style="margin-bottom:24px;">
+        <?php while($it=$items->fetch_assoc()):
+          $img = !empty($it['image_url']) ? e($it['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&q=60';
+        ?>
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);text-align:left;">
+          <img src="<?=$img?>" style="width:58px;height:58px;border-radius:8px;object-fit:cover;flex-shrink:0;">
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:.9rem;color:var(--white);"><?=e($it['name'])?></div>
+            <div style="font-size:.75rem;color:var(--muted);">UK <?=e($it['size'] ?? '—')?> × <?=(int)$it['quantity']?></div>
+          </div>
+          <div style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:1.05rem;">
+            RM <?=number_format($it['price']*$it['quantity'],2)?>
+          </div>
+        </div>
+        <?php endwhile; ?>
       </div>
 
       <div class="success-btns">

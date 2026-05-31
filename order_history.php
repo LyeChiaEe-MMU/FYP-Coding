@@ -49,7 +49,7 @@ $result = $orders->get_result();
 <?php else: while($o=$result->fetch_assoc()):
   $oid = (int)$o['order_id'];
   $status = $o['status'];
-  $steps = ['Processing','Shipped','Completed'];
+  $steps = ['Processing','Delivered','Completed'];
   $cur = array_search($status, $steps);
   if($cur===false) $cur=-1;
 
@@ -116,7 +116,7 @@ $result = $orders->get_result();
       <?php endforeach; ?>
     </div>
 
-    <?php if($status==='Shipped'): ?>
+    <?php if($status==='Delivered'): ?>
     <div style="margin-top:14px;background:rgba(100,149,237,.08);border:1px solid rgba(100,149,237,.2);border-radius:6px;padding:10px 14px;font-size:.82rem;color:#8ab4f8;display:flex;align-items:center;gap:8px;">
       📦 Estimated delivery: <?=date('d M Y',strtotime('+5 days',strtotime($o['order_date'])))?>
     </div>

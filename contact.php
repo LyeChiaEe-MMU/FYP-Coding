@@ -158,7 +158,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <div style="max-width:780px;margin:0 auto;">
       <?php foreach([
-        ['How do I track my order?','Log in to your account and go to "My Orders". You will see the current status. When marked as "Shipped", an estimated delivery date is shown.'],
+        ['How do I track my order?','Log in to your account and go to "My Orders". You will see the current status. When marked as "Delivered", an estimated delivery date is shown.'],
         ['Can I change or cancel my order?','Orders can be cancelled within 1 hour of placement by contacting us via WhatsApp. Once packed, it can no longer be cancelled — but you can return it after delivery.'],
         ['How long does delivery take?','Standard delivery takes 2–4 business days for Peninsular Malaysia and 5–7 business days for Sabah and Sarawak.'],
         ['My size is out of stock — when will it be restocked?','Restock timelines vary. Contact us with the product name and size and we will notify you as soon as it is available.'],

@@ -7,7 +7,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
     csrf_check();
     $oid        = (int)$_POST['order_id'];
     $new_status = $_POST['status'];
-    $allowed    = ['Processing','Shipped','Completed','Cancelled'];
+    $allowed    = ['Processing','Delivered','Completed','Cancelled'];
     if(in_array($new_status,$allowed)){
         $upd = $conn->prepare("UPDATE orders SET status=? WHERE order_id=?");
         $upd->bind_param("si",$new_status,$oid);
@@ -27,7 +27,7 @@ if(!empty($_SESSION['admin_flash'])){
 
 // Filter — validated against allowlist to prevent injection
 $filter          = $_GET['filter'] ?? '';
-$allowed_filters = ['Processing','Shipped','Completed','Cancelled'];
+$allowed_filters = ['Processing','Delivered','Completed','Cancelled'];
 if($filter && !in_array($filter, $allowed_filters)) $filter = '';
 $where = $filter ? "WHERE o.status='".$conn->real_escape_string($filter)."'" : '';
 
@@ -67,7 +67,7 @@ $orders = $conn->query("
 
       <!-- Status filter -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">
-        <?php foreach([''=> 'All','Processing'=>'Processing','Shipped'=>'Shipped','Completed'=>'Completed','Cancelled'=>'Cancelled'] as $val=>$label): ?>
+        <?php foreach([''=> 'All','Processing'=>'Processing','Delivered'=>'Delivered','Completed'=>'Completed','Cancelled'=>'Cancelled'] as $val=>$label): ?>
         <a href="admin_orders.php?filter=<?=urlencode($val)?>"
            style="padding:7px 18px;border-radius:100px;border:1px solid <?=$filter===$val?'var(--accent)':'var(--border)'?>;color:<?=$filter===$val?'var(--navy)':'var(--muted)'?>;background:<?=$filter===$val?'var(--accent)':'transparent'?>;font-size:.8rem;font-weight:<?=$filter===$val?700:500?>;transition:.2s;">
           <?=e($label)?>
@@ -110,7 +110,7 @@ $orders = $conn->query("
                   <input type="hidden" name="order_id" value="<?=(int)$o['order_id']?>">
                   <select name="status"
                     style="background:var(--navy2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:.82rem;cursor:pointer;">
-                    <?php foreach(['Processing','Shipped','Completed','Cancelled'] as $s): ?>
+                    <?php foreach(['Processing','Delivered','Completed','Cancelled'] as $s): ?>
                     <option value="<?=$s?>" <?=$o['status']===$s?'selected':''?>><?=$s?></option>
                     <?php endforeach; ?>
                   </select>
