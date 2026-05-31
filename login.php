@@ -5,6 +5,7 @@ if(is_logged()){ header("Location: index.php"); exit; }
 
 $error = '';
 if($_SERVER['REQUEST_METHOD']==='POST'){
+    csrf_check();
     $email    = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
@@ -14,6 +15,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $user = $stmt->get_result()->fetch_assoc();
 
     if($user && password_verify($password,$user['password'])){
+        session_regenerate_id(true);
         $_SESSION['user_id']   = $user['user_id'];
         $_SESSION['user_name'] = $user['name'];
         header("Location: index.php"); exit;
@@ -42,6 +44,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       <?php endif; ?>
 
       <form method="POST">
+        <?=csrf_field()?>
         <div class="form-group">
           <label>Email Address</label>
           <input type="email" name="email" placeholder="you@email.com"

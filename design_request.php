@@ -15,6 +15,7 @@ $success = false;
 $urow = $conn->query("SELECT name FROM users WHERE user_id=$uid")->fetch_assoc();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
     $shoe_name  = trim($_POST['shoe_name']      ?? '');
     $category   = trim($_POST['category']       ?? '');
     $color_pref = trim($_POST['color_pref']     ?? '');
@@ -31,14 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Handle optional image upload
     $ref_image = null;
     if (!empty($_FILES['ref_image']['name'])) {
-        $file    = $_FILES['ref_image'];
-        $allowed = ['jpg','jpeg','png','gif','webp'];
-        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        
-
-        if (!in_array($ext, $allowed))    $errors[] = "Image must be JPG, PNG, GIF or WEBP.";
-        
-        else {
+        $file = $_FILES['ref_image'];
+        $upload_err = '';
+        if (!valid_image_upload($file, $upload_err)) {
+            $errors[] = $upload_err;
+        } else {
             $filename  = 'design_' . $uid . '_' . time() . '.' . $ext;
             $uploadDir = __DIR__ . '/uploads/designs/';
             if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
@@ -51,15 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        $sn   = $conn->real_escape_string($shoe_name);
-        $cat  = $conn->real_escape_string($category);
-        $cp   = $conn->real_escape_string($color_pref);
-        $desc = $conn->real_escape_string($description);
-        $sp   = $conn->real_escape_string($specs);
-        $img  = $ref_image ? "'" . $conn->real_escape_string($ref_image) . "'" : "NULL";
-
-        $conn->query("INSERT INTO design_requests (user_id, shoe_name, category, color_pref, description, specifications, ref_image)
-                      VALUES ($uid, '$sn', '$cat', '$cp', '$desc', '$sp', $img)");
+        $stmt = $conn->prepare("INSERT INTO design_requests (user_id, shoe_name, category, color_pref, description, specifications, ref_image) VALUES (?,?,?,?,?,?,?)");
+        $stmt->bind_param("issssss", $uid, $shoe_name, $category, $color_pref, $description, $specs, $ref_image);
+        $stmt->execute();
         $success = true;
     }
 }
@@ -124,6 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 
   <form method="POST" enctype="multipart/form-data">
+    <?=csrf_field()?>
     <div class="card" style="padding:32px;">
 
       <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--white);margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--border);">

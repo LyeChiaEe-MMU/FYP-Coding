@@ -5,20 +5,31 @@ $msg = '';
 
 // Handle status update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_request'])) {
+    csrf_check();
     $rid    = (int)$_POST['request_id'];
     $status = $_POST['status'];
-    $note   = $conn->real_escape_string(trim($_POST['admin_note'] ?? ''));
-    $allowed = ['Pending','In Review','Approved','Rejected'];
+    $note   = trim($_POST['admin_note'] ?? '');
+    $allowed_statuses = ['Pending','In Review','Approved','Rejected'];
 
-    if (in_array($status, $allowed)) {
-        $conn->query("UPDATE design_requests SET status='$status', admin_note='$note' WHERE request_id=$rid");
-        $msg = "Request #$rid updated to <strong>$status</strong>.";
+    if (in_array($status, $allowed_statuses)) {
+        $stmt = $conn->prepare("UPDATE design_requests SET status=?, admin_note=? WHERE request_id=?");
+        $stmt->bind_param("ssi", $status, $note, $rid);
+        $stmt->execute();
+        $_SESSION['admin_flash'] = "Request #$rid updated to $status.";
     }
+    header("Location: admin_requests.php"); exit;
 }
 
-// Filter
-$filter = $_GET['filter'] ?? '';
-$where  = $filter ? "WHERE dr.status='" . $conn->real_escape_string($filter) . "'" : '';
+if(!empty($_SESSION['admin_flash'])){
+    $msg = $_SESSION['admin_flash'];
+    unset($_SESSION['admin_flash']);
+}
+
+// Filter — validated against allowlist
+$filter          = $_GET['filter'] ?? '';
+$allowed_filters = ['Pending','In Review','Approved','Rejected'];
+if($filter && !in_array($filter, $allowed_filters)) $filter = '';
+$where = $filter ? "WHERE dr.status='" . $conn->real_escape_string($filter) . "'" : '';
 
 $reqs = $conn->query("
     SELECT dr.*, u.name AS customer_name, u.email
@@ -48,7 +59,7 @@ $reqs = $conn->query("
     <div class="admin-content">
 
       <?php if ($msg): ?>
-      <div class="flash flash-ok"><?=$msg?></div>
+      <div class="flash flash-ok"><?=e($msg)?></div>
       <?php endif; ?>
 
       <!-- Status filters -->
@@ -68,7 +79,7 @@ $reqs = $conn->query("
       <?php if ($reqs->num_rows === 0): ?>
       <div style="text-align:center;padding:60px;color:var(--muted);">
         <div style="font-size:2.5rem;margin-bottom:14px;">📭</div>
-        <p>No design requests<?=$filter?" with status \"$filter\"":''?> yet.</p>
+        <p>No design requests<?=$filter?' with status "'.e($filter).'"':''?> yet.</p>
       </div>
 
       <?php else: while ($r = $reqs->fetch_assoc()):
@@ -120,6 +131,7 @@ $reqs = $conn->query("
 
             <!-- Update form -->
             <form method="POST" style="background:rgba(17,34,64,.5);border:1px solid var(--border);border-radius:8px;padding:18px;">
+              <?=csrf_field()?>
               <input type="hidden" name="request_id" value="<?=(int)$r['request_id']?>">
               <div style="font-size:.72px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-size:.7rem;">UPDATE REQUEST</div>
 

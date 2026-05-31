@@ -1,6 +1,7 @@
 <?php
 require_once 'auth_check.php';
 
+if($_SERVER['REQUEST_METHOD']==='POST') csrf_check();
 $pid = (int)($_POST['product_id'] ?? 0);
 if(!$pid){ header("Location: admin_products.php"); exit; }
 
@@ -37,11 +38,10 @@ $conn->query("CREATE TABLE IF NOT EXISTS `product_images` (
 
 // Handle file upload
 if(!empty($_FILES['variant_image']['name'])){
-    $file    = $_FILES['variant_image'];
-    $allowed = ['jpg','jpeg','png','gif','webp'];
-    $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-
-    if(in_array($ext, $allowed) && $file['size'] <= 5*1024*1024){
+    $file = $_FILES['variant_image'];
+    $upload_err = '';
+    if(valid_image_upload($file, $upload_err) && $file['size'] <= 5*1024*1024){
+        $ext       = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $filename  = 'variant_' . $pid . '_' . time() . '.' . $ext;
         $uploadDir = dirname(__DIR__) . '/uploads/';
         if(!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
@@ -55,7 +55,6 @@ if($image_url){
     // Get next sort order
     $max = $conn->query("SELECT COALESCE(MAX(sort_order),0)+1 AS n FROM product_images WHERE product_id=$pid")->fetch_assoc()['n'];
     $stmt = $conn->prepare("INSERT INTO product_images (product_id, image_url, color_name, sort_order) VALUES (?,?,?,?)");
-    $cn   = $conn->real_escape_string($color_name);
     $stmt->bind_param("issi", $pid, $image_url, $color_name, $max);
     $stmt->execute();
 }

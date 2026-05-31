@@ -4,27 +4,32 @@ require_once 'auth_check.php';
 
 $msg = '';
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
+    csrf_check();
     $oid        = (int)$_POST['order_id'];
     $new_status = $_POST['status'];
     $allowed    = ['Processing','Shipped','Completed','Cancelled'];
     if(in_array($new_status,$allowed)){
-        // Get old status for history
-        $old = $conn->query("SELECT status FROM orders WHERE order_id=$oid")->fetch_assoc()['status'];
-        $conn->query("UPDATE orders SET status='$new_status' WHERE order_id=$oid");
-        // Log
+        $upd = $conn->prepare("UPDATE orders SET status=? WHERE order_id=?");
+        $upd->bind_param("si",$new_status,$oid);
+        $upd->execute();
         $h = $conn->prepare("INSERT INTO order_status_history (order_id,status) VALUES (?,?)");
         $h->bind_param("is",$oid,$new_status);
         $h->execute();
-        $msg = "Order #".str_pad($oid,6,'0',STR_PAD_LEFT)." updated to <strong>$new_status</strong>.";
+        $_SESSION['admin_flash'] = "Order #".str_pad($oid,6,'0',STR_PAD_LEFT)." updated to $new_status.";
     }
-    header("Location: admin_orders.php?msg=".urlencode($msg)); exit;
+    header("Location: admin_orders.php"); exit;
 }
 
-$msg = $_GET['msg'] ?? '';
+if(!empty($_SESSION['admin_flash'])){
+    $msg = $_SESSION['admin_flash'];
+    unset($_SESSION['admin_flash']);
+}
 
-// Filter
-$filter = $_GET['filter'] ?? '';
-$where  = $filter ? "WHERE o.status='".$conn->real_escape_string($filter)."'" : '';
+// Filter — validated against allowlist to prevent injection
+$filter          = $_GET['filter'] ?? '';
+$allowed_filters = ['Processing','Shipped','Completed','Cancelled'];
+if($filter && !in_array($filter, $allowed_filters)) $filter = '';
+$where = $filter ? "WHERE o.status='".$conn->real_escape_string($filter)."'" : '';
 
 $orders = $conn->query("
     SELECT o.*, u.name AS customer_name, u.email,
@@ -57,7 +62,7 @@ $orders = $conn->query("
     <div class="admin-content">
 
       <?php if($msg): ?>
-      <div class="flash flash-ok"><?=$msg?></div>
+      <div class="flash flash-ok"><?=e($msg)?></div>
       <?php endif; ?>
 
       <!-- Status filter -->
@@ -101,6 +106,7 @@ $orders = $conn->query("
               <td><?=status_badge($o['status'])?></td>
               <td>
                 <form method="POST" style="display:flex;gap:8px;align-items:center;">
+                  <?=csrf_field()?>
                   <input type="hidden" name="order_id" value="<?=(int)$o['order_id']?>">
                   <select name="status"
                     style="background:var(--navy2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:.82rem;cursor:pointer;">

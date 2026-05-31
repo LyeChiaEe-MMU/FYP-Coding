@@ -78,6 +78,7 @@ $total    = $subtotal + $shipping;
         <!-- Qty -->
         <div>
           <form action="cart_action.php" method="POST">
+            <?=csrf_field()?>
             <input type="hidden" name="action" value="update">
             <input type="hidden" name="cart_id" value="<?=(int)$r['cart_id']?>">
             <div class="qty-wrap">
@@ -94,6 +95,7 @@ $total    = $subtotal + $shipping;
         <!-- Remove -->
         <div>
           <form action="cart_action.php" method="POST">
+            <?=csrf_field()?>
             <input type="hidden" name="action" value="remove">
             <input type="hidden" name="cart_id" value="<?=(int)$r['cart_id']?>">
             <button type="submit" class="ci-remove" title="Remove">✕</button>

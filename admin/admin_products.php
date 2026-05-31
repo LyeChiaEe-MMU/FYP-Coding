@@ -4,6 +4,9 @@ require_once 'auth_check.php';
 $msg = ''; $mtype = 'ok';
 
 // ── DELETE with password verification ────────────
+if(isset($_POST['confirm_delete']) || (isset($_POST['add_product']) && $_SERVER['REQUEST_METHOD']==='POST')){
+    csrf_check();
+}
 if(isset($_POST['confirm_delete'])){
     $id       = (int)$_POST['delete_id'];
     $password = $_POST['admin_password'] ?? '';
@@ -47,11 +50,10 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     $image_url   = trim($_POST['image_url']   ?? '');
 
     if(!empty($_FILES['image_file']['name'])){
-        $file    = $_FILES['image_file'];
-        $allowed = ['jpg','jpeg','png','gif','webp'];
-        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if(!in_array($ext, $allowed)){
-            $msg = "Image must be JPG, PNG, GIF or WEBP."; $mtype='err';
+        $file = $_FILES['image_file'];
+        $upload_err = '';
+        if(!valid_image_upload($file, $upload_err)){
+            $msg = $upload_err; $mtype='err';
         } else {
             $filename  = 'product_' . time() . '_' . preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
             $uploadDir = dirname(__DIR__) . '/uploads/';
@@ -135,6 +137,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
       <div class="card a-form" style="max-width:100%;margin-bottom:24px;">
         <h2>ADD NEW PRODUCT</h2>
         <form method="POST" enctype="multipart/form-data">
+          <?=csrf_field()?>
           <div class="form-grid-2">
             <div class="form-group">
               <label>Product Name *</label>
@@ -234,6 +237,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
       Enter your admin password to confirm:
     </p>
     <form method="POST" id="deleteForm">
+      <?=csrf_field()?>
       <input type="hidden" name="confirm_delete" value="1">
       <input type="hidden" name="delete_id" id="deleteProductId">
       <input type="password" name="admin_password" id="adminPasswordInput"

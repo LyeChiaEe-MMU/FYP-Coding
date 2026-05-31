@@ -160,6 +160,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
     <p class="detail-desc"><?=nl2br(e($product['description']))?></p>
 
     <form action="cart_action.php" method="POST" id="addCartForm">
+      <?=csrf_field()?>
       <input type="hidden" name="action" value="add">
       <input type="hidden" name="product_id" value="<?=$pid?>">
       <input type="hidden" name="size"  id="sizeInput"  value="">

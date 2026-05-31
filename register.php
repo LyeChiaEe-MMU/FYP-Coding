@@ -5,6 +5,7 @@ if(is_logged()){ header("Location: index.php"); exit; }
 
 $error = ''; $success = '';
 if($_SERVER['REQUEST_METHOD']==='POST'){
+    csrf_check();
     $name    = trim($_POST['name']    ?? '');
     $email   = trim($_POST['email']   ?? '');
     $pass    = $_POST['password']     ?? '';
@@ -106,6 +107,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
       <?php if(!$success): ?>
       <form method="POST" id="registerForm" novalidate>
+        <?=csrf_field()?>
 
         <!-- Full Name -->
         <div class="form-group">

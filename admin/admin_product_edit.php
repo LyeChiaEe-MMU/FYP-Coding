@@ -48,6 +48,8 @@ $conn->query("CREATE TABLE IF NOT EXISTS `product_stock` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 // ── Handle add/update stock (colour + size) ───────
+if($_SERVER['REQUEST_METHOD']==='POST') csrf_check();
+
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_size'])){
     $sz    = trim($_POST['new_size']   ?? '');
     $stk   = (int)($_POST['new_stock'] ?? 0);
@@ -83,7 +85,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_size_legacy'])){
         $chk = $conn->prepare("SELECT size_id FROM product_size WHERE product_id=? AND size=?");
         $chk->bind_param("is",$pid,$sz); $chk->execute();
         if($chk->get_result()->num_rows > 0){
-            $conn->query("UPDATE product_size SET stock_for_size=$stk WHERE product_id=$pid AND size='".addslashes($sz)."'");
+            $upd2 = $conn->prepare("UPDATE product_size SET stock_for_size=? WHERE product_id=? AND size=?");
+            $upd2->bind_param("iis",$stk,$pid,$sz);
+            $upd2->execute();
         } else {
             $ins = $conn->prepare("INSERT INTO product_size (product_id,size,stock_for_size) VALUES (?,?,?)");
             $ins->bind_param("isi",$pid,$sz,$stk); $ins->execute();
@@ -104,16 +108,18 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_variant'])){
     }
 
     if(!empty($_FILES['variant_image']['name'])){
-        $file    = $_FILES['variant_image'];
-        $allowed = ['jpg','jpeg','png','gif','webp'];
-        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if(in_array($ext,$allowed)){
+        $file = $_FILES['variant_image'];
+        $upload_err = '';
+        if(valid_image_upload($file, $upload_err)){
+            $ext       = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $filename  = 'variant_'.$pid.'_'.time().'.'.$ext;
             $uploadDir = dirname(__DIR__).'/uploads/';
             if(!is_dir($uploadDir)) mkdir($uploadDir,0755,true);
             if(move_uploaded_file($file['tmp_name'],$uploadDir.$filename)){
                 $image_url = 'uploads/'.$filename;
             }
+        } else {
+            header("Location: admin_product_edit.php?id=$pid&msg=".urlencode($upload_err)."&mtype=err"); exit;
         }
     }
     if($image_url){
@@ -138,16 +144,18 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
 
     // Only update image if a NEW file was uploaded via the MAIN form
     if(!empty($_FILES['main_image_file']['name'])){
-        $file    = $_FILES['main_image_file'];
-        $allowed = ['jpg','jpeg','png','gif','webp'];
-        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if(in_array($ext,$allowed)){
+        $file = $_FILES['main_image_file'];
+        $upload_err = '';
+        if(valid_image_upload($file, $upload_err)){
+            $ext       = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $filename  = 'product_'.time().'_'.preg_replace('/[^a-z0-9._-]/i','_',$file['name']);
             $uploadDir = dirname(__DIR__).'/uploads/';
             if(!is_dir($uploadDir)) mkdir($uploadDir,0755,true);
             if(move_uploaded_file($file['tmp_name'],$uploadDir.$filename)){
                 $image_url = 'uploads/'.$filename;
             }
+        } else {
+            $msg = $upload_err; $mtype = 'err';
         }
     }
 
@@ -231,6 +239,7 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
             <h2>PRODUCT DETAILS</h2>
             <!-- SEPARATE form with its own file input name: main_image_file -->
             <form method="POST" enctype="multipart/form-data">
+              <?=csrf_field()?>
               <input type="hidden" name="update_product" value="1">
               <div class="form-grid-2">
                 <div class="form-group">
@@ -329,6 +338,7 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
 
             <!-- Add stock form -->
             <form method="POST" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
+              <?=csrf_field()?>
               <input type="hidden" name="add_size" value="1">
 
               <div class="form-group" style="margin:0;min-width:160px;">
@@ -395,6 +405,7 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
             <!-- Add variant — SEPARATE FORM with its own file input: variant_image -->
             <form method="POST" enctype="multipart/form-data"
                   style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;">
+              <?=csrf_field()?>
               <input type="hidden" name="add_variant" value="1">
               <div class="form-grid-2" style="gap:14px;">
                 <div class="form-group" style="margin:0;">

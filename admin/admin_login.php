@@ -61,41 +61,39 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $admin = $stmt->get_result()->fetch_assoc();
 
     if($admin && password_verify($password, $admin['password'])){
-        
+        session_regenerate_id(true);
         $_SESSION['admin_id'] = $admin['admin_id'];
         $_SESSION['admin_username'] = $admin['username'];
-        
+
         if($remember_me){
             // REMEMBER ME CHECKED - Create 30 day cookie
             $_SESSION['login_method'] = 'remember_me';
             $token = bin2hex(random_bytes(32));
             $expiry = time() + (86400 * 30);
-            
+
             $update_stmt = $conn->prepare("UPDATE admins SET remember_token = ?, token_expiry = ? WHERE admin_id = ?");
             $update_stmt->bind_param("sii", $token, $expiry, $admin['admin_id']);
             $update_stmt->execute();
             $update_stmt->close();
-            
-            // Set cookie for 30 days
-            setcookie('admin_remember', $token, $expiry, '/');
-            
+
+            setcookie('admin_remember', $token, $expiry, '/', '', false, true);
+
         } else {
             // REMEMBER ME NOT CHECKED - Session only, no cookie
             $_SESSION['login_method'] = 'session_only';
-            
+
             // Clear any existing remember me data
             $clear_stmt = $conn->prepare("UPDATE admins SET remember_token = NULL, token_expiry = NULL WHERE admin_id = ?");
             $clear_stmt->bind_param("i", $admin['admin_id']);
             $clear_stmt->execute();
             $clear_stmt->close();
-            
-            // Delete cookie if exists
+
             if(isset($_COOKIE['admin_remember'])){
-                setcookie('admin_remember', '', time() - 3600, '/');
+                setcookie('admin_remember', '', time() - 3600, '/', '', false, true);
             }
         }
-        
-        header("Location: admin_dashboard.php"); 
+
+        header("Location: admin_dashboard.php");
         exit;
     } else {
         $error = "Invalid username or password.";
@@ -132,7 +130,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" name="password" placeholder="admin123" required>
+          <input type="password" name="password" placeholder="Password" required>
         </div>
         
         <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
@@ -151,11 +149,9 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     </div>
 
     <div style="text-align:center;margin-top:16px;font-size:.75rem;color:var(--muted);background:rgba(100,255,218,.05);border:1px solid var(--border);border-radius:6px;padding:10px;">
-      Default login: <strong style="color:var(--text);">admin / admin123</strong>
-      <br>
       <span style="font-size:.7rem;">✓ Check "Remember me" → Stay logged in for 30 days</span>
       <br>
-      <span style="font-size:.7rem;">✗ Uncheck → Must login every time you reopen browser</span>
+      <span style="font-size:.7rem;">✗ Uncheck → Session only, expires when browser closes</span>
     </div>
   </div>
 </body>

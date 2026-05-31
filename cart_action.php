@@ -15,6 +15,7 @@ if(!isset($_SESSION['user_id'])){
 $user_id = (int)$_SESSION['user_id'];
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
+    csrf_check();
     $action = $_POST['action'] ?? '';
 
     if($action==='add'){
@@ -32,9 +33,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
 
         // ── Check stock in product_stock table ──────────────
-        $tbl = $conn->query("SHOW TABLES LIKE 'product_stock'");
-        if($tbl->num_rows > 0){
-            $stk_chk = $conn->prepare("SELECT stock FROM product_stock WHERE product_id=? AND color_name=? AND size=?");
+        $stk_chk = $conn->prepare("SELECT stock FROM product_stock WHERE product_id=? AND color_name=? AND size=?");
+        if($stk_chk){
             $stk_chk->bind_param("iss",$product_id,$color,$size);
             $stk_chk->execute();
             $stk_row = $stk_chk->get_result()->fetch_assoc();
@@ -54,7 +54,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
         if($row){
             $nq = $row['quantity'] + $quantity;
-            $conn->query("UPDATE cart_items SET quantity=$nq WHERE cart_id=".$row['cart_id']);
+            $upd = $conn->prepare("UPDATE cart_items SET quantity=? WHERE cart_id=?");
+            $upd->bind_param("ii",$nq,$row['cart_id']);
+            $upd->execute();
         } else {
             $ins = $conn->prepare("INSERT INTO cart_items (user_id, product_id, size, quantity) VALUES (?,?,?,?)");
             $ins->bind_param("iisi",$user_id,$product_id,$size,$quantity);

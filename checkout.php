@@ -39,6 +39,7 @@ $total    = $subtotal+$shipping;
 <section class="section" style="padding-top:40px;">
 <div class="wrap">
 <form action="process_checkout.php" method="POST">
+<?=csrf_field()?>
 <div class="checkout-grid">
 
   <!-- Left -->

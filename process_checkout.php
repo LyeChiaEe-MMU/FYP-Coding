@@ -5,6 +5,7 @@ require 'db.php';
 if (!is_logged() || $_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: index.php"); exit;
 }
+csrf_check();
 
 $uid              = (int)$_SESSION['user_id'];
 $shipping_address = trim($_POST['shipping_address'] ?? '');
@@ -56,8 +57,17 @@ $upd = $conn->prepare("UPDATE users SET address = ? WHERE user_id = ?");
 $upd->bind_param("si", $shipping_address, $uid);
 $upd->execute();
 
-// 5. Clear cart
-$conn->query("DELETE FROM cart_items WHERE user_id = $uid");
+// 5. Decrement product stock
+$deduct = $conn->prepare("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE product_id = ?");
+foreach ($items as $item) {
+    $deduct->bind_param("ii", $item['quantity'], $item['product_id']);
+    $deduct->execute();
+}
+
+// 6. Clear cart
+$del = $conn->prepare("DELETE FROM cart_items WHERE user_id = ?");
+$del->bind_param("i", $uid);
+$del->execute();
 
 header("Location: order_success.php?order_id=$oid");
 exit;
