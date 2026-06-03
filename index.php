@@ -2,12 +2,32 @@
 session_start();
 require 'db.php';
 
-// Featured products
+// Hero background — use Apex Gen Fly image from DB, fallback to first product
+$hero_row = $conn->query("SELECT image_url FROM products WHERE name LIKE '%Gen Fly%' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+if(empty($hero_row['image_url'])){
+    $hero_row = $conn->query("SELECT image_url FROM products WHERE image_url != '' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+}
+$hero_bg = !empty($hero_row['image_url']) ? $hero_row['image_url'] : '';
+
+// New Arrivals — latest 12 products
 $featured = $conn->query("
     SELECT p.*, c.category_name
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    ORDER BY p.created_at DESC LIMIT 8
+    ORDER BY p.created_at DESC LIMIT 12
+");
+
+// Shop by Category — latest product image per category
+$cat_showcase = $conn->query("
+    SELECT c.category_id, c.category_name,
+           p.product_id, p.name AS prod_name, p.price, p.image_url
+    FROM categories c
+    LEFT JOIN products p ON p.product_id = (
+        SELECT product_id FROM products
+        WHERE category_id = c.category_id
+        ORDER BY created_at DESC LIMIT 1
+    )
+    ORDER BY c.category_name
 ");
 ?>
 <!DOCTYPE html>
@@ -25,7 +45,10 @@ $featured = $conn->query("
 
 <!-- Hero -->
 <section style="background:linear-gradient(135deg,#0a192f 0%,#112240 50%,#1d3461 100%);min-height:88vh;display:flex;align-items:center;overflow:hidden;position:relative;">
-  <div style="position:absolute;top:0;right:0;width:50%;height:100%;background:url('https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=900&q=80') center/cover;opacity:.18;"></div>
+  <?php if($hero_bg): ?>
+  <div style="position:absolute;top:0;right:0;width:55%;height:100%;background:url('<?=e($hero_bg)?>') center/cover;opacity:.35;"></div>
+  <div style="position:absolute;top:0;right:0;width:55%;height:100%;background:linear-gradient(to right,#0a192f 0%,transparent 40%);"></div>
+  <?php endif; ?>
   <div class="wrap" style="position:relative;z-index:1;">
     <div style="max-width:600px;">
       <p style="font-size:.7rem;letter-spacing:4px;text-transform:uppercase;color:var(--accent);margin-bottom:20px;display:flex;align-items:center;gap:8px;">
@@ -98,6 +121,45 @@ $featured = $conn->query("
     </div>
   </div>
 </section>
+
+<!-- Shop by Category -->
+<?php if($cat_showcase && $cat_showcase->num_rows > 0): ?>
+<section style="padding:60px 0;border-top:1px solid var(--border);">
+  <div class="wrap">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+      <div>
+        <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Browse By</p>
+        <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(22px,3vw,36px);letter-spacing:2px;color:var(--white);">SHOP BY CATEGORY</h2>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;">
+      <?php while($cs = $cat_showcase->fetch_assoc()):
+        $cimg = !empty($cs['image_url'])
+            ? (str_starts_with($cs['image_url'],'http') ? e($cs['image_url']) : e($cs['image_url']))
+            : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=70';
+        $cat_icons = ['Running'=>'🏃','Basketball'=>'🏀','Training'=>'💪','Lifestyle'=>'✨'];
+        $icon = $cat_icons[$cs['category_name']] ?? '👟';
+      ?>
+      <a href="products.php?cat=<?=urlencode($cs['category_name'])?>"
+         style="display:block;position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);text-decoration:none;aspect-ratio:3/2;transition:all .25s;"
+         onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-4px)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+        <!-- Background image -->
+        <div style="position:absolute;inset:0;background:url('<?=$cimg?>') center/cover;"></div>
+        <!-- Dark overlay -->
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(5,15,30,.9) 0%,rgba(5,15,30,.3) 60%,transparent 100%);"></div>
+        <!-- Content -->
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 18px;">
+          <div style="font-size:1.2rem;margin-bottom:4px;"><?=$icon?></div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.15rem;letter-spacing:2px;color:var(--white);text-transform:uppercase;"><?=e($cs['category_name'])?></div>
+          <div style="font-size:.72rem;color:var(--accent);margin-top:3px;letter-spacing:1px;">Shop Now →</div>
+        </div>
+      </a>
+      <?php endwhile; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
 
 <!-- Why Apex -->
 <section style="padding:72px 0;border-top:1px solid var(--border);">
