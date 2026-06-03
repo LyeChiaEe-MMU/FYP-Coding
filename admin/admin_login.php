@@ -126,7 +126,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
       <form method="POST">
         <div class="form-group">
           <label>Username</label>
-          <input type="text" name="username" placeholder="admin" required autofocus>
+          <input type="text" name="username" placeholder="Username" required autofocus>
         </div>
         <div class="form-group">
           <label>Password</label>
@@ -148,11 +148,6 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
       </div>
     </div>
 
-    <div style="text-align:center;margin-top:16px;font-size:.75rem;color:var(--muted);background:rgba(100,255,218,.05);border:1px solid var(--border);border-radius:6px;padding:10px;">
-      <span style="font-size:.7rem;">✓ Check "Remember me" → Stay logged in for 30 days</span>
-      <br>
-      <span style="font-size:.7rem;">✗ Uncheck → Session only, expires when browser closes</span>
-    </div>
   </div>
 </body>
 </html>
