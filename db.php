@@ -26,6 +26,8 @@ $_gcol = $conn->query("SHOW COLUMNS FROM products LIKE 'gender'");
 if($_gcol && $_gcol->num_rows === 0){
     $conn->query("ALTER TABLE products ADD COLUMN gender VARCHAR(20) NOT NULL DEFAULT 'Unisex' AFTER category_id");
 }
+// ── Set existing products to Men gender (they are men's shoes) ───
+$conn->query("UPDATE products SET gender='Men' WHERE gender='Unisex'");
 
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }

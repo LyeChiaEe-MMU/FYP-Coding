@@ -79,13 +79,14 @@ if(is_logged()){
     $is_wishlisted = $wl_chk->get_result()->num_rows > 0;
 }
 
-// ── Related products (same category) ─────────────────────────────
+// ── Related products — same category first, fill with others ──────
 $related_stmt = $conn->prepare("
-    SELECT p.product_id, p.name, p.price, p.image_url, c.category_name
+    SELECT p.product_id, p.name, p.price, p.image_url, c.category_name,
+           IF(p.category_id = ?, 0, 1) AS sort_order
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    WHERE p.category_id = ? AND p.product_id != ?
-    ORDER BY p.created_at DESC
+    WHERE p.product_id != ?
+    ORDER BY sort_order ASC, p.created_at DESC
     LIMIT 4
 ");
 $related_stmt->bind_param("ii", $product['category_id'], $pid);
