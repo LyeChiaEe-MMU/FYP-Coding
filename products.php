@@ -106,24 +106,8 @@ $total      = $products ? $products->num_rows : 0;
   </div>
 </div>
 
-<section class="section" style="padding-top:36px;">
+<section class="section" style="padding-top:36px;background:#0d2137;">
   <div class="wrap">
-
-    <!-- ── Gender Switcher ── -->
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
-      <span style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-right:4px;">For:</span>
-      <?php foreach([''=> 'All', 'Men'=>'Men', 'Women'=>'Women', 'Kids'=>'Kids'] as $gv=>$gl):
-        $isG   = ($gender === $gv);
-        $gurl  = 'products.php?'.($cat?'cat='.urlencode($cat).'&':'').($gv?'gender='.urlencode($gv).'&':'').'sort='.e($sort).($q?'&q='.urlencode($q):'');
-      ?>
-      <a href="<?=$gurl?>"
-         style="padding:6px 18px;border-radius:100px;font-size:.8rem;font-weight:<?=$isG?'700':'500'?>;text-decoration:none;border:1px solid <?=$isG?'rgba(100,255,218,.5)':'var(--border)'?>;color:<?=$isG?'var(--accent)':'var(--muted)'?>;background:<?=$isG?'rgba(100,255,218,.08)':'transparent'?>;transition:.2s;"
-         onmouseover="if(!<?=$isG?'true':'false'?>){this.style.color='var(--white)';this.style.borderColor='rgba(255,255,255,.3)'}"
-         onmouseout="if(!<?=$isG?'true':'false'?>){this.style.color='var(--muted)';this.style.borderColor='var(--border)'}">
-        <?=e($gl)?>
-      </a>
-      <?php endforeach; ?>
-    </div>
 
     <!-- ── Filters Row ── -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:32px;">

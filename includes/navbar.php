@@ -338,11 +338,11 @@ $mega = [
   <nav class="apex-main-nav">
     <div class="apex-main-inner">
 
-      <?php foreach($mega as $gender => $columns): ?>
+      <?php foreach($mega as $mg => $columns): ?>
       <div class="mni">
-        <button class="mni-btn <?=$nav_gender===$gender?'on':''?>"
-                onclick="window.location='<?=$depth?>products.php?gender=<?=urlencode($gender)?>'">
-          <?=strtoupper($gender)?>
+        <button class="mni-btn <?=$nav_gender===$mg?'on':''?>"
+                onclick="window.location='<?=$depth?>products.php?gender=<?=urlencode($mg)?>'">
+          <?=strtoupper($mg)?>
         </button>
 
         <div class="mega-panel">
@@ -363,8 +363,8 @@ $mega = [
             <!-- Featured products -->
             <div class="mega-feat">
               <?php
-              $g_safe = $conn->real_escape_string($gender);
-              $fp = $conn->query("SELECT p.product_id,p.name,p.price,p.image_url,c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE (p.gender='$g_safe' OR p.gender='Unisex') ORDER BY p.created_at DESC LIMIT 2");
+              $mg_safe = $conn->real_escape_string($mg);
+              $fp = $conn->query("SELECT p.product_id,p.name,p.price,p.image_url,c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE (p.gender='$mg_safe' OR p.gender='Unisex') ORDER BY p.created_at DESC LIMIT 2");
               if($fp && $fp->num_rows>0): while($fr=$fp->fetch_assoc()):
                 $fimg = !empty($fr['image_url']) ? e($fr['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=70';
               ?>
@@ -383,8 +383,8 @@ $mega = [
 
           <!-- Footer -->
           <div class="mega-footer">
-            <a href="<?=$depth?>products.php?gender=<?=urlencode($gender)?>" class="mega-view-all">
-              View All <?=$gender?>'s Shoes →
+            <a href="<?=$depth?>products.php?gender=<?=urlencode($mg)?>" class="mega-view-all">
+              View All <?=$mg?>'s Shoes →
             </a>
             <span style="font-size:.75rem;color:var(--muted);">
               Running · Basketball · Training · Lifestyle
