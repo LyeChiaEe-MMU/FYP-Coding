@@ -108,46 +108,242 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Admin Login | Apex</title>
 <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+.admin-login-wrap {
+    min-height: 100vh;
+    display: flex;
+    background: var(--navy);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Decorative background shapes */
+.admin-login-wrap::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(100,255,218,.07) 0%, transparent 70%);
+    top: -200px; left: -200px;
+    pointer-events: none;
+}
+.admin-login-wrap::after {
+    content: '';
+    position: absolute;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(100,255,218,.05) 0%, transparent 70%);
+    bottom: -150px; right: -100px;
+    pointer-events: none;
+}
+
+/* Left brand strip */
+.admin-brand-strip {
+    width: 340px;
+    flex-shrink: 0;
+    background: linear-gradient(160deg, #0a192f 0%, #112240 60%, #0d2137 100%);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 60px 44px;
+    position: relative;
+    overflow: hidden;
+}
+.admin-brand-strip::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 30px,
+        rgba(100,255,218,.02) 30px,
+        rgba(100,255,218,.02) 31px
+    );
+}
+.admin-strip-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 6px;
+    color: var(--white);
+    position: relative;
+    margin-bottom: 6px;
+}
+.admin-strip-logo span { color: var(--accent); }
+.admin-strip-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(100,255,218,.1);
+    border: 1px solid rgba(100,255,218,.25);
+    border-radius: 100px;
+    padding: 4px 14px;
+    font-size: .65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 44px;
+    position: relative;
+    width: fit-content;
+}
+.admin-strip-divider {
+    width: 40px; height: 2px;
+    background: var(--accent);
+    margin-bottom: 28px;
+    position: relative;
+}
+.admin-strip-feat {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: relative;
+}
+.admin-strip-feat-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: .82rem;
+    color: var(--muted);
+}
+.admin-strip-feat-item i {
+    width: 32px; height: 32px;
+    background: rgba(100,255,218,.08);
+    border: 1px solid rgba(100,255,218,.15);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    font-size: .8rem;
+    flex-shrink: 0;
+}
+
+/* Right form panel */
+.admin-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+    position: relative;
+}
+.admin-form-inner {
+    width: 100%;
+    max-width: 400px;
+}
+.admin-form-head {
+    margin-bottom: 36px;
+}
+.admin-form-head h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: var(--white);
+    margin-bottom: 6px;
+}
+.admin-form-head p {
+    font-size: .875rem;
+    color: var(--muted);
+}
+
+@media(max-width: 700px){
+    .admin-brand-strip { display: none; }
+}
+</style>
 </head>
-<body style="background:var(--navy);display:flex;align-items:center;justify-content:center;min-height:100vh;">
-  <div style="width:100%;max-width:400px;padding:20px;">
-    <div class="card" style="padding:44px 40px;">
-      <div style="text-align:center;margin-bottom:28px;">
-        <div style="font-family:'Oswald',sans-serif;font-size:1.8rem;letter-spacing:4px;color:var(--white);">
-          APE<span style="color:var(--accent)">X</span>
-        </div>
-        <div style="font-size:.65rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-top:4px;">Admin Panel</div>
+<body>
+<div class="admin-login-wrap">
+
+  <!-- Left brand strip -->
+  <div class="admin-brand-strip">
+    <div class="admin-strip-logo">APE<span>X</span></div>
+    <div class="admin-strip-badge"><i class="fa-solid fa-shield-halved"></i> Admin Panel</div>
+    <div class="admin-strip-divider"></div>
+    <div class="admin-strip-feat">
+      <div class="admin-strip-feat-item">
+        <i class="fa-solid fa-gauge-high"></i>
+        <span>Dashboard &amp; analytics overview</span>
+      </div>
+      <div class="admin-strip-feat-item">
+        <i class="fa-solid fa-box-open"></i>
+        <span>Manage products &amp; inventory</span>
+      </div>
+      <div class="admin-strip-feat-item">
+        <i class="fa-solid fa-truck"></i>
+        <span>Track &amp; update orders</span>
+      </div>
+      <div class="admin-strip-feat-item">
+        <i class="fa-solid fa-users"></i>
+        <span>View customers &amp; requests</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right form panel -->
+  <div class="admin-form-panel">
+    <div class="admin-form-inner">
+
+      <div class="admin-form-head">
+        <h1>ADMIN LOGIN</h1>
+        <p>Sign in to access the Apex dashboard.</p>
       </div>
 
       <?php if($error): ?>
-      <div class="flash flash-err"><?=e($error)?></div>
+      <div class="flash flash-err"><i class="fa-solid fa-circle-exclamation"></i> <?=e($error)?></div>
       <?php endif; ?>
 
       <form method="POST">
         <div class="form-group">
           <label>Username</label>
-          <input type="text" name="username" placeholder="Username" required autofocus>
+          <div class="input-icon-wrap">
+            <i class="fa-solid fa-user"></i>
+            <input type="text" name="username" placeholder="Username" required autofocus>
+          </div>
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" name="password" placeholder="Password" required>
+          <div class="input-icon-wrap">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" name="password" id="adminPw" placeholder="Password" required>
+            <button type="button" class="pw-toggle" onclick="toggleAdminPw()" tabindex="-1">
+              <i class="fa-solid fa-eye" id="adminPwIcon"></i>
+            </button>
+          </div>
         </div>
-        
-        <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-          <input type="checkbox" name="remember_me" id="remember_me" value="1" style="width:18px;height:18px;margin:0;cursor:pointer;">
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;">
+          <input type="checkbox" name="remember_me" id="remember_me" value="1"
+                 style="width:16px;height:16px;margin:0;cursor:pointer;accent-color:var(--accent);">
           <label for="remember_me" style="margin:0;cursor:pointer;color:var(--muted);font-size:.82rem;">
-            Remember me (Stay logged in for 30 days)
+            Stay logged in for 30 days
           </label>
         </div>
-        
-        <button type="submit" class="btn btn-primary btn-full" style="margin-top:6px;">ACCESS DASHBOARD</button>
+
+        <button type="submit" class="btn btn-primary btn-full btn-lg" style="letter-spacing:2px;">
+          ACCESS DASHBOARD
+        </button>
       </form>
 
-      <div style="text-align:center;margin-top:20px;font-size:.8rem;color:var(--muted);">
-        <a href="../index.php" style="color:var(--muted);">← Back to Store</a>
+      <div style="text-align:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
+        <a href="../index.php" style="font-size:.82rem;color:var(--muted);transition:color .2s;"
+           onmouseover="this.style.color='var(--accent)'"
+           onmouseout="this.style.color='var(--muted)'">
+          ← Back to Store
+        </a>
       </div>
-    </div>
 
+    </div>
   </div>
+
+</div>
+
+<script>
+function toggleAdminPw(){
+  const f=document.getElementById('adminPw');
+  const i=document.getElementById('adminPwIcon');
+  if(f.type==='password'){ f.type='text'; i.className='fa-solid fa-eye-slash'; }
+  else { f.type='password'; i.className='fa-solid fa-eye'; }
+}
+</script>
 </body>
 </html>
