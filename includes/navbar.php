@@ -1,6 +1,18 @@
 <?php
 $cc    = cart_count($conn);
 $pg    = basename($_SERVER['PHP_SELF']);
+
+// Wishlist notification count (safe even if table doesn't exist yet)
+$wl_notif_count = 0;
+if(is_logged()){
+    $tbl_chk = $conn->query("SHOW TABLES LIKE 'wishlist_notifications'");
+    if($tbl_chk && $tbl_chk->num_rows > 0){
+        $nc = $conn->prepare("SELECT COUNT(*) AS c FROM wishlist_notifications WHERE user_id=? AND is_read=0");
+        $nc->bind_param("i",(int)$_SESSION['user_id']);
+        $nc->execute();
+        $wl_notif_count = (int)$nc->get_result()->fetch_assoc()['c'];
+    }
+}
 $depth = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false) ? '../' : '';
 $q     = e($_GET['q'] ?? '');
 
@@ -295,6 +307,13 @@ $mega = [
     <div class="apex-right">
       <?php if(is_logged()): ?>
         <a href="<?=$depth?>order_history.php" class="<?=$pg==='order_history.php'?'on':''?>">My Orders</a>
+        <a href="<?=$depth?>wishlist.php" class="<?=$pg==='wishlist.php'?'on':''?>"
+           style="position:relative;">
+          <i class="fa-solid fa-heart" style="color:#ef4444;"></i>&nbsp;Wishlist
+          <?php if($wl_notif_count > 0): ?>
+          <span style="position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:.5rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1;"><?=$wl_notif_count?></span>
+          <?php endif; ?>
+        </a>
         <a href="<?=$depth?>design_request.php">✏️ Design</a>
         <a href="<?=$depth?>logout.php">Logout</a>
       <?php else: ?>
@@ -399,6 +418,7 @@ $mega = [
   <a href="<?=$depth?>leaderboard.php"><i class="fa-solid fa-ranking-star"></i> Leaderboard</a>
   <?php if(is_logged()): ?>
     <a href="<?=$depth?>order_history.php">My Orders</a>
+    <a href="<?=$depth?>wishlist.php">❤️ My Wishlist<?php if($wl_notif_count>0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$wl_notif_count?></span><?php endif; ?></a>
     <a href="<?=$depth?>design_request.php">✏️ Design Your Shoe</a>
     <a href="<?=$depth?>logout.php">Logout</a>
   <?php else: ?>

@@ -63,6 +63,34 @@ usort($all_sizes, fn($a,$b) => floatval($a) <=> floatval($b));
 // First colour name
 $first_color = $images[0]['color_name'] ?? 'Default';
 
+// ── Wishlist state ───────────────────────────────────────────────
+$is_wishlisted = false;
+$conn->query("CREATE TABLE IF NOT EXISTS `wishlists` (
+    `wishlist_id` int(11) NOT NULL AUTO_INCREMENT,
+    `user_id` int(11) NOT NULL,`product_id` int(11) NOT NULL,
+    `added_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`wishlist_id`), UNIQUE KEY `uq_up` (`user_id`,`product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+if(is_logged()){
+    $wl_chk = $conn->prepare("SELECT wishlist_id FROM wishlists WHERE user_id=? AND product_id=?");
+    $wl_chk->bind_param("ii",(int)$_SESSION['user_id'],$pid);
+    $wl_chk->execute();
+    $is_wishlisted = $wl_chk->get_result()->num_rows > 0;
+}
+
+// ── Related products (same category) ─────────────────────────────
+$related_stmt = $conn->prepare("
+    SELECT p.product_id, p.name, p.price, p.image_url, c.category_name
+    FROM products p
+    JOIN categories c ON p.category_id = c.category_id
+    WHERE p.category_id = ? AND p.product_id != ?
+    ORDER BY p.created_at DESC
+    LIMIT 4
+");
+$related_stmt->bind_param("ii", $product['category_id'], $pid);
+$related_stmt->execute();
+$related_products = $related_stmt->get_result();
+
 $flash=''; $ftype='';
 if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION['cart_msg_type']??'ok'; unset($_SESSION['cart_msg'],$_SESSION['cart_msg_type']); }
 ?>
@@ -253,6 +281,20 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
       &#8592; Back to <?=e($product['category_name'])?>
     </a>
 
+    <?php if(is_logged()): ?>
+    <button class="btn btn-full wl-toggle-btn <?=$is_wishlisted?'wl-active':''?>"
+            id="wlBtn" data-pid="<?=$pid?>"
+            style="margin-top:10px;background:<?=$is_wishlisted?'rgba(239,68,68,.15)':'var(--card)'?>;border:1px solid <?=$is_wishlisted?'#ef4444':'var(--border)'?>;color:<?=$is_wishlisted?'#ef4444':'var(--muted)'?>;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
+      <i class="fa-<?=$is_wishlisted?'solid':'regular'?> fa-heart"></i>
+      <span><?=$is_wishlisted?'Saved to Wishlist':'Add to Wishlist'?></span>
+    </button>
+    <?php else: ?>
+    <a href="login.php" class="btn btn-full"
+       style="margin-top:10px;background:var(--card);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px;">
+      <i class="fa-regular fa-heart"></i> <span>Login to save to Wishlist</span>
+    </a>
+    <?php endif; ?>
+
     <!-- Accordion -->
     <div style="margin-top:28px;border-top:1px solid var(--border);">
       <?php foreach([
@@ -273,9 +315,134 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
 </div>
 </div>
 
+<?php if($related_products && $related_products->num_rows > 0): ?>
+<!-- ── You May Also Like ── -->
+<section style="padding:56px 0;border-top:1px solid var(--border);">
+  <div class="wrap">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+      <div>
+        <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">From <?=e($product['category_name'])?></p>
+        <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(20px,2.5vw,30px);letter-spacing:2px;color:var(--white);">YOU MAY ALSO LIKE</h2>
+      </div>
+      <a href="products.php?cat=<?=urlencode($product['category_name'])?>"
+         style="font-size:.82rem;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:2px;transition:.2s;"
+         onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'"
+         onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
+        View All →
+      </a>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;">
+      <?php while($rp = $related_products->fetch_assoc()):
+        $rimg = !empty($rp['image_url'])
+            ? (str_starts_with($rp['image_url'],'http') ? e($rp['image_url']) : e($rp['image_url']))
+            : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
+
+        // Check if this related product is wishlisted
+        $rp_wishlisted = false;
+        if(is_logged()){
+            $rwl = $conn->prepare("SELECT wishlist_id FROM wishlists WHERE user_id=? AND product_id=?");
+            $rwl->bind_param("ii",(int)$_SESSION['user_id'],(int)$rp['product_id']);
+            $rwl->execute();
+            $rp_wishlisted = $rwl->get_result()->num_rows > 0;
+        }
+      ?>
+      <div class="prod-card" style="position:relative;">
+        <!-- Wishlist heart on card -->
+        <?php if(is_logged()): ?>
+        <button class="card-heart-btn <?=$rp_wishlisted?'card-heart-active':''?>"
+                data-pid="<?=(int)$rp['product_id']?>"
+                title="<?=$rp_wishlisted?'Remove from wishlist':'Add to wishlist'?>"
+                style="position:absolute;top:10px;right:10px;z-index:2;background:rgba(10,25,47,.8);border:1px solid var(--border);color:<?=$rp_wishlisted?'#ef4444':'var(--muted)'?>;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.9rem;transition:all .2s;">
+          <i class="fa-<?=$rp_wishlisted?'solid':'regular'?> fa-heart"></i>
+        </button>
+        <?php endif; ?>
+
+        <a href="product_detail.php?id=<?=(int)$rp['product_id']?>">
+          <div class="prod-img">
+            <img src="<?=$rimg?>" alt="<?=e($rp['name'])?>" loading="lazy">
+            <span class="prod-badge"><?=e($rp['category_name'])?></span>
+          </div>
+        </a>
+        <div class="prod-body">
+          <div class="prod-cat"><?=e($rp['category_name'])?></div>
+          <div class="prod-name"><a href="product_detail.php?id=<?=(int)$rp['product_id']?>"><?=e($rp['name'])?></a></div>
+          <div class="prod-footer">
+            <span class="prod-price">RM <?=number_format($rp['price'],2)?></span>
+            <a href="product_detail.php?id=<?=(int)$rp['product_id']?>" class="btn-view">View →</a>
+          </div>
+        </div>
+      </div>
+      <?php endwhile; ?>
+    </div>
+  </div>
+</section>
+<?php endif; ?>
+
 <?php include 'includes/footer.php'; ?>
 
 <script>
+const _csrfToken = '<?=csrf_token()?>';
+
+// ── Main product wishlist toggle ──
+const wlBtn = document.getElementById('wlBtn');
+if(wlBtn){
+  wlBtn.addEventListener('click', function(){
+    const pid = this.dataset.pid;
+    fetch('wishlist_action.php',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'product_id='+pid+'&csrf_token='+encodeURIComponent(_csrfToken)
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.status==='error'){ alert(d.msg); return; }
+      const icon = this.querySelector('i');
+      const span = this.querySelector('span');
+      if(d.wishlisted){
+        icon.className='fa-solid fa-heart';
+        span.textContent='Saved to Wishlist';
+        this.style.background='rgba(239,68,68,.15)';
+        this.style.borderColor='#ef4444';
+        this.style.color='#ef4444';
+      } else {
+        icon.className='fa-regular fa-heart';
+        span.textContent='Add to Wishlist';
+        this.style.background='var(--card)';
+        this.style.borderColor='var(--border)';
+        this.style.color='var(--muted)';
+      }
+    });
+  });
+}
+
+// ── Card heart buttons (related products) ──
+document.querySelectorAll('.card-heart-btn').forEach(btn=>{
+  btn.addEventListener('click', function(e){
+    e.preventDefault(); e.stopPropagation();
+    const pid = this.dataset.pid;
+    fetch('wishlist_action.php',{
+      method:'POST',
+      headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'product_id='+pid+'&csrf_token='+encodeURIComponent(_csrfToken)
+    })
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.status==='error'){ return; }
+      const icon = this.querySelector('i');
+      if(d.wishlisted){
+        icon.className='fa-solid fa-heart';
+        this.style.color='#ef4444';
+        this.title='Remove from wishlist';
+      } else {
+        icon.className='fa-regular fa-heart';
+        this.style.color='var(--muted)';
+        this.title='Add to wishlist';
+      }
+    });
+  });
+});
+</script>
 // ── All image data ──
 const imgs     = <?=json_encode(array_values($images))?>;
 // ── All stock data: { colorName: { size: stock } } ──

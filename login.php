@@ -31,30 +31,72 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Login | Apex</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-<div class="auth-wrap">
-  <div class="auth-box">
-    <div class="card" style="padding:44px 40px;">
-      <div class="auth-logo">APE<span>X</span></div>
-      <div class="auth-sub">Sign in to your account</div>
+
+<div class="register-split">
+  <!-- ─── Left: Brand Panel ─── -->
+  <div class="register-brand">
+    <div class="register-brand-overlay"></div>
+    <div class="register-brand-content">
+      <div class="register-brand-logo">APE<span>X</span></div>
+      <h2 class="register-brand-tagline">Welcome<br><span>Back.</span></h2>
+      <p class="register-brand-desc">Sign in to continue your Apex journey. Your orders, wishlist, and exclusive member deals are waiting for you.</p>
+      <div class="register-brand-features">
+        <div class="register-feature">
+          <i class="fa-solid fa-box"></i>
+          <span>Track your orders in real-time</span>
+        </div>
+        <div class="register-feature">
+          <i class="fa-solid fa-heart"></i>
+          <span>Access your wishlist &amp; saved items</span>
+        </div>
+        <div class="register-feature">
+          <i class="fa-solid fa-bell"></i>
+          <span>Get notified when prices drop</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Right: Form Panel ─── -->
+  <div class="register-form-panel">
+    <div class="register-form-inner">
+      <div class="register-form-head">
+        <div class="auth-logo register-mobile-logo">APE<span>X</span></div>
+        <h1>Sign In</h1>
+        <p>Welcome back! Enter your details to continue.</p>
+      </div>
 
       <?php if($error): ?>
-      <div class="flash flash-err"><?=e($error)?></div>
+      <div class="flash flash-err"><i class="fa-solid fa-circle-exclamation"></i> <?=e($error)?></div>
       <?php endif; ?>
 
       <form method="POST">
         <?=csrf_field()?>
         <div class="form-group">
           <label>Email Address</label>
-          <input type="email" name="email" placeholder="you@email.com"
-                 value="<?=e($_POST['email']??'')?>" required autofocus>
+          <div class="input-icon-wrap">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" name="email" placeholder="you@email.com"
+                   value="<?=e($_POST['email']??'')?>" required autofocus>
+          </div>
         </div>
         <div class="form-group">
           <label>Password</label>
-          <input type="password" name="password" placeholder="Your password" required>
+          <div class="input-icon-wrap">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" name="password" id="loginPw" placeholder="Your password" required>
+            <button type="button" class="pw-toggle" onclick="toggleLoginPw()" tabindex="-1">
+              <i class="fa-solid fa-eye" id="loginPwIcon"></i>
+            </button>
+          </div>
         </div>
-        <button type="submit" class="btn btn-primary btn-full" style="margin-top:6px;">SIGN IN</button>
+        <button type="submit" class="btn btn-primary btn-full btn-lg register-btn" style="margin-top:6px;">
+          <span>SIGN IN</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
       </form>
 
       <div class="auth-link">Don't have an account? <a href="register.php">Register here</a></div>
@@ -64,5 +106,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     </div>
   </div>
 </div>
+
+<script>
+function toggleLoginPw(){
+  const f=document.getElementById('loginPw');
+  const i=document.getElementById('loginPwIcon');
+  if(f.type==='password'){ f.type='text'; i.className='fa-solid fa-eye-slash'; }
+  else { f.type='password'; i.className='fa-solid fa-eye'; }
+}
+</script>
 </body>
 </html>

@@ -167,11 +167,32 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
             $old_file = dirname(__DIR__) . '/' . $product['image_url'];
             if(file_exists($old_file)) unlink($old_file);
         }
+        $old_price = (float)$product['price'];
         $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,price=?,stock=?,image_url=? WHERE product_id=?");
         $stmt->bind_param("ssidisi",$name,$description,$category_id,$price,$stock,$image_url,$pid);
         $stmt->execute();
         $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
         $msg = "Product updated successfully.";
+
+        // ── Price drop → notify wishlisted users ──────────────────
+        if($price < $old_price){
+            $tbl_chk = $conn->query("SHOW TABLES LIKE 'wishlists'");
+            if($tbl_chk && $tbl_chk->num_rows > 0){
+                $wl_users = $conn->prepare("SELECT user_id FROM wishlists WHERE product_id=?");
+                $wl_users->bind_param("i",$pid);
+                $wl_users->execute();
+                $wl_result = $wl_users->get_result();
+                if($wl_result->num_rows > 0){
+                    $notif_msg = "Price drop! \"$name\" is now RM ".number_format($price,2)." (was RM ".number_format($old_price,2).")";
+                    $notif_ins = $conn->prepare("INSERT INTO wishlist_notifications (user_id,product_id,message) VALUES (?,?,?)");
+                    while($wu = $wl_result->fetch_assoc()){
+                        $notif_ins->bind_param("iis",$wu['user_id'],$pid,$notif_msg);
+                        $notif_ins->execute();
+                    }
+                    $msg = "Product updated & price drop notified to ".($wl_result->num_rows > 0 ? $wl_result->num_rows : 'wishlisted')." user(s).";
+                }
+            }
+        }
     }
 }
 
