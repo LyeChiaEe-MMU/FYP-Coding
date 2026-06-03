@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 // Use the new auth check instead of old method
 require_once 'auth_check.php';
 
@@ -48,7 +48,7 @@ $orders = $conn->query("
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Orders | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css?v=3">
 </head>
 <body>
 <div class="admin-layout">

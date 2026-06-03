@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require 'db.php';
 
@@ -36,7 +36,7 @@ $cat_showcase = $conn->query("
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Apex | Premium Sport Shoes</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
@@ -44,32 +44,32 @@ $cat_showcase = $conn->query("
 <?php include 'includes/navbar.php'; ?>
 
 <!-- Hero -->
-<section style="background:linear-gradient(135deg,#0a192f 0%,#112240 50%,#1d3461 100%);min-height:88vh;display:flex;align-items:center;overflow:hidden;position:relative;">
+<section style="background:linear-gradient(135deg,#F5E8DC 0%,#FDF0E8 50%,#F8E8DF 100%);min-height:86vh;display:flex;align-items:center;overflow:hidden;position:relative;">
   <?php if($hero_bg): ?>
-  <div style="position:absolute;top:0;right:0;width:55%;height:100%;background:url('<?=e($hero_bg)?>') center/cover;opacity:.35;"></div>
-  <div style="position:absolute;top:0;right:0;width:55%;height:100%;background:linear-gradient(to right,#0a192f 0%,transparent 40%);"></div>
+  <div style="position:absolute;top:0;right:0;width:52%;height:100%;background:url('<?=e($hero_bg)?>') center/cover;opacity:.55;"></div>
+  <div style="position:absolute;top:0;right:0;width:52%;height:100%;background:linear-gradient(to right,#F5E8DC 0%,transparent 45%);"></div>
   <?php endif; ?>
   <div class="wrap" style="position:relative;z-index:1;">
     <div style="max-width:600px;">
-      <p style="font-size:.7rem;letter-spacing:4px;text-transform:uppercase;color:var(--accent);margin-bottom:20px;display:flex;align-items:center;gap:8px;">
-        <span style="width:30px;height:1px;background:var(--accent);display:inline-block;"></span>
+      <p style="font-size:.7rem;letter-spacing:4px;text-transform:uppercase;color:#C8543C;margin-bottom:20px;display:flex;align-items:center;gap:8px;">
+        <span style="width:30px;height:2px;background:#C8543C;display:inline-block;"></span>
         New Season 2026
       </p>
-      <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(52px,7vw,96px);line-height:.9;letter-spacing:-1px;color:var(--white);margin-bottom:24px;">
-        BUILT<br>TO <span style="color:var(--accent);">WIN.</span>
+      <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(52px,7vw,96px);line-height:.9;letter-spacing:-1px;color:#1C1410;margin-bottom:24px;">
+        BUILT<br>TO <span style="color:#C8543C;">WIN.</span>
       </h1>
-      <p style="font-size:1.05rem;color:var(--muted);max-width:420px;margin-bottom:40px;line-height:1.75;">
+      <p style="font-size:1.05rem;color:#5C4A44;max-width:420px;margin-bottom:40px;line-height:1.75;">
         Premium athletic footwear engineered for the court, the track, and the streets. No excuses — just performance.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
         <a href="products.php" class="btn btn-primary btn-lg">Shop All Styles</a>
-        <a href="products.php?gender=Men" class="btn btn-outline btn-lg">Men's →</a>
+        <a href="products.php?gender=Men" class="btn btn-lg" style="background:#1C1410;color:#FDF7F2;border:none;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:1.5px;">Men's →</a>
       </div>
-      <div style="display:flex;gap:40px;margin-top:52px;padding-top:36px;border-top:1px solid var(--border);">
+      <div style="display:flex;gap:40px;margin-top:52px;padding-top:36px;border-top:1px solid rgba(150,100,75,.2);">
         <?php foreach([['10+','Models'],['3','Collections'],['RM259','Starting From']] as $s): ?>
         <div>
-          <div style="font-family:'Oswald',sans-serif;font-size:1.8rem;color:var(--accent);"><?=e($s[0])?></div>
-          <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:3px;"><?=e($s[1])?></div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.8rem;color:#C8543C;"><?=e($s[0])?></div>
+          <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:#8A7A74;margin-top:3px;"><?=e($s[1])?></div>
         </div>
         <?php endforeach; ?>
       </div>
@@ -78,12 +78,12 @@ $cat_showcase = $conn->query("
 </section>
 
 <!-- New Arrivals -->
-<section class="section" style="background:rgba(17,34,64,.4);padding:60px 0;">
+<section class="section" style="background:var(--navy2);padding:60px 0;">
   <div class="wrap">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:36px;padding-bottom:16px;border-bottom:1px solid var(--border);">
       <div>
-        <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Fresh Drops</p>
-        <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,3vw,38px);letter-spacing:2px;color:var(--white);">NEW ARRIVALS</h2>
+        <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:#9C8B85;margin-bottom:6px;">Fresh Drops</p>
+        <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,3vw,38px);letter-spacing:2px;color:#1C1410;">NEW ARRIVALS</h2>
       </div>
       <a href="products.php" style="font-size:.875rem;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:2px;transition:.2s;"
          onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'"
@@ -115,7 +115,7 @@ $cat_showcase = $conn->query("
       </div>
       <?php endwhile; else: ?>
       <p style="color:var(--muted);grid-column:1/-1;text-align:center;padding:40px 0;">
-        No products yet. <a href="admin/admin_products.php" style="color:var(--accent);">Add some in Admin →</a>
+        No products yet. <a href="admin/admin_products.php" style="color:var(--accent);font-weight:600;">Add some in Admin →</a>
       </p>
       <?php endif; ?>
     </div>
@@ -128,8 +128,8 @@ $cat_showcase = $conn->query("
   <div class="wrap">
     <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:32px;padding-bottom:14px;border-bottom:1px solid var(--border);">
       <div>
-        <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Browse By</p>
-        <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(22px,3vw,36px);letter-spacing:2px;color:var(--white);">SHOP BY CATEGORY</h2>
+        <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:#9C8B85;margin-bottom:6px;">Browse By</p>
+        <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(22px,3vw,36px);letter-spacing:2px;color:#1C1410;">SHOP BY CATEGORY</h2>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;">
@@ -143,9 +143,9 @@ $cat_showcase = $conn->query("
          onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-4px)'"
          onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
         <div style="position:absolute;inset:0;background:url('<?=$cimg?>') center/cover;"></div>
-        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(5,15,30,.92) 0%,rgba(5,15,30,.25) 65%,transparent 100%);"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(28,20,16,.85) 0%,rgba(28,20,16,.2) 60%,transparent 100%);"></div>
         <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 18px;">
-          <div style="font-family:'Oswald',sans-serif;font-size:1.15rem;letter-spacing:3px;color:var(--white);text-transform:uppercase;"><?=e($cs['category_name'])?></div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.15rem;letter-spacing:3px;color:#FDF7F2;text-transform:uppercase;"><?=e($cs['category_name'])?></div>
           <div style="font-size:.72rem;color:var(--accent);margin-top:4px;letter-spacing:1px;">Shop Now →</div>
         </div>
       </a>
@@ -156,7 +156,7 @@ $cat_showcase = $conn->query("
 <?php endif; ?>
 
 <!-- Why Apex -->
-<section style="padding:72px 0;border-top:1px solid var(--border);">
+<section style="padding:72px 0;border-top:1px solid var(--border);background:var(--navy);">
   <div class="wrap">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
       <?php foreach([
@@ -165,10 +165,10 @@ $cat_showcase = $conn->query("
         ['Free Shipping >RM300','Fast 2–4 day delivery across Malaysia.'],
         ['30-Day Returns','Hassle-free returns within 30 days.'],
       ] as $f): ?>
-      <div style="background:var(--navy);padding:36px 28px;text-align:center;">
-        <div style="width:36px;height:2px;background:var(--accent);margin:0 auto 20px;"></div>
-        <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--white);margin-bottom:10px;"><?=e($f[0])?></div>
-        <div style="font-size:.82rem;color:var(--muted);line-height:1.75;"><?=e($f[1])?></div>
+      <div style="background:var(--card);padding:36px 28px;text-align:center;">
+        <div style="width:36px;height:2px;background:#C8543C;margin:0 auto 20px;"></div>
+        <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:2px;color:#1C1410;margin-bottom:10px;"><?=e($f[0])?></div>
+        <div style="font-size:.82rem;color:#8A7A74;line-height:1.75;"><?=e($f[1])?></div>
       </div>
       <?php endforeach; ?>
     </div>

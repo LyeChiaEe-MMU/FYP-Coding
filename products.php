@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require 'db.php';
 
@@ -58,13 +58,13 @@ $total      = $products ? $products->num_rows : 0;
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title><?= $q ? 'Search: '.e($q) : ($cat ? e($cat) : 'Shop All') ?> | Apex</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 <?php include 'includes/navbar.php'; ?>
 
 <!-- Page Header -->
-<div style="background:var(--navy2);border-bottom:1px solid var(--border);padding:36px 0;">
+<div style="background:var(--navy3);border-bottom:1px solid var(--border);padding:36px 0;">
   <div class="wrap">
     <div class="breadcrumb">
       <a href="index.php">Home</a><span class="sep">/</span>
@@ -106,7 +106,7 @@ $total      = $products ? $products->num_rows : 0;
   </div>
 </div>
 
-<section class="section" style="padding-top:36px;background:#0d2137;">
+<section class="section" style="padding-top:36px;background:var(--navy);">
   <div class="wrap">
 
     <!-- ── Filters Row ── -->

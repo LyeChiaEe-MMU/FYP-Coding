@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'auth_check.php';
 
 $total_sales     = $conn->query("SELECT COALESCE(SUM(total_amount),0) AS s FROM orders WHERE status != 'Cancelled'")->fetch_assoc()['s'];
@@ -22,7 +22,7 @@ $by_status = $conn->query("SELECT status, COUNT(*) AS cnt FROM orders GROUP BY s
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Dashboard | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css?v=3">
 </head>
 <body>
 <div class="admin-layout">

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'auth_check.php';
 
 $msg = ''; $mtype = 'ok';
@@ -92,7 +92,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Products | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css?v=3">
 <style>
 /* Password modal */
 .del-modal-bg{
