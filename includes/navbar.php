@@ -310,12 +310,12 @@ $mega = [
         <a href="<?=$depth?>order_history.php" class="<?=$pg==='order_history.php'?'on':''?>">My Orders</a>
         <a href="<?=$depth?>wishlist.php" class="<?=$pg==='wishlist.php'?'on':''?>"
            style="position:relative;">
-          <i class="fa-solid fa-heart" style="color:#ef4444;"></i>&nbsp;Wishlist
+          Wishlist
           <?php if($wl_notif_count > 0): ?>
           <span style="position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:.5rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1;"><?=$wl_notif_count?></span>
           <?php endif; ?>
         </a>
-        <a href="<?=$depth?>design_request.php">✏️ Design</a>
+        <a href="<?=$depth?>design_request.php">Design</a>
         <a href="<?=$depth?>logout.php">Logout</a>
       <?php else: ?>
         <a href="<?=$depth?>login.php"    class="<?=$pg==='login.php'?'on':''?>">Login</a>
@@ -419,8 +419,8 @@ $mega = [
   <a href="<?=$depth?>leaderboard.php"><i class="fa-solid fa-ranking-star"></i> Leaderboard</a>
   <?php if(is_logged()): ?>
     <a href="<?=$depth?>order_history.php">My Orders</a>
-    <a href="<?=$depth?>wishlist.php">❤️ My Wishlist<?php if($wl_notif_count>0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$wl_notif_count?></span><?php endif; ?></a>
-    <a href="<?=$depth?>design_request.php">✏️ Design Your Shoe</a>
+    <a href="<?=$depth?>wishlist.php">My Wishlist<?php if($wl_notif_count>0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$wl_notif_count?></span><?php endif; ?></a>
+    <a href="<?=$depth?>design_request.php">Design Your Shoe</a>
     <a href="<?=$depth?>logout.php">Logout</a>
   <?php else: ?>
     <a href="<?=$depth?>login.php">Login</a>

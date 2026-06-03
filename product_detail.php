@@ -446,6 +446,8 @@ document.querySelectorAll('.card-heart-btn').forEach(btn=>{
   });
 });
 </script>
+
+<script>
 // ── All image data ──
 const imgs     = <?=json_encode(array_values($images))?>;
 // ── All stock data: { colorName: { size: stock } } ──
