@@ -1,6 +1,7 @@
 <?php
-$cc    = cart_count($conn);
-$pg    = basename($_SERVER['PHP_SELF']);
+$cc         = cart_count($conn);
+$pg         = basename($_SERVER['PHP_SELF']);
+$nav_gender = ($pg === 'products.php') ? ($_GET['gender'] ?? '') : '';
 
 // Wishlist notification count (safe even if table doesn't exist yet)
 $wl_notif_count = 0;
@@ -170,6 +171,7 @@ $mega = [
     white-space:nowrap;font-weight:500;
 }
 .mni:hover .mni-btn{color:var(--white);border-bottom-color:var(--accent)}
+.mni-btn.on{color:var(--white);border-bottom-color:var(--accent)}
 
 /* Plain nav links */
 .mni-link{
@@ -338,7 +340,10 @@ $mega = [
 
       <?php foreach($mega as $gender => $columns): ?>
       <div class="mni">
-        <button class="mni-btn"><?=strtoupper($gender)?></button>
+        <button class="mni-btn <?=$nav_gender===$gender?'on':''?>"
+                onclick="window.location='<?=$depth?>products.php?gender=<?=urlencode($gender)?>'">
+          <?=strtoupper($gender)?>
+        </button>
 
         <div class="mega-panel">
           <div class="mega-inner">
@@ -390,7 +395,7 @@ $mega = [
       <?php endforeach; ?>
 
       <!-- Static links -->
-      <a href="<?=$depth?>products.php" class="mni-link <?=$pg==='products.php'&&empty($_GET['gender'])?'on':''?>">SHOP ALL</a>
+      <a href="<?=$depth?>products.php" class="mni-link <?=$pg==='products.php'&&$nav_gender===''?'on':''?>">SHOP ALL</a>
       <a href="<?=$depth?>leaderboard.php" class="mni-link <?=$pg==='leaderboard.php'?'on':''?>">LEADERBOARD</a>
 
     </div>
