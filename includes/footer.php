@@ -29,7 +29,7 @@
       <div class="footer-col">
         <h4>Discover</h4>
         <ul>
-          <li><a href="<?=$depth?>leaderboard.php">🏆 Leaderboard</a></li>
+          <li><a href="<?=$depth?>leaderboard.php">Leaderboard</a></li>
           <li><a href="<?=$depth?>about.php">About Apex</a></li>
           <li><a href="<?=$depth?>size_guide.php">Size Guide</a></li>
           <li><a href="<?=$depth?>returns.php">Returns Policy</a></li>

@@ -295,7 +295,7 @@ $mega = [
       <form action="<?=$depth?>products.php" method="GET" autocomplete="off">
         <span class="apex-s-ico"><i class="fa-solid fa-magnifying-glass"></i></span>
         <input type="text" name="q" id="apexSrch"
-               placeholder="Search shoes..."
+               placeholder="Search"
                value="<?=$q?>"
                onfocus="this.style.borderColor='var(--accent)'"
                onblur="setTimeout(hideApexDrop,200)"
@@ -390,7 +390,7 @@ $mega = [
 
       <!-- Static links -->
       <a href="<?=$depth?>products.php" class="mni-link <?=$pg==='products.php'&&empty($_GET['gender'])?'on':''?>">SHOP ALL</a>
-      <a href="<?=$depth?>leaderboard.php" class="mni-link <?=$pg==='leaderboard.php'?'on':''?>"><i class="fa-solid fa-ranking-star"></i> LEADERBOARD</a>
+      <a href="<?=$depth?>leaderboard.php" class="mni-link <?=$pg==='leaderboard.php'?'on':''?>">LEADERBOARD</a>
 
     </div>
   </nav>
@@ -416,7 +416,7 @@ $mega = [
   <a href="<?=$depth?>products.php?gender=Kids&cat=Lifestyle">  › Lifestyle</a>
   <div class="mob-group">More</div>
   <a href="<?=$depth?>products.php">Shop All</a>
-  <a href="<?=$depth?>leaderboard.php"><i class="fa-solid fa-ranking-star"></i> Leaderboard</a>
+  <a href="<?=$depth?>leaderboard.php">Leaderboard</a>
   <?php if(is_logged()): ?>
     <a href="<?=$depth?>order_history.php">My Orders</a>
     <a href="<?=$depth?>wishlist.php">My Wishlist<?php if($wl_notif_count>0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$wl_notif_count?></span><?php endif; ?></a>
