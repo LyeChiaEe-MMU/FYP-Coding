@@ -118,8 +118,9 @@ $total      = $products ? $products->num_rows : 0;
         $allBorder = (!$cat) ? 'var(--accent)'  : 'var(--border)';
         $allFw     = (!$cat) ? '700' : '500';
         $qParam    = $q ? '&q='.urlencode($q) : '';
+        $gParam    = $gender ? '&gender='.urlencode($gender) : '';
         ?>
-        <a href="products.php?sort=<?=e($sort)?><?=$qParam?>"
+        <a href="products.php?sort=<?=e($sort)?><?=$gParam?><?=$qParam?>"
            style="padding:8px 20px;border-radius:100px;border:1px solid <?=$allBorder?>;color:<?=$allColor?>;background:<?=$allActive?>;font-size:.82rem;font-weight:<?=$allFw?>;transition:.2s;">
           All
         </a>
@@ -132,7 +133,7 @@ $total      = $products ? $products->num_rows : 0;
             $border = $isActive ? 'var(--accent)'  : 'var(--border)';
             $fw     = $isActive ? '700' : '500';
         ?>
-        <a href="products.php?cat=<?=urlencode($c['category_name'])?>&sort=<?=e($sort)?><?=$qParam?>"
+        <a href="products.php?cat=<?=urlencode($c['category_name'])?>&sort=<?=e($sort)?><?=$gParam?><?=$qParam?>"
            style="padding:8px 20px;border-radius:100px;border:1px solid <?=$border?>;color:<?=$color?>;background:<?=$bg?>;font-size:.82rem;font-weight:<?=$fw?>;transition:.2s;">
           <?=e($c['category_name'])?>
         </a>
@@ -142,7 +143,7 @@ $total      = $products ? $products->num_rows : 0;
       <!-- Sort + clear search -->
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <?php if ($q): ?>
-        <a href="products.php<?=$cat?'?cat='.urlencode($cat):''?>"
+        <a href="products.php?<?=$cat?'cat='.urlencode($cat).'&':''?><?=$gender?'gender='.urlencode($gender):''?>"
            style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:100px;border:1px solid var(--border);color:var(--muted);font-size:.8rem;transition:.2s;"
            onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'"
            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
@@ -150,8 +151,9 @@ $total      = $products ? $products->num_rows : 0;
         </a>
         <?php endif; ?>
         <form method="GET" style="display:flex;align-items:center;gap:8px;">
-          <?php if ($cat): ?><input type="hidden" name="cat" value="<?=e($cat)?>"> <?php endif; ?>
-          <?php if ($q):   ?><input type="hidden" name="q"   value="<?=e($q)?>">   <?php endif; ?>
+          <?php if ($cat):    ?><input type="hidden" name="cat"    value="<?=e($cat)?>">    <?php endif; ?>
+          <?php if ($q):      ?><input type="hidden" name="q"      value="<?=e($q)?>">      <?php endif; ?>
+          <?php if ($gender): ?><input type="hidden" name="gender" value="<?=e($gender)?>"> <?php endif; ?>
           <select name="sort" onchange="this.form.submit()"
             style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;color:var(--text);font-size:.82rem;cursor:pointer;">
             <option value="newest"    <?=$sort==='newest'   ?'selected':''?>>Newest</option>
