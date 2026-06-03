@@ -72,8 +72,9 @@ $conn->query("CREATE TABLE IF NOT EXISTS `wishlists` (
     PRIMARY KEY (`wishlist_id`), UNIQUE KEY `uq_up` (`user_id`,`product_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 if(is_logged()){
+    $wl_uid = (int)$_SESSION['user_id'];
     $wl_chk = $conn->prepare("SELECT wishlist_id FROM wishlists WHERE user_id=? AND product_id=?");
-    $wl_chk->bind_param("ii",(int)$_SESSION['user_id'],$pid);
+    $wl_chk->bind_param("ii", $wl_uid, $pid);
     $wl_chk->execute();
     $is_wishlisted = $wl_chk->get_result()->num_rows > 0;
 }
@@ -342,7 +343,9 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
         $rp_wishlisted = false;
         if(is_logged()){
             $rwl = $conn->prepare("SELECT wishlist_id FROM wishlists WHERE user_id=? AND product_id=?");
-            $rwl->bind_param("ii",(int)$_SESSION['user_id'],(int)$rp['product_id']);
+            $rwl_uid = (int)$_SESSION['user_id'];
+            $rwl_pid = (int)$rp['product_id'];
+            $rwl->bind_param("ii", $rwl_uid, $rwl_pid);
             $rwl->execute();
             $rp_wishlisted = $rwl->get_result()->num_rows > 0;
         }

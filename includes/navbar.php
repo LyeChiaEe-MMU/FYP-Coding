@@ -8,7 +8,8 @@ if(is_logged()){
     $tbl_chk = $conn->query("SHOW TABLES LIKE 'wishlist_notifications'");
     if($tbl_chk && $tbl_chk->num_rows > 0){
         $nc = $conn->prepare("SELECT COUNT(*) AS c FROM wishlist_notifications WHERE user_id=? AND is_read=0");
-        $nc->bind_param("i",(int)$_SESSION['user_id']);
+        $nc_uid = (int)$_SESSION['user_id'];
+        $nc->bind_param("i", $nc_uid);
         $nc->execute();
         $wl_notif_count = (int)$nc->get_result()->fetch_assoc()['c'];
     }
