@@ -5,10 +5,10 @@
     --navy:    #FDF7F2;   /* page background — warm cream */
     --navy2:   #F5ECE4;   /* sections / inputs — soft peach */
     --navy3:   #EDE0D6;   /* hover / alt sections — warm beige */
-    --white:   #120C09;   /* headline text — deeper near-black */
-    --offwhite:#2A1C16;   /* secondary heading */
-    --text:    #2E1E18;   /* body text — rich dark warm brown */
-    --muted:   #6E5650;   /* hint / secondary text — darker */
+    --white:   #100A07;   /* headline text — deep near-black */
+    --offwhite:#281A13;   /* secondary heading */
+    --text:    #261610;   /* body text — strong dark warm brown */
+    --muted:   #4A3028;   /* hint / secondary / description text — clearly readable */
     --accent:  #C8543C;   /* warm terracotta — fits cream/peach theme */
     --accent2: #8B3A52;   /* deep rose secondary */
     --danger:  #D64040;

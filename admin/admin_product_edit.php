@@ -237,7 +237,7 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Edit Product | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css?v=3">
+<link rel="stylesheet" href="../css/style.css?v=4">
 </head>
 <body>
 <div class="admin-layout">

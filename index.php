@@ -36,7 +36,7 @@ $cat_showcase = $conn->query("
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Apex | Premium Sport Shoes</title>
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=4">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
@@ -58,7 +58,7 @@ $cat_showcase = $conn->query("
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(52px,7vw,96px);line-height:.9;letter-spacing:-1px;color:#1C1410;margin-bottom:24px;">
         BUILT<br>TO <span style="color:#C8543C;">WIN.</span>
       </h1>
-      <p style="font-size:1.05rem;color:#5C4A44;max-width:420px;margin-bottom:40px;line-height:1.75;">
+      <p style="font-size:1.05rem;color:#2E1E18;max-width:420px;margin-bottom:40px;line-height:1.75;">
         Premium athletic footwear engineered for the court, the track, and the streets. No excuses — just performance.
       </p>
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
@@ -69,7 +69,7 @@ $cat_showcase = $conn->query("
         <?php foreach([['10+','Models'],['3','Collections'],['RM259','Starting From']] as $s): ?>
         <div>
           <div style="font-family:'Oswald',sans-serif;font-size:1.8rem;color:#C8543C;"><?=e($s[0])?></div>
-          <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:#8A7A74;margin-top:3px;"><?=e($s[1])?></div>
+          <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:#4A3028;margin-top:3px;"><?=e($s[1])?></div>
         </div>
         <?php endforeach; ?>
       </div>
@@ -168,7 +168,7 @@ $cat_showcase = $conn->query("
       <div style="background:var(--card);padding:36px 28px;text-align:center;">
         <div style="width:36px;height:2px;background:#C8543C;margin:0 auto 20px;"></div>
         <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:2px;color:#1C1410;margin-bottom:10px;"><?=e($f[0])?></div>
-        <div style="font-size:.82rem;color:#8A7A74;line-height:1.75;"><?=e($f[1])?></div>
+        <div style="font-size:.82rem;color:#4A3028;line-height:1.75;"><?=e($f[1])?></div>
       </div>
       <?php endforeach; ?>
     </div>

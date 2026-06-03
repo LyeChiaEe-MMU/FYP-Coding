@@ -92,7 +92,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Products | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css?v=3">
+<link rel="stylesheet" href="../css/style.css?v=4">
 <style>
 /* Password modal */
 .del-modal-bg{

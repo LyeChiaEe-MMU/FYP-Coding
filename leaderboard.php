@@ -83,7 +83,7 @@ $medals = ['🥇','🥈','🥉'];
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Shoe Leaderboard | Apex</title>
-<link rel="stylesheet" href="css/style.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=4">
 <style>
 .lb-section  { margin-bottom:56px; }
 .lb-cat-head {

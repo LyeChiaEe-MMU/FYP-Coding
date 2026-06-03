@@ -18,7 +18,7 @@ $customers = $conn->query("
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Customers | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css?v=3">
+<link rel="stylesheet" href="../css/style.css?v=4">
 </head>
 <body>
 <div class="admin-layout">
