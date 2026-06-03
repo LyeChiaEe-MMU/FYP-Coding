@@ -358,7 +358,8 @@ $mega = [
             <!-- Featured products -->
             <div class="mega-feat">
               <?php
-              $fp = $conn->query("SELECT p.product_id,p.name,p.price,p.image_url,c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id ORDER BY p.created_at DESC LIMIT 2");
+              $g_safe = $conn->real_escape_string($gender);
+              $fp = $conn->query("SELECT p.product_id,p.name,p.price,p.image_url,c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE (p.gender='$g_safe' OR p.gender='Unisex') ORDER BY p.created_at DESC LIMIT 2");
               if($fp && $fp->num_rows>0): while($fr=$fp->fetch_assoc()):
                 $fimg = !empty($fr['image_url']) ? e($fr['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=70';
               ?>

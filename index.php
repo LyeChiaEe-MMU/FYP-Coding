@@ -137,22 +137,16 @@ $cat_showcase = $conn->query("
         $cimg = !empty($cs['image_url'])
             ? (str_starts_with($cs['image_url'],'http') ? e($cs['image_url']) : e($cs['image_url']))
             : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&q=70';
-        $cat_icons = ['Running'=>'🏃','Basketball'=>'🏀','Training'=>'💪','Lifestyle'=>'✨'];
-        $icon = $cat_icons[$cs['category_name']] ?? '👟';
       ?>
       <a href="products.php?cat=<?=urlencode($cs['category_name'])?>"
          style="display:block;position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);text-decoration:none;aspect-ratio:3/2;transition:all .25s;"
          onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-4px)'"
          onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
-        <!-- Background image -->
         <div style="position:absolute;inset:0;background:url('<?=$cimg?>') center/cover;"></div>
-        <!-- Dark overlay -->
-        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(5,15,30,.9) 0%,rgba(5,15,30,.3) 60%,transparent 100%);"></div>
-        <!-- Content -->
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(5,15,30,.92) 0%,rgba(5,15,30,.25) 65%,transparent 100%);"></div>
         <div style="position:absolute;bottom:0;left:0;right:0;padding:20px 18px;">
-          <div style="font-size:1.2rem;margin-bottom:4px;"><?=$icon?></div>
-          <div style="font-family:'Oswald',sans-serif;font-size:1.15rem;letter-spacing:2px;color:var(--white);text-transform:uppercase;"><?=e($cs['category_name'])?></div>
-          <div style="font-size:.72rem;color:var(--accent);margin-top:3px;letter-spacing:1px;">Shop Now →</div>
+          <div style="font-family:'Oswald',sans-serif;font-size:1.15rem;letter-spacing:3px;color:var(--white);text-transform:uppercase;"><?=e($cs['category_name'])?></div>
+          <div style="font-size:.72rem;color:var(--accent);margin-top:4px;letter-spacing:1px;">Shop Now →</div>
         </div>
       </a>
       <?php endwhile; ?>
