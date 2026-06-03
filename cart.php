@@ -6,7 +6,7 @@ if(!is_logged()){ header("Location: login.php"); exit; }
 $uid = (int)$_SESSION['user_id'];
 
 $stmt = $conn->prepare("
-    SELECT c.cart_id, c.quantity, c.size,
+    SELECT c.cart_id, c.quantity, c.size, c.color,
            p.product_id, p.name, p.price, p.image_url
     FROM cart_items c
     JOIN products p ON c.product_id = p.product_id
@@ -73,8 +73,13 @@ $total    = $subtotal + $shipping;
             <div class="ci-sub">RM <?=number_format($r['price'],2)?> each</div>
           </div>
         </div>
-        <!-- Size -->
-        <div style="color:var(--muted);font-size:.875rem;">UK <?=e($r['size'])?></div>
+        <!-- Size / Colour -->
+        <div style="color:var(--muted);font-size:.875rem;">
+          UK <?=e($r['size'])?>
+          <?php if(!empty($r['color']) && $r['color'] !== 'Default'): ?>
+          &nbsp;·&nbsp; <?=e($r['color'])?>
+          <?php endif; ?>
+        </div>
         <!-- Qty -->
         <div>
           <form action="cart_action.php" method="POST">

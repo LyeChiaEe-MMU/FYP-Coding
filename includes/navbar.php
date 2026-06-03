@@ -295,7 +295,7 @@ $mega = [
       <form action="<?=$depth?>products.php" method="GET" autocomplete="off">
         <span class="apex-s-ico"><i class="fa-solid fa-magnifying-glass"></i></span>
         <input type="text" name="q" id="apexSrch"
-               placeholder="Search shoes... e.g. Apex Gen"
+               placeholder="Search shoes..."
                value="<?=$q?>"
                onfocus="this.style.borderColor='var(--accent)'"
                onblur="setTimeout(hideApexDrop,200)"

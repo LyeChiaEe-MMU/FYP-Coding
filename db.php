@@ -15,6 +15,12 @@ if ($conn->connect_error) {
 }
 $conn->set_charset('utf8mb4');
 
+// ── One-time migration: add color column to cart_items if missing ─
+$_col = $conn->query("SHOW COLUMNS FROM cart_items LIKE 'color'");
+if($_col && $_col->num_rows === 0){
+    $conn->query("ALTER TABLE cart_items ADD COLUMN color VARCHAR(80) NOT NULL DEFAULT 'Default' AFTER size");
+}
+
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 

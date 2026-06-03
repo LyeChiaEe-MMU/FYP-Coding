@@ -46,9 +46,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             }
         }
 
-        // ── Add to cart ──────────────────────────────────────
-        $chk = $conn->prepare("SELECT cart_id, quantity FROM cart_items WHERE user_id=? AND product_id=? AND size=?");
-        $chk->bind_param("iis",$user_id,$product_id,$size);
+        // ── Add to cart (include color in uniqueness check) ─────────
+        $chk = $conn->prepare("SELECT cart_id, quantity FROM cart_items WHERE user_id=? AND product_id=? AND size=? AND color=?");
+        $chk->bind_param("iiss",$user_id,$product_id,$size,$color);
         $chk->execute();
         $row = $chk->get_result()->fetch_assoc();
 
@@ -58,8 +58,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $upd->bind_param("ii",$nq,$row['cart_id']);
             $upd->execute();
         } else {
-            $ins = $conn->prepare("INSERT INTO cart_items (user_id, product_id, size, quantity) VALUES (?,?,?,?)");
-            $ins->bind_param("iisi",$user_id,$product_id,$size,$quantity);
+            $ins = $conn->prepare("INSERT INTO cart_items (user_id, product_id, size, color, quantity) VALUES (?,?,?,?,?)");
+            $ins->bind_param("iissi",$user_id,$product_id,$size,$color,$quantity);
             $ins->execute();
         }
 

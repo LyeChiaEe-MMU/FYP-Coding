@@ -11,9 +11,9 @@ $uid              = (int)$_SESSION['user_id'];
 $shipping_address = trim($_POST['shipping_address'] ?? '');
 $payment_method   = $_POST['payment_method'] ?? 'Online Banking';
 
-// Get cart items — uses real column names
+// Get cart items — include color for per-size stock deduction
 $cs = $conn->prepare("
-    SELECT c.product_id, c.quantity, c.size, p.price
+    SELECT c.product_id, c.quantity, c.size, c.color, p.price
     FROM cart_items c
     JOIN products p ON c.product_id = p.product_id
     WHERE c.user_id = ?
@@ -57,11 +57,22 @@ $upd = $conn->prepare("UPDATE users SET address = ? WHERE user_id = ?");
 $upd->bind_param("si", $shipping_address, $uid);
 $upd->execute();
 
-// 5. Decrement product stock
-$deduct = $conn->prepare("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE product_id = ?");
+// 5a. Decrement per-colour-size stock in product_stock
+$deduct_sz = $conn->prepare("
+    UPDATE product_stock
+    SET stock = GREATEST(0, stock - ?)
+    WHERE product_id = ? AND color_name = ? AND size = ?
+");
+// 5b. Decrement total stock in products
+$deduct_tot = $conn->prepare("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE product_id = ?");
+
 foreach ($items as $item) {
-    $deduct->bind_param("ii", $item['quantity'], $item['product_id']);
-    $deduct->execute();
+    // Per-size deduction
+    $deduct_sz->bind_param("iiss", $item['quantity'], $item['product_id'], $item['color'], $item['size']);
+    $deduct_sz->execute();
+    // Total stock deduction
+    $deduct_tot->bind_param("ii", $item['quantity'], $item['product_id']);
+    $deduct_tot->execute();
 }
 
 // 6. Clear cart
