@@ -21,6 +21,12 @@ if($_col && $_col->num_rows === 0){
     $conn->query("ALTER TABLE cart_items ADD COLUMN color VARCHAR(80) NOT NULL DEFAULT 'Default' AFTER size");
 }
 
+// ── One-time migration: add gender column to products if missing ──
+$_gcol = $conn->query("SHOW COLUMNS FROM products LIKE 'gender'");
+if($_gcol && $_gcol->num_rows === 0){
+    $conn->query("ALTER TABLE products ADD COLUMN gender VARCHAR(20) NOT NULL DEFAULT 'Unisex' AFTER category_id");
+}
+
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 

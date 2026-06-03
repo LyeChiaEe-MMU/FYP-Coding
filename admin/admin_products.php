@@ -48,6 +48,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     $price       = floatval($_POST['price']   ?? 0);
     $stock       = (int)($_POST['stock']      ?? 0);
     $image_url   = trim($_POST['image_url']   ?? '');
+    $allowed_genders = ['Men','Women','Kids','Unisex'];
+    $gender      = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Unisex';
 
     if(!empty($_FILES['image_file']['name'])){
         $file = $_FILES['image_file'];
@@ -70,8 +72,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
         if(!$name || !$description || !$category_id || $price <= 0){
             $msg = "Name, description, category and price are required."; $mtype='err';
         } else {
-            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,price,stock,image_url) VALUES (?,?,?,?,?,?)");
-            $stmt->bind_param("ssidis",$name,$description,$category_id,$price,$stock,$image_url);
+            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,image_url) VALUES (?,?,?,?,?,?,?)");
+            $stmt->bind_param("ssisdis",$name,$description,$category_id,$gender,$price,$stock,$image_url);
             $stmt->execute();
             header("Location: admin_products.php?msg=Product+added+successfully."); exit;
         }
@@ -150,6 +152,15 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
                 <?php $categories->data_seek(0); while($c=$categories->fetch_assoc()): ?>
                 <option value="<?=(int)$c['category_id']?>"><?=e($c['category_name'])?></option>
                 <?php endwhile; ?>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Gender *</label>
+              <select name="gender" required>
+                <option value="Unisex">Unisex (shows in all)</option>
+                <option value="Men">Men</option>
+                <option value="Women">Women</option>
+                <option value="Kids">Kids</option>
               </select>
             </div>
             <div class="form-group">

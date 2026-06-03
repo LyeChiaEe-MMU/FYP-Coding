@@ -16,15 +16,11 @@ if ($cat) {
     $conditions[] = "c.category_name = '$cat_safe'";
 }
 
-// Gender filter — stored in products via category or name convention
-// Since DB has no gender column, filter by shopping_preference-friendly label shown in navbar
-// (Men/Women/Kids links just pass ?gender= for future use — show all for now but keep param)
-// If you add a gender column to products table later, replace this with a proper filter
-if ($gender) {
-    // Gender param noted — currently shows all (no gender column in products table)
-    // Uncomment below if you add a gender column:
-    // $g_safe = $conn->real_escape_string($gender);
-    // $conditions[] = "p.gender = '$g_safe'";
+// Gender filter — Men/Women/Kids show their own + Unisex products
+$allowed_genders = ['Men','Women','Kids'];
+if ($gender && in_array($gender, $allowed_genders)) {
+    $g_safe = $conn->real_escape_string($gender);
+    $conditions[] = "(p.gender = '$g_safe' OR p.gender = 'Unisex')";
 }
 
 // Keyword search — split on spaces, every word must match
@@ -96,7 +92,12 @@ $total      = $products ? $products->num_rows : 0;
       </p>
     <?php else: ?>
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
-        <?= $cat ? strtoupper(e($cat)) : 'ALL <span style="color:var(--accent)">SHOES</span>' ?>
+        <?php
+          if($gender && $cat) echo strtoupper(e($gender)).'\'S <span style="color:var(--accent)">'.strtoupper(e($cat)).'</span>';
+          elseif($gender)     echo strtoupper(e($gender)).'\'S <span style="color:var(--accent)">SHOES</span>';
+          elseif($cat)        echo strtoupper(e($cat));
+          else                echo 'ALL <span style="color:var(--accent)">SHOES</span>';
+        ?>
       </h1>
       <p style="color:var(--muted);margin-top:6px;font-size:.875rem;"><?=$total?> style<?=$total!=1?'s':''?> found</p>
     <?php endif; ?>

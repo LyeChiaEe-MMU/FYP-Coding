@@ -141,6 +141,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     $price       = floatval($_POST['price']   ?? 0);
     $stock       = (int)($_POST['stock']      ?? 0);
     $image_url   = trim($_POST['image_url']   ?? $product['image_url']);
+    $allowed_genders = ['Men','Women','Kids','Unisex'];
+    $gender      = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Unisex';
 
     // Only update image if a NEW file was uploaded via the MAIN form
     if(!empty($_FILES['main_image_file']['name'])){
@@ -168,8 +170,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
             if(file_exists($old_file)) unlink($old_file);
         }
         $old_price = (float)$product['price'];
-        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,price=?,stock=?,image_url=? WHERE product_id=?");
-        $stmt->bind_param("ssidisi",$name,$description,$category_id,$price,$stock,$image_url,$pid);
+        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,gender=?,price=?,stock=?,image_url=? WHERE product_id=?");
+        $stmt->bind_param("ssisdisi",$name,$description,$category_id,$gender,$price,$stock,$image_url,$pid);
         $stmt->execute();
         $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
         $msg = "Product updated successfully.";
@@ -275,6 +277,14 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
                       <?=e($c['category_name'])?>
                     </option>
                     <?php endwhile; ?>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Gender</label>
+                  <select name="gender">
+                    <?php foreach(['Unisex'=>'Unisex (shows in all)','Men'=>'Men','Women'=>'Women','Kids'=>'Kids'] as $gv=>$gl): ?>
+                    <option value="<?=$gv?>" <?=($product['gender']??'Unisex')===$gv?'selected':''?>><?=$gl?></option>
+                    <?php endforeach; ?>
                   </select>
                 </div>
                 <div class="form-group">
