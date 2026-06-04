@@ -552,7 +552,7 @@ function pickSize(btn, size){
     } else if(stk<=3){
         bar.className='stock-bar low'; bar.textContent='⚠️ Only '+stk+' pairs left for UK '+size+' in '+activeColor+'!';
     } else {
-        bar.className='stock-bar ok'; bar.textContent='✅ '+stk+' pairs available — UK '+size+', '+activeColor;
+        bar.className='stock-bar ok'; bar.textContent=stk+' pairs available — UK '+size+', '+activeColor;
     }
     updateAddBtn();
 }

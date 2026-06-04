@@ -115,7 +115,7 @@ $mega = [
     box-shadow:0 1px 4px rgba(110,65,45,.06);
 }
 .apex-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,84,60,.12)}
-.apex-search input::placeholder{color:#C4AFA9}
+.apex-search input::placeholder{color:var(--muted)}
 .apex-s-ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
 #apex-sdrop{
     display:none;position:absolute;top:calc(100% + 8px);left:0;right:0;

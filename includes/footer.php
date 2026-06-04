@@ -4,7 +4,7 @@
     <div class="footer-grid">
       <div>
         <div class="footer-brand-logo" style="margin-bottom:12px;">APE<span>X</span></div>
-        <p style="color:#a8b8cc;font-size:.875rem;line-height:1.7;">Premium athletic footwear engineered for performance. Every step forward starts with Apex.</p>
+        <p style="color:var(--muted);font-size:.875rem;line-height:1.7;">Premium athletic footwear engineered for performance. Every step forward starts with Apex.</p>
       </div>
       <div class="footer-col">
         <h4 style="font-size:.75rem;letter-spacing:3px;text-transform:uppercase;color:var(--white);margin-bottom:16px;font-weight:700;">Product</h4>
