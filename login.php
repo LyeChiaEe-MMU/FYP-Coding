@@ -63,6 +63,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <!-- ─── Right: Form Panel ─── -->
   <div class="register-form-panel">
     <div class="register-form-inner">
+      <a href="index.php" style="display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:.82rem;margin-bottom:22px;transition:color .2s;text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">
+        <i class="fa-solid fa-arrow-left" style="font-size:.75rem;"></i> Back to Home
+      </a>
       <div class="register-form-head">
         <div class="auth-logo register-mobile-logo">APE<span>X</span></div>
         <h1>Sign In</h1>

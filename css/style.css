@@ -51,7 +51,7 @@ input,select,textarea,button { font-family:'Inter',sans-serif; }
     font-weight:700 !important; border-radius:var(--radius) !important;
     padding:8px 16px !important;
 }
-.nav-cart:hover { background:#4ee8c8 !important; }
+.nav-cart:hover { background:#A83E28 !important; }
 .cart-badge {
     display:inline-flex; align-items:center; justify-content:center;
     background:var(--danger); color:#fff; border-radius:50%;

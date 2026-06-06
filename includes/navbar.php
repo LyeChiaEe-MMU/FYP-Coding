@@ -128,7 +128,7 @@ $mega = [
     font-weight:700!important;border-radius:var(--radius)!important;
     padding:8px 16px!important;
 }
-.apex-cart:hover{background:#4ee8c8!important}
+.apex-cart:hover{background:#A83E28!important}
 .apex-cbadge{
     background:var(--danger);color:#fff;border-radius:50%;
     width:16px;height:16px;font-size:.58rem;font-weight:700;
