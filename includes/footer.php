@@ -18,6 +18,7 @@
       <div class="footer-col">
         <h4 style="font-size:.75rem;letter-spacing:3px;text-transform:uppercase;color:var(--white);margin-bottom:16px;font-weight:700;">Account</h4>
         <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;">
+          <li><a href="<?=$depth?>profile.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">My Profile</a></li>
           <li><a href="<?=$depth?>login.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">Login</a></li>
           <li><a href="<?=$depth?>register.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">Register</a></li>
           <li><a href="<?=$depth?>order_history.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">My Orders</a></li>

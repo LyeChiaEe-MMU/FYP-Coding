@@ -33,12 +33,6 @@ $mega = [
             'Lifestyle'       => '?gender=Men&cat=Lifestyle',
             "All Men's Shoes" => '?gender=Men',
         ],
-        'By Sport' => [
-            'Running'         => '?gender=Men&cat=Running',
-            'Basketball'      => '?gender=Men&cat=Basketball',
-            'Gym & Training'  => '?gender=Men&cat=Training',
-            'Street & Casual' => '?gender=Men&cat=Lifestyle',
-        ],
     ],
     'Women' => [
         'New & Trending' => [
@@ -53,12 +47,6 @@ $mega = [
             'Lifestyle'         => '?gender=Women&cat=Lifestyle',
             "All Women's Shoes" => '?gender=Women',
         ],
-        'By Sport' => [
-            'Running'           => '?gender=Women&cat=Running',
-            'Basketball'        => '?gender=Women&cat=Basketball',
-            'Gym & Training'    => '?gender=Women&cat=Training',
-            'Street & Casual'   => '?gender=Women&cat=Lifestyle',
-        ],
     ],
     'Kids' => [
         'New & Trending' => [
@@ -72,12 +60,6 @@ $mega = [
             'Training'        => '?gender=Kids&cat=Training',
             'Lifestyle'       => '?gender=Kids&cat=Lifestyle',
             "All Kids' Shoes" => '?gender=Kids',
-        ],
-        'By Sport' => [
-            'Running'         => '?gender=Kids&cat=Running',
-            'Basketball'      => '?gender=Kids&cat=Basketball',
-            'Gym & Training'  => '?gender=Kids&cat=Training',
-            'Street & Casual' => '?gender=Kids&cat=Lifestyle',
         ],
     ],
 ];
@@ -209,7 +191,7 @@ $mega = [
 .mega-col{min-width:160px}
 .mega-col-head{
     font-size:.65rem;letter-spacing:3px;text-transform:uppercase;
-    color:#9A8880;font-weight:700;
+    color:var(--white);font-weight:700;
     margin-bottom:14px;padding-bottom:10px;
     border-bottom:1px solid var(--border);
 }
@@ -313,6 +295,7 @@ $mega = [
     <!-- Right icons -->
     <div class="apex-right">
       <?php if(is_logged()): ?>
+        <a href="<?=$depth?>profile.php" class="<?=$pg==='profile.php'?'on':''?>">My Profile</a>
         <a href="<?=$depth?>order_history.php" class="<?=$pg==='order_history.php'?'on':''?>">My Orders</a>
         <a href="<?=$depth?>wishlist.php" class="<?=$pg==='wishlist.php'?'on':''?>"
            style="position:relative;">
@@ -428,6 +411,7 @@ $mega = [
   <a href="<?=$depth?>products.php">Shop All</a>
   <a href="<?=$depth?>leaderboard.php">Leaderboard</a>
   <?php if(is_logged()): ?>
+    <a href="<?=$depth?>profile.php">My Profile</a>
     <a href="<?=$depth?>order_history.php">My Orders</a>
     <a href="<?=$depth?>wishlist.php">My Wishlist<?php if($wl_notif_count>0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$wl_notif_count?></span><?php endif; ?></a>
     <a href="<?=$depth?>design_request.php">Design Your Shoe</a>
