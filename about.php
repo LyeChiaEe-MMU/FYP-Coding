@@ -46,9 +46,21 @@
         <p class="sec-p">Starting from a small workshop in Cyberjaya, Malaysia, our team of engineers and designers obsessed over every millimetre of sole, every stitch of mesh, and every gram of foam. The result is a line of shoes that feel like they were made specifically for you.</p>
         <p class="sec-p">Today, Apex Sport is worn by thousands of athletes across Malaysia — but our mission remains the same: to help you reach the top of whatever game you're playing.</p>
       </div>
-      <div>
-        <img src="https://images.unsplash.com/photo-1556906781-9a412961d28f?w=700&q=80"
-             style="width:100%;border-radius:14px;object-fit:cover;height:360px;border:1px solid var(--border);" alt="Apex Shoes">
+      <div style="background:linear-gradient(135deg,var(--navy2) 0%,var(--navy3) 100%);border:1px solid var(--border);border-radius:14px;padding:48px 36px;display:flex;flex-direction:column;justify-content:center;gap:28px;min-height:360px;">
+        <!-- Brand identity card -->
+        <div style="font-family:'Oswald',sans-serif;font-size:3rem;letter-spacing:8px;color:var(--white);">APE<span style="color:var(--accent);">X</span></div>
+        <div style="width:40px;height:3px;background:var(--accent);border-radius:2px;"></div>
+        <p style="color:var(--muted);font-size:.95rem;line-height:1.75;margin:0;">
+          Premium athletic footwear — engineered in Malaysia, built for champions.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:8px;">
+          <?php foreach([['2026','Founded'],['Malaysia','Based In']] as $s): ?>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;">
+            <div style="font-family:'Oswald',sans-serif;font-size:1.5rem;color:var(--accent);margin-bottom:4px;"><?=htmlspecialchars($s[0])?></div>
+            <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);"><?=htmlspecialchars($s[1])?></div>
+          </div>
+          <?php endforeach; ?>
+        </div>
       </div>
     </div>
   </div>
@@ -63,36 +75,22 @@
     </div>
     <div class="info-grid-3">
       <?php foreach([
-        ['🎯','Performance First','Every design decision starts with one question: does this make the shoe perform better? No compromises.'],
-        ['🌱','Sustainable Future','We are committed to reducing our carbon footprint by sourcing eco-friendly materials and minimising waste.'],
-        ['🤝','Community Driven','We work with local athletes and coaches to test and refine our products before they ever reach your feet.'],
-        ['🔬','Innovation Always','Our R&D team never stops. HyperFoam™, FlexGrid™, and AirMesh Pro™ are just the beginning.'],
-        ['⚖️','Fair Pricing','Premium doesn\'t have to mean unaffordable. We cut out middlemen so the savings reach you directly.'],
-        ['🏆','Winning Mentality','We don\'t make shoes for participation trophies. We make shoes for people who play to win.'],
+        ['Performance First','Every design decision starts with one question: does this make the shoe perform better? No compromises.'],
+        ['Sustainable Future','We are committed to reducing our carbon footprint by sourcing eco-friendly materials and minimising waste.'],
+        ['Community Driven','We work with local athletes and coaches to test and refine our products before they ever reach your feet.'],
+        ['Innovation Always','Our R&D team never stops. HyperFoam™, FlexGrid™, and AirMesh Pro™ are just the beginning.'],
+        ['Fair Pricing','Premium doesn\'t have to mean unaffordable. We cut out middlemen so the savings reach you directly.'],
+        ['Winning Mentality','We don\'t make shoes for participation trophies. We make shoes for people who play to win.'],
       ] as $v): ?>
       <div class="info-card">
-        <div style="font-size:2rem;margin-bottom:14px;"><?=$v[0]?></div>
-        <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:1px;color:var(--white);margin-bottom:10px;"><?=htmlspecialchars($v[1])?></div>
-        <p style="font-size:.875rem;color:var(--muted);margin:0;"><?=htmlspecialchars($v[2])?></p>
+        <div style="font-family:'Oswald',sans-serif;font-size:1.3rem;letter-spacing:1.5px;color:var(--white);margin-bottom:10px;"><?=htmlspecialchars($v[0])?></div>
+        <p style="font-size:.875rem;color:var(--muted);margin:0;"><?=htmlspecialchars($v[1])?></p>
       </div>
       <?php endforeach; ?>
     </div>
   </div>
 </section>
 
-<!-- Stats -->
-<div class="stat-strip">
-  <div class="wrap">
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:32px;text-align:center;">
-      <?php foreach([['10,000+','Pairs Sold'],['4','Categories'],['98%','Satisfaction'],['2021','Founded']] as $s): ?>
-      <div>
-        <div style="font-family:'Oswald',sans-serif;font-size:2.5rem;color:var(--accent);letter-spacing:1px;"><?=htmlspecialchars($s[0])?></div>
-        <div style="font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:6px;"><?=htmlspecialchars($s[1])?></div>
-      </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-</div>
 
 <!-- Team -->
 <section class="info-section" style="background:var(--navy);">
@@ -103,9 +101,9 @@
     </div>
     <div class="info-grid-3">
       <?php foreach([
-        ['Lye Chia Ee','Lead Developer & Co-Founder','Building the digital backbone of Apex — from database design to front-end experience.'],
-        ['Lau Hui Weng','Product Designer & Co-Founder','Crafting the visual identity and ensuring every pixel reflects the Apex brand.'],
-        ['Joie Poo Hann Ern','Operations & Co-Founder','Managing the systems and logistics that keep Apex running smoothly.'],
+        ['Lye Chia Ee','Product Developer & Co-Founder','Handles the product and shopping experience, ensuring customers can browse, select, and purchase with ease.'],
+        ['Lau Hui Weng','Front-End Developer & Co-Founder','Responsible for the main storefront — shaping the look, feel, and first impression of the Apex website.'],
+        ['Joie Poo Hann Ern','Admin Developer & Co-Founder','Oversees the backend admin system, keeping operations running smoothly behind the scenes.'],
       ] as $m): ?>
       <div class="info-card" style="text-align:center;">
         <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#0ea5e9);margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;color:var(--navy);font-family:'Oswald',sans-serif;font-weight:700;">
