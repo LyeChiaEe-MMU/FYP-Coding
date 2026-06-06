@@ -279,30 +279,30 @@ input,select,textarea,button { font-family:'Inter',sans-serif; }
 .span-2 { grid-column:span 2; }
 
 /* ── Register Split Layout ── */
-.register-split { display:grid; grid-template-columns:1fr 1fr; min-height:100vh; }
+.register-split { display:grid; grid-template-columns:35% 65%; min-height:100vh; }
 .register-brand {
     position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden;
     background:
-        radial-gradient(ellipse at 20% 80%, rgba(200,84,60,0.2) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(200,112,58,0.15) 0%, transparent 50%),
-        linear-gradient(160deg, #1C2E26 0%, #22362E 50%, #1A2B23 100%);
+        radial-gradient(ellipse at 15% 85%, rgba(255,255,255,0.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 15%, rgba(255,220,180,0.22) 0%, transparent 50%),
+        linear-gradient(160deg, #C8543C 0%, #D96A46 45%, #C05030 100%);
 }
 .register-brand::before {
     content:''; position:absolute; inset:0; pointer-events:none;
-    background:repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(200,84,60,0.03) 40px, rgba(200,84,60,0.03) 41px);
+    background:repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(255,255,255,0.04) 40px, rgba(255,255,255,0.04) 41px);
 }
 .register-brand-content { position:relative; z-index:2; padding:60px 50px; max-width:500px; }
-.register-brand-logo { font-family:'Oswald',sans-serif; font-size:3rem; letter-spacing:8px; color:#F5EFE8; margin-bottom:32px; }
-.register-brand-logo span { color:var(--accent); }
-.register-brand-tagline { font-family:'Oswald',sans-serif; font-size:2.8rem; font-weight:700; line-height:1.1; color:#F5EFE8; margin-bottom:20px; letter-spacing:1px; }
-.register-brand-tagline span { color:var(--accent); display:inline-block; }
-.register-brand-desc { color:rgba(220,205,195,0.75); font-size:1rem; line-height:1.7; margin-bottom:40px; }
+.register-brand-logo { font-family:'Oswald',sans-serif; font-size:3rem; letter-spacing:8px; color:#FFFFFF; margin-bottom:32px; }
+.register-brand-logo span { color:#2A0E04; }
+.register-brand-tagline { font-family:'Oswald',sans-serif; font-size:2.8rem; font-weight:700; line-height:1.1; color:#FFFFFF; margin-bottom:20px; letter-spacing:1px; }
+.register-brand-tagline span { color:#2A0E04; display:inline-block; }
+.register-brand-desc { color:rgba(255,255,255,0.88); font-size:1rem; line-height:1.7; margin-bottom:40px; }
 .register-brand-features { display:flex; flex-direction:column; gap:16px; }
-.register-feature { display:flex; align-items:center; gap:14px; color:rgba(220,205,195,0.85); font-size:.9rem; }
+.register-feature { display:flex; align-items:center; gap:14px; color:#FFFFFF; font-size:.9rem; }
 .register-feature i {
     width:36px; height:36px; display:flex; align-items:center; justify-content:center;
-    background:rgba(200,84,60,0.15); border:1px solid rgba(200,84,60,0.25);
-    border-radius:8px; color:var(--accent); font-size:.85rem; flex-shrink:0;
+    background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.4);
+    border-radius:8px; color:#FFFFFF; font-size:.85rem; flex-shrink:0;
 }
 
 /* ── Register Form Panel ── */

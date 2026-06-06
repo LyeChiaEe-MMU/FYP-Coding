@@ -2,12 +2,17 @@
 session_start();
 require 'db.php';
 
-// Hero background — use Apex Gen Fly image from DB, fallback to first active product
-$hero_row = $conn->query("SELECT image_url FROM products WHERE is_active=1 AND name LIKE '%Gen Fly%' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
-if(empty($hero_row['image_url'])){
-    $hero_row = $conn->query("SELECT image_url FROM products WHERE is_active=1 AND image_url != '' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+// Hero background — uses a custom image placed at images/hero-bg.jpg
+// Supported formats: jpg, jpeg, png, webp
+// To change: just replace the file at that path — no code changes needed.
+$hero_bg = '';
+$hero_extensions = ['jpg','jpeg','png','webp'];
+foreach($hero_extensions as $ext){
+    if(file_exists(__DIR__.'/images/hero-bg.'.$ext)){
+        $hero_bg = 'images/hero-bg.'.$ext;
+        break;
+    }
 }
-$hero_bg = !empty($hero_row['image_url']) ? $hero_row['image_url'] : '';
 
 // New Arrivals — latest 12 active products
 $featured = $conn->query("

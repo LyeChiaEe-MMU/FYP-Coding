@@ -112,7 +112,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 <style>
 .admin-login-wrap {
     min-height: 100vh;
-    display: flex;
+    display: grid;
+    grid-template-columns: 35% 65%;
     background: var(--navy);
     position: relative;
     overflow: hidden;
@@ -123,7 +124,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     content: '';
     position: absolute;
     width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(100,255,218,.07) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(200,84,60,.06) 0%, transparent 70%);
     top: -200px; left: -200px;
     pointer-events: none;
 }
@@ -131,16 +132,17 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     content: '';
     position: absolute;
     width: 500px; height: 500px;
-    background: radial-gradient(circle, rgba(100,255,218,.05) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(200,84,60,.04) 0%, transparent 70%);
     bottom: -150px; right: -100px;
     pointer-events: none;
 }
 
 /* Left brand strip */
 .admin-brand-strip {
-    width: 340px;
-    flex-shrink: 0;
-    background: linear-gradient(160deg, #0a192f 0%, #112240 60%, #0d2137 100%);
+    background:
+        radial-gradient(ellipse at 15% 85%, rgba(255,255,255,0.18) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 15%, rgba(255,220,180,0.22) 0%, transparent 50%),
+        linear-gradient(160deg, #C8543C 0%, #D96A46 45%, #C05030 100%);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -157,38 +159,38 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         -45deg,
         transparent,
         transparent 30px,
-        rgba(100,255,218,.02) 30px,
-        rgba(100,255,218,.02) 31px
+        rgba(255,255,255,.05) 30px,
+        rgba(255,255,255,.05) 31px
     );
 }
 .admin-strip-logo {
     font-family: 'Oswald', sans-serif;
     font-size: 2.4rem;
     letter-spacing: 6px;
-    color: var(--white);
+    color: #FFFFFF;
     position: relative;
     margin-bottom: 6px;
 }
-.admin-strip-logo span { color: var(--accent); }
+.admin-strip-logo span { color: #2A0E04; }
 .admin-strip-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: rgba(100,255,218,.1);
-    border: 1px solid rgba(100,255,218,.25);
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.45);
     border-radius: 100px;
     padding: 4px 14px;
     font-size: .65rem;
     letter-spacing: 3px;
     text-transform: uppercase;
-    color: var(--accent);
+    color: #FFFFFF;
     margin-bottom: 44px;
     position: relative;
     width: fit-content;
 }
 .admin-strip-divider {
     width: 40px; height: 2px;
-    background: var(--accent);
+    background: rgba(255,255,255,0.5);
     margin-bottom: 28px;
     position: relative;
 }
@@ -203,24 +205,23 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     align-items: center;
     gap: 14px;
     font-size: .82rem;
-    color: var(--muted);
+    color: #FFFFFF;
 }
 .admin-strip-feat-item i {
     width: 32px; height: 32px;
-    background: rgba(100,255,218,.08);
-    border: 1px solid rgba(100,255,218,.15);
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent);
+    color: #FFFFFF;
     font-size: .8rem;
     flex-shrink: 0;
 }
 
 /* Right form panel */
 .admin-form-panel {
-    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -246,7 +247,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     color: var(--muted);
 }
 
-@media(max-width: 700px){
+@media(max-width: 1024px){
+    .admin-login-wrap { grid-template-columns: 1fr; }
     .admin-brand-strip { display: none; }
 }
 </style>
