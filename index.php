@@ -2,29 +2,30 @@
 session_start();
 require 'db.php';
 
-// Hero background — use Apex Gen Fly image from DB, fallback to first product
-$hero_row = $conn->query("SELECT image_url FROM products WHERE name LIKE '%Gen Fly%' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+// Hero background — use Apex Gen Fly image from DB, fallback to first active product
+$hero_row = $conn->query("SELECT image_url FROM products WHERE is_active=1 AND name LIKE '%Gen Fly%' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
 if(empty($hero_row['image_url'])){
-    $hero_row = $conn->query("SELECT image_url FROM products WHERE image_url != '' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
+    $hero_row = $conn->query("SELECT image_url FROM products WHERE is_active=1 AND image_url != '' ORDER BY created_at DESC LIMIT 1")->fetch_assoc();
 }
 $hero_bg = !empty($hero_row['image_url']) ? $hero_row['image_url'] : '';
 
-// New Arrivals — latest 12 products
+// New Arrivals — latest 12 active products
 $featured = $conn->query("
     SELECT p.*, c.category_name
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
+    WHERE p.is_active = 1
     ORDER BY p.created_at DESC LIMIT 12
 ");
 
-// Shop by Category — latest product image per category
+// Shop by Category — latest active product image per category
 $cat_showcase = $conn->query("
     SELECT c.category_id, c.category_name,
            p.product_id, p.name AS prod_name, p.price, p.image_url
     FROM categories c
     LEFT JOIN products p ON p.product_id = (
         SELECT product_id FROM products
-        WHERE category_id = c.category_id
+        WHERE category_id = c.category_id AND is_active = 1
         ORDER BY created_at DESC LIMIT 1
     )
     ORDER BY c.category_name

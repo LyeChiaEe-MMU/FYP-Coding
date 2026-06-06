@@ -140,6 +140,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     $category_id = (int)($_POST['category_id'] ?? 0);
     $price       = floatval($_POST['price']   ?? 0);
     $stock       = (int)($_POST['stock']      ?? 0);
+    $is_on_sale  = isset($_POST['is_on_sale']) ? 1 : 0;
     $image_url   = trim($_POST['image_url']   ?? $product['image_url']);
     $allowed_genders = ['Men','Women','Kids','Unisex'];
     $gender      = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Unisex';
@@ -170,8 +171,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
             if(file_exists($old_file)) unlink($old_file);
         }
         $old_price = (float)$product['price'];
-        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,gender=?,price=?,stock=?,image_url=? WHERE product_id=?");
-        $stmt->bind_param("ssisdisi",$name,$description,$category_id,$gender,$price,$stock,$image_url,$pid);
+        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,gender=?,price=?,stock=?,is_on_sale=?,image_url=? WHERE product_id=?");
+        $stmt->bind_param("ssisdiisi",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$image_url,$pid);
         $stmt->execute();
         $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
         $msg = "Product updated successfully.";
@@ -294,6 +295,13 @@ $uk_sizes = ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12
                 <div class="form-group">
                   <label>Total Stock</label>
                   <input type="number" name="stock" min="0" value="<?=(int)$product['stock']?>">
+                </div>
+                <div class="form-group span-2">
+                  <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-top:4px;">
+                    <input type="checkbox" name="is_on_sale" value="1" <?=!empty($product['is_on_sale'])?'checked':''?>
+                           style="width:18px;height:18px;accent-color:var(--danger);cursor:pointer;">
+                    <span>Mark as <strong style="color:var(--danger);">ON SALE</strong> — shows a red SALE badge and appears in the Sale filter</span>
+                  </label>
                 </div>
                 <div class="form-group span-2">
                   <label>Main Product Image</label>

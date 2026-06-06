@@ -29,6 +29,18 @@ if($_gcol && $_gcol->num_rows === 0){
 // ── Set existing products to Men gender (they are men's shoes) ───
 $conn->query("UPDATE products SET gender='Men' WHERE gender='Unisex'");
 
+// ── One-time migration: add is_on_sale column to products if missing ──
+$_scol = $conn->query("SHOW COLUMNS FROM products LIKE 'is_on_sale'");
+if($_scol && $_scol->num_rows === 0){
+    $conn->query("ALTER TABLE products ADD COLUMN is_on_sale TINYINT(1) NOT NULL DEFAULT 0 AFTER stock");
+}
+
+// ── One-time migration: add is_active column to products if missing ──
+$_acol = $conn->query("SHOW COLUMNS FROM products LIKE 'is_active'");
+if($_acol && $_acol->num_rows === 0){
+    $conn->query("ALTER TABLE products ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER is_on_sale");
+}
+
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 

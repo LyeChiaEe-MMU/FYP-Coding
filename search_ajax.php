@@ -27,7 +27,7 @@ $sql = "
     SELECT p.product_id AS id, p.name, p.price, p.image_url AS image, c.category_name AS category
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    WHERE $where
+    WHERE p.is_active = 1 AND $where
     ORDER BY p.name ASC
     LIMIT 6
 ";

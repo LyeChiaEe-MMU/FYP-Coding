@@ -3,50 +3,40 @@ require_once 'auth_check.php';
 
 $msg = ''; $mtype = 'ok';
 
-// ── DELETE with password verification ────────────
-if(isset($_POST['confirm_delete']) || (isset($_POST['add_product']) && $_SERVER['REQUEST_METHOD']==='POST')){
+// ── TOGGLE ACTIVE / INACTIVE ─────────────────────
+if(isset($_POST['toggle_status'])){
     csrf_check();
-}
-if(isset($_POST['confirm_delete'])){
-    $id       = (int)$_POST['delete_id'];
-    $password = $_POST['admin_password'] ?? '';
+    $id         = (int)$_POST['product_id'];
+    $new_status = (int)$_POST['new_status']; // 1 = activate, 0 = deactivate
 
-    // Verify password against current admin account
-    $admin = $conn->query("SELECT password FROM admins WHERE admin_id=" . (int)$_SESSION['admin_id'])->fetch_assoc();
-    if($admin && password_verify($password, $admin['password'])){
-        // Get image path before deleting
-        $prod = $conn->query("SELECT image_url FROM products WHERE product_id=$id")->fetch_assoc();
-
-        // Delete variant images from disk
-        $variants = $conn->query("SELECT image_url FROM product_images WHERE product_id=$id");
-        if($variants) while($v=$variants->fetch_assoc()){
-            if(!empty($v['image_url']) && !str_starts_with($v['image_url'],'http')){
-                $fp = dirname(__DIR__) . '/' . $v['image_url'];
-                if(file_exists($fp)) unlink($fp);
-            }
+    if($new_status === 0){
+        // Deactivating: verify admin password
+        $password = $_POST['admin_password'] ?? '';
+        $admin    = $conn->query("SELECT password FROM admins WHERE admin_id=".(int)$_SESSION['admin_id'])->fetch_assoc();
+        if($admin && password_verify($password, $admin['password'])){
+            $stmt = $conn->prepare("UPDATE products SET is_active=0 WHERE product_id=?");
+            $stmt->bind_param("i", $id); $stmt->execute();
+            header("Location: admin_products.php?msg=Product+deactivated.+It+is+now+hidden+from+the+shop."); exit;
+        } else {
+            $msg = "Incorrect password. Product status was NOT changed."; $mtype='err';
         }
-
-        // Delete main image from disk
-        if($prod && !empty($prod['image_url']) && !str_starts_with($prod['image_url'],'http')){
-            $fp = dirname(__DIR__) . '/' . $prod['image_url'];
-            if(file_exists($fp)) unlink($fp);
-        }
-
-        // Delete product (cascade deletes product_size, product_images, product_stock)
-        $conn->query("DELETE FROM products WHERE product_id=$id");
-        header("Location: admin_products.php?msg=Product+deleted+and+images+removed.&mtype=err"); exit;
     } else {
-        $msg = "Incorrect password. Product was NOT deleted."; $mtype='err';
+        // Activating: safe — no password required
+        $stmt = $conn->prepare("UPDATE products SET is_active=1 WHERE product_id=?");
+        $stmt->bind_param("i", $id); $stmt->execute();
+        header("Location: admin_products.php?msg=Product+activated.+It+is+now+visible+in+the+shop."); exit;
     }
 }
 
 // ── Add Product ───────────────────────────────────
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
+    csrf_check();
     $name        = trim($_POST['name']        ?? '');
     $description = trim($_POST['description'] ?? '');
     $category_id = (int)($_POST['category_id'] ?? 0);
     $price       = floatval($_POST['price']   ?? 0);
     $stock       = (int)($_POST['stock']      ?? 0);
+    $is_on_sale  = isset($_POST['is_on_sale']) ? 1 : 0;
     $image_url   = trim($_POST['image_url']   ?? '');
     $allowed_genders = ['Men','Women','Kids','Unisex'];
     $gender      = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Unisex';
@@ -72,8 +62,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
         if(!$name || !$description || !$category_id || $price <= 0){
             $msg = "Name, description, category and price are required."; $mtype='err';
         } else {
-            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,image_url) VALUES (?,?,?,?,?,?,?)");
-            $stmt->bind_param("ssisdis",$name,$description,$category_id,$gender,$price,$stock,$image_url);
+            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,is_on_sale,image_url) VALUES (?,?,?,?,?,?,?,?)");
+            $stmt->bind_param("ssisdiis",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$image_url);
             $stmt->execute();
             header("Location: admin_products.php?msg=Product+added+successfully."); exit;
         }
@@ -83,7 +73,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
 $msg   = $msg   ?: ($_GET['msg']   ?? '');
 $mtype = $mtype ?: ($_GET['mtype'] ?? 'ok');
 
-$products   = $conn->query("SELECT p.*, c.category_name FROM products p LEFT JOIN categories c ON p.category_id=c.category_id ORDER BY p.created_at DESC");
+$products   = $conn->query("SELECT p.*, c.category_name FROM products p LEFT JOIN categories c ON p.category_id=c.category_id ORDER BY p.is_active DESC, p.created_at DESC");
 $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 ?>
 <!DOCTYPE html>
@@ -195,36 +185,66 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
               <textarea name="description" rows="3" placeholder="Describe the shoe..." required></textarea>
             </div>
           </div>
+          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;font-size:.875rem;color:var(--muted);">
+            <input type="checkbox" name="is_on_sale" value="1" style="width:16px;height:16px;accent-color:var(--danger);cursor:pointer;">
+            Mark as <strong style="color:var(--danger);">ON SALE</strong>
+          </label>
+          <br>
           <button type="submit" name="add_product" class="btn btn-primary" style="margin-top:8px;">+ ADD PRODUCT</button>
         </form>
       </div>
 
       <!-- Products Table -->
       <div class="admin-table-wrap">
-        <div class="admin-table-head"><h3>ALL PRODUCTS</h3></div>
+        <div class="admin-table-head">
+          <h3>ALL PRODUCTS</h3>
+          <span style="font-size:.75rem;color:var(--muted);">Active products show in the shop. Inactive ones are hidden from customers.</span>
+        </div>
         <table class="admin-table">
           <thead>
-            <tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+            <tr><th>Image</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             <?php $products->data_seek(0); while($p=$products->fetch_assoc()):
+              $active = !isset($p['is_active']) || $p['is_active'];
               $imgSrc = !empty($p['image_url'])
                 ? (str_starts_with($p['image_url'],'http') ? e($p['image_url']) : '../' . e($p['image_url']))
                 : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=60&q=60';
             ?>
-            <tr>
-              <td><img src="<?=$imgSrc?>" alt="" style="width:52px;height:52px;border-radius:6px;object-fit:cover;"></td>
+            <tr style="<?=$active?'':'opacity:.5;'?>">
+              <td><img src="<?=$imgSrc?>" alt="" style="width:52px;height:52px;border-radius:6px;object-fit:cover;<?=$active?'':'filter:grayscale(1);'?>"></td>
               <td style="font-weight:600;color:var(--white);"><?=e($p['name'])?></td>
               <td style="color:var(--muted);"><?=e($p['category_name']??'—')?></td>
-              <td style="font-family:'Oswald',sans-serif;color:var(--accent);">RM <?=number_format($p['price'],2)?></td>
+              <td style="font-family:'Oswald',sans-serif;color:<?=$active?'var(--accent)':'var(--muted)'?>;">RM <?=number_format($p['price'],2)?></td>
               <td><span style="color:<?=$p['stock']>0?'var(--white)':'var(--danger)'?>;font-weight:600;"><?=(int)$p['stock']?></span></td>
               <td>
-                <div style="display:flex;gap:8px;">
+                <?php if($active): ?>
+                  <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(42,155,90,.12);border:1px solid rgba(42,155,90,.3);border-radius:100px;font-size:.7rem;font-weight:700;letter-spacing:1px;color:var(--success);">● ACTIVE</span>
+                <?php else: ?>
+                  <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(214,64,64,.1);border:1px solid rgba(214,64,64,.25);border-radius:100px;font-size:.7rem;font-weight:700;letter-spacing:1px;color:var(--danger);">● INACTIVE</span>
+                <?php endif; ?>
+              </td>
+              <td>
+                <div style="display:flex;gap:8px;align-items:center;">
                   <a href="admin_product_edit.php?id=<?=(int)$p['product_id']?>" class="btn btn-secondary btn-sm">Edit</a>
-                  <button type="button" class="btn btn-danger btn-sm"
-                          onclick="openDeleteModal(<?=(int)$p['product_id']?>, '<?=e(addslashes($p['name']))?>')">
-                    Delete
-                  </button>
+                  <?php if($active): ?>
+                    <button type="button" class="btn btn-sm"
+                            style="background:rgba(214,64,64,.12);border:1px solid rgba(214,64,64,.3);color:var(--danger);"
+                            onclick="openDeactivateModal(<?=(int)$p['product_id']?>, '<?=e(addslashes($p['name']))?>')">
+                      Deactivate
+                    </button>
+                  <?php else: ?>
+                    <form method="POST" style="margin:0;">
+                      <?=csrf_field()?>
+                      <input type="hidden" name="toggle_status" value="1">
+                      <input type="hidden" name="product_id" value="<?=(int)$p['product_id']?>">
+                      <input type="hidden" name="new_status" value="1">
+                      <button type="submit" class="btn btn-sm"
+                              style="background:rgba(42,155,90,.12);border:1px solid rgba(42,155,90,.3);color:var(--success);">
+                        Activate
+                      </button>
+                    </form>
+                  <?php endif; ?>
                 </div>
               </td>
             </tr>
@@ -237,25 +257,27 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
   </main>
 </div>
 
-<!-- ── Password Confirmation Modal ── -->
-<div class="del-modal-bg" id="deleteModal">
+<!-- ── Deactivate Confirmation Modal ── -->
+<div class="del-modal-bg" id="deactivateModal">
   <div class="del-modal">
-    <div style="font-size:1.8rem;margin-bottom:12px;">🗑️</div>
-    <h3>CONFIRM DELETE</h3>
+    <div style="font-size:1.8rem;margin-bottom:12px;">🚫</div>
+    <h3>DEACTIVATE PRODUCT</h3>
     <p>
-      You are about to delete <strong id="delProductName" style="color:var(--white);"></strong>.<br>
-      This will also remove all variant images from the server.<br><br>
+      You are about to hide <strong id="deactProductName" style="color:var(--white);"></strong> from the shop.<br><br>
+      <span style="color:var(--success);font-size:.82rem;">✔ Order history is fully preserved.</span><br>
+      <span style="color:var(--success);font-size:.82rem;">✔ You can re-activate it any time.</span><br><br>
       Enter your admin password to confirm:
     </p>
-    <form method="POST" id="deleteForm">
+    <form method="POST" id="deactivateForm">
       <?=csrf_field()?>
-      <input type="hidden" name="confirm_delete" value="1">
-      <input type="hidden" name="delete_id" id="deleteProductId">
-      <input type="password" name="admin_password" id="adminPasswordInput"
+      <input type="hidden" name="toggle_status" value="1">
+      <input type="hidden" name="product_id" id="deactProductId">
+      <input type="hidden" name="new_status" value="0">
+      <input type="password" name="admin_password" id="deactPasswordInput"
              placeholder="Enter your password" autocomplete="current-password" required>
       <div class="del-modal-btns">
-        <button type="submit" class="btn btn-danger">CONFIRM DELETE</button>
-        <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+        <button type="submit" class="btn btn-danger">CONFIRM DEACTIVATE</button>
+        <button type="button" class="btn btn-secondary" onclick="closeDeactivateModal()">Cancel</button>
       </div>
     </form>
     <div style="font-size:.72rem;color:var(--muted);margin-top:12px;text-align:center;">
@@ -275,21 +297,20 @@ function previewImg(input){
     }
 }
 
-function openDeleteModal(id, name){
-    document.getElementById('deleteProductId').value = id;
-    document.getElementById('delProductName').textContent = name;
-    document.getElementById('adminPasswordInput').value = '';
-    document.getElementById('deleteModal').classList.add('open');
-    setTimeout(()=>document.getElementById('adminPasswordInput').focus(), 100);
+function openDeactivateModal(id, name){
+    document.getElementById('deactProductId').value = id;
+    document.getElementById('deactProductName').textContent = name;
+    document.getElementById('deactPasswordInput').value = '';
+    document.getElementById('deactivateModal').classList.add('open');
+    setTimeout(()=>document.getElementById('deactPasswordInput').focus(), 100);
 }
 
-function closeDeleteModal(){
-    document.getElementById('deleteModal').classList.remove('open');
+function closeDeactivateModal(){
+    document.getElementById('deactivateModal').classList.remove('open');
 }
 
-// Close modal on background click
-document.getElementById('deleteModal').addEventListener('click', function(e){
-    if(e.target === this) closeDeleteModal();
+document.getElementById('deactivateModal').addEventListener('click', function(e){
+    if(e.target === this) closeDeactivateModal();
 });
 
 // Block right-click context menu on delete buttons

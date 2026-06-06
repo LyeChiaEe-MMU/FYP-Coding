@@ -5,7 +5,7 @@ require 'db.php';
 if(empty($_GET['id'])){ header("Location: products.php"); exit; }
 $pid = (int)$_GET['id'];
 
-$stmt = $conn->prepare("SELECT p.*, c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE p.product_id=?");
+$stmt = $conn->prepare("SELECT p.*, c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE p.product_id=? AND p.is_active=1");
 $stmt->bind_param("i",$pid); $stmt->execute();
 $product = $stmt->get_result()->fetch_assoc();
 if(!$product){ header("Location: products.php"); exit; }
