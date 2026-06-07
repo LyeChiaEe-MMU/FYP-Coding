@@ -14,9 +14,74 @@ if(isset($_POST['toggle_status'])){
         $password = $_POST['admin_password'] ?? '';
         $admin    = $conn->query("SELECT password FROM admins WHERE admin_id=".(int)$_SESSION['admin_id'])->fetch_assoc();
         if($admin && password_verify($password, $admin['password'])){
+
+            // Get product name for notification messages
+            $prod_row  = $conn->query("SELECT name FROM products WHERE product_id=$id")->fetch_assoc();
+            $prod_name = $prod_row ? $prod_row['name'] : 'a product';
+
+            // ── Auto-cancel Processing orders & issue refund vouchers ──────
+            $affected = $conn->query("
+                SELECT DISTINCT o.order_id, o.user_id, o.total_amount
+                FROM orders o
+                JOIN order_items oi ON oi.order_id = o.order_id
+                WHERE oi.product_id = $id AND o.status = 'Processing'
+            ");
+
+            $refund_count = 0;
+            if($affected && $affected->num_rows > 0){
+                while($ord = $affected->fetch_assoc()){
+                    $oid       = (int)$ord['order_id'];
+                    $uid_c     = (int)$ord['user_id'];
+                    $amt       = (float)$ord['total_amount'];
+                    $ord_label = str_pad($oid, 6, '0', STR_PAD_LEFT);
+
+                    // Cancel the order
+                    $conn->query("UPDATE orders SET status='Cancelled' WHERE order_id=$oid");
+
+                    // Log into order_status_history (if table exists)
+                    $osh = $conn->query("SHOW TABLES LIKE 'order_status_history'");
+                    if($osh && $osh->num_rows > 0){
+                        $conn->query("INSERT INTO order_status_history (order_id,status) VALUES ($oid,'Cancelled')");
+                    }
+
+                    // Generate a unique voucher code: APEX-XXXXXXXX
+                    do {
+                        $vcode    = 'APEX-'.strtoupper(bin2hex(random_bytes(4)));
+                        $vcode_e  = $conn->real_escape_string($vcode);
+                        $v_exists = $conn->query("SELECT voucher_id FROM vouchers WHERE code='$vcode_e'");
+                    } while($v_exists && $v_exists->num_rows > 0);
+
+                    $expires  = date('Y-m-d', strtotime('+90 days'));
+                    $v_reason = "Refund — Order #$ord_label ($prod_name discontinued)";
+
+                    $sv = $conn->prepare("INSERT INTO vouchers (user_id,code,amount,reason,expires_at) VALUES (?,?,?,?,?)");
+                    $sv->bind_param("isdss", $uid_c, $vcode, $amt, $v_reason, $expires);
+                    $sv->execute();
+
+                    // Create in-app notification for the customer
+                    $n_title   = "Order Cancelled — Refund Voucher Issued";
+                    $n_message = "Your order #$ord_label has been cancelled because \"$prod_name\" is no longer available. "
+                               . "We apologise for the inconvenience. A full refund voucher of RM ".number_format($amt,2)
+                               . " has been added to your account (Voucher Code: $vcode). Valid for 90 days. "
+                               . "Check My Vouchers in your profile to use it on your next purchase!";
+
+                    $sn = $conn->prepare("INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,'refund')");
+                    $sn->bind_param("iss", $uid_c, $n_title, $n_message);
+                    $sn->execute();
+
+                    $refund_count++;
+                }
+            }
+
+            // Deactivate the product
             $stmt = $conn->prepare("UPDATE products SET is_active=0 WHERE product_id=?");
             $stmt->bind_param("i", $id); $stmt->execute();
-            header("Location: admin_products.php?msg=Product+deactivated.+It+is+now+hidden+from+the+shop."); exit;
+
+            $redir = $refund_count > 0
+                ? "Product deactivated. {$refund_count} order(s) cancelled — refund vouchers issued to customers."
+                : "Product deactivated. It is now hidden from the shop.";
+            header("Location: admin_products.php?msg=".urlencode($redir)); exit;
+
         } else {
             $msg = "Incorrect password. Product status was NOT changed."; $mtype='err';
         }
@@ -80,6 +145,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Products | Apex Admin</title>
 <link rel="stylesheet" href="../css/style.css?v=4">
@@ -263,9 +329,11 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
     <div style="font-size:1.8rem;margin-bottom:12px;">🚫</div>
     <h3>DEACTIVATE PRODUCT</h3>
     <p>
-      You are about to hide <strong id="deactProductName" style="color:var(--white);"></strong> from the shop.<br><br>
-      <span style="color:var(--success);font-size:.82rem;">✔ Order history is fully preserved.</span><br>
-      <span style="color:var(--success);font-size:.82rem;">✔ You can re-activate it any time.</span><br><br>
+      You are about to deactivate <strong id="deactProductName" style="color:var(--white);"></strong>.<br><br>
+      <span style="color:var(--danger);font-size:.82rem;">⚠ Orders in "Processing" with this product will be auto-cancelled.</span><br>
+      <span style="color:var(--success);font-size:.82rem;">✔ Affected customers receive a full refund voucher + notification.</span><br>
+      <span style="color:var(--success);font-size:.82rem;">✔ Delivered / Completed orders are NOT affected.</span><br>
+      <span style="color:var(--success);font-size:.82rem;">✔ You can re-activate this product at any time.</span><br><br>
       Enter your admin password to confirm:
     </p>
     <form method="POST" id="deactivateForm">

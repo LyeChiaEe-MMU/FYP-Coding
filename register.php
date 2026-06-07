@@ -62,15 +62,93 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Register | Apex</title>
 <link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+@keyframes apxFadeUp {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes apxSlideIn {
+  from { opacity:0; transform:translateX(-24px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes apxBgPulse {
+  0%,100% { background-position:0% 60%; }
+  50%     { background-position:100% 40%; }
+}
+@keyframes apxFloat {
+  0%,100% { transform:rotate(-15deg) translateY(0); }
+  50%     { transform:rotate(-15deg) translateY(-18px); }
+}
+@keyframes apxRingPulse {
+  0%   { transform:scale(.8); opacity:.45; }
+  100% { transform:scale(1.75); opacity:0; }
+}
+
+.register-brand {
+  background: linear-gradient(140deg,#B03828,#C8543C,#D06840,#C04032) !important;
+  background-size:300% 300% !important;
+  animation: apxBgPulse 10s ease infinite !important;
+}
+
+.brand-deco {
+  position:absolute; border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.18);
+  pointer-events:none;
+}
+.brand-deco-1 { width:300px;height:300px; bottom:-80px;right:-80px; animation:apxRingPulse 4.5s ease-out infinite; }
+.brand-deco-2 { width:190px;height:190px; bottom:-30px;right:-30px; animation:apxRingPulse 4.5s 1.4s ease-out infinite; }
+.brand-deco-3 { width:200px;height:200px; top:-60px;left:-60px;    animation:apxRingPulse 5.5s 0.7s ease-out infinite; }
+
+.brand-float-icon {
+  position:absolute; right:32px; bottom:80px;
+  font-size:5.5rem; opacity:.1;
+  animation:apxFloat 7s ease-in-out infinite;
+  pointer-events:none;
+}
+
+.register-brand-logo    { animation:apxSlideIn .65s cubic-bezier(.22,1,.36,1) both; }
+.register-brand-tagline { animation:apxFadeUp  .6s .18s cubic-bezier(.22,1,.36,1) both; }
+.register-brand-desc    { animation:apxFadeUp  .6s .34s cubic-bezier(.22,1,.36,1) both; }
+.register-feature:nth-child(1) { animation:apxFadeUp .5s .50s cubic-bezier(.22,1,.36,1) both; }
+.register-feature:nth-child(2) { animation:apxFadeUp .5s .65s cubic-bezier(.22,1,.36,1) both; }
+.register-feature:nth-child(3) { animation:apxFadeUp .5s .80s cubic-bezier(.22,1,.36,1) both; }
+
+.register-form-inner { animation:apxFadeUp .55s .05s cubic-bezier(.22,1,.36,1) both; }
+
+.back-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:9px 18px 9px 14px;
+  background:rgba(150,100,75,.09);
+  border:1.5px solid rgba(150,100,75,.25);
+  border-radius:100px;
+  color:var(--muted); font-size:.8rem; font-weight:600;
+  letter-spacing:.4px; text-decoration:none;
+  transition:all .22s; margin-bottom:30px;
+}
+.back-btn:hover {
+  color:var(--accent);
+  border-color:rgba(200,84,60,.55);
+  background:rgba(200,84,60,.08);
+  transform:translateX(-3px);
+}
+.back-btn i { font-size:.7rem; transition:transform .22s; }
+.back-btn:hover i { transform:translateX(-4px); }
+</style>
 </head>
 <body>
 
 <div class="register-split">
   <!-- ─── Left: Brand Panel ─── -->
   <div class="register-brand">
+    <div class="brand-deco brand-deco-1"></div>
+    <div class="brand-deco brand-deco-2"></div>
+    <div class="brand-deco brand-deco-3"></div>
+    <div class="brand-float-icon"><i class="fa-solid fa-shoe-prints"></i></div>
     <div class="register-brand-overlay"></div>
     <div class="register-brand-content">
       <div class="register-brand-logo">APE<span>X</span></div>
@@ -96,8 +174,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   <!-- ─── Right: Form Panel ─── -->
   <div class="register-form-panel">
     <div class="register-form-inner">
-      <a href="index.php" style="display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:.82rem;margin-bottom:22px;transition:color .2s;text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">
-        <i class="fa-solid fa-arrow-left" style="font-size:.75rem;"></i> Back to Home
+      <a href="index.php" class="back-btn">
+        <i class="fa-solid fa-arrow-left"></i> Back to Home
       </a>
       <div class="register-form-head">
         <div class="auth-logo register-mobile-logo">APE<span>X</span></div>

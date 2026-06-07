@@ -6,6 +6,7 @@ $success = false;
 $errors  = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
     $name    = trim($_POST['name']    ?? '');
     $email   = trim($_POST['email']   ?? '');
     $subject = trim($_POST['subject'] ?? '');
@@ -16,13 +17,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$subject)                                  $errors[] = "Please select a subject.";
     if (strlen($message) < 10)                      $errors[] = "Message must be at least 10 characters.";
 
-    if (empty($errors)) $success = true;
+    if (empty($errors)) {
+        $stmt = $conn->prepare("INSERT INTO contact_messages (name, email, subject, message) VALUES (?,?,?,?)");
+        $stmt->bind_param("ssss", $name, $email, $subject, $message);
+        if ($stmt->execute()) {
+            $success = true;
+        } else {
+            $errors[] = "Something went wrong. Please try again.";
+        }
+    }
 }
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Contact Us | Apex Sport</title>
 <link rel="stylesheet" href="css/style.css?v=4">
@@ -67,8 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p style="color:var(--muted);margin-bottom:36px;">Our support team is available Monday to Friday, 9:00 AM – 6:00 PM (MYT). We aim to respond within 1 business day.</p>
 
         <?php foreach([
-          ['📍','Our Address','Multimedia University<br>Jalan Multimedia, 63100<br>Cyberjaya, Selangor, Malaysia'],
-          ['📧','Email Us','support@apexsport.my<br><span style="font-size:.78rem;color:var(--muted)">Response within 1 business day</span>'],
+          ['📍','Our Address','Multimedia University Melaka<br>Jalan Ayer Keroh Lama, 75450<br>Melaka, Malaysia'],
+          ['📧','Email Us','ApexStore@gmail.com<br><span style="font-size:.78rem;color:var(--muted)">Response within 1 business day</span>'],
           ['📞','Call Us','+60 11-3190 8939<br><span style="font-size:.78rem;color:var(--muted)">Mon – Fri, 9:00 AM – 6:00 PM</span>'],
           ['💬','WhatsApp','+60 11-3190 8939<br><span style="font-size:.78rem;color:var(--muted)">Quick replies during office hours</span>'],
         ] as $ci): ?>
@@ -81,18 +91,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <?php endforeach; ?>
 
-        <!-- Social -->
-        <div style="margin-top:28px;padding-top:24px;border-top:1px solid var(--border);">
-          <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Follow Us</div>
-          <div style="display:flex;gap:10px;">
-            <?php foreach([['📸','Instagram'],['🐦','Twitter'],['📘','Facebook']] as $s): ?>
-            <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;text-align:center;min-width:84px;transition:.2s;" onmouseover="this.style.borderColor='rgba(100,255,218,.4)'" onmouseout="this.style.borderColor='var(--border)'">
-              <div style="font-size:1.2rem;margin-bottom:4px;"><?=$s[0]?></div>
-              <div style="font-size:.72rem;color:var(--muted);"><?=htmlspecialchars($s[1])?></div>
-            </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
       </div>
 
       <!-- Form Column -->
@@ -100,24 +98,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--white);margin-bottom:20px;padding-bottom:14px;border-bottom:1px solid var(--border);">SEND US A MESSAGE</div>
 
         <?php if ($success): ?>
-        <div class="flash flash-ok">✅ Your message has been sent! We'll reply within 1 business day.</div>
+        <div class="flash flash-ok"><i class="fa-solid fa-circle-check"></i> Message received! We'll reply to <strong><?=e($email)?></strong> within 1 business day.</div>
         <?php endif; ?>
         <?php foreach ($errors as $err): ?>
         <div class="flash flash-err"><?=htmlspecialchars($err)?></div>
         <?php endforeach; ?>
 
         <?php if (!$success): ?>
+        <?php
+        // Pre-fill from session for logged-in users
+        $prefill_name  = $_POST['name']  ?? ($_SESSION['user_name']  ?? '');
+        $prefill_email = $_POST['email'] ?? '';
+        if(!$prefill_email && is_logged()){
+            $ep = $conn->prepare("SELECT email FROM users WHERE user_id=?");
+            $ep->bind_param("i",(int)$_SESSION['user_id']); $ep->execute();
+            $prefill_email = $ep->get_result()->fetch_assoc()['email'] ?? '';
+        }
+        ?>
         <form method="POST">
+          <?=csrf_field()?>
           <div class="form-row">
             <div class="form-group">
               <label>Your Name *</label>
               <input type="text" name="name" placeholder="Full name"
-                     value="<?=htmlspecialchars($_POST['name'] ?? (is_logged() ? $_SESSION['user_name'] ?? '' : ''))?>" required>
+                     value="<?=htmlspecialchars($prefill_name)?>" required>
             </div>
             <div class="form-group">
               <label>Email Address *</label>
               <input type="email" name="email" placeholder="you@email.com"
-                     value="<?=htmlspecialchars($_POST['email'] ?? '')?>" required>
+                     value="<?=htmlspecialchars($prefill_email)?>" required>
             </div>
           </div>
           <div class="form-group">
@@ -176,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <div style="text-align:center;margin-top:32px;">
       <p style="color:var(--muted);font-size:.875rem;margin-bottom:16px;">Can't find what you're looking for?</p>
-      <a href="mailto:support@apexsport.my" class="btn btn-primary">Email Us Directly</a>
+      <a href="mailto:ApexStore@gmail.com" class="btn btn-primary">Email Us Directly</a>
     </div>
   </div>
 </section>

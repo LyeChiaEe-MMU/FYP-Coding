@@ -41,6 +41,43 @@ if($_acol && $_acol->num_rows === 0){
     $conn->query("ALTER TABLE products ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER is_on_sale");
 }
 
+// ── Create contact_messages table if missing ──────────────────────
+$conn->query("CREATE TABLE IF NOT EXISTS contact_messages (
+    message_id INT AUTO_INCREMENT PRIMARY KEY,
+    name       VARCHAR(120) NOT NULL,
+    email      VARCHAR(180) NOT NULL,
+    subject    VARCHAR(120) NOT NULL,
+    message    TEXT NOT NULL,
+    is_read    TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_cm_read (is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// ── Create notifications table if missing ──────────────────────────
+$conn->query("CREATE TABLE IF NOT EXISTS notifications (
+    notif_id   INT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT NOT NULL,
+    title      VARCHAR(255) NOT NULL,
+    message    TEXT NOT NULL,
+    type       VARCHAR(50) NOT NULL DEFAULT 'info',
+    is_read    TINYINT(1)  NOT NULL DEFAULT 0,
+    created_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_notif_uid_read (user_id, is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// ── Create vouchers table if missing ───────────────────────────────
+$conn->query("CREATE TABLE IF NOT EXISTS vouchers (
+    voucher_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT NOT NULL,
+    code       VARCHAR(20) NOT NULL UNIQUE,
+    amount     DECIMAL(10,2) NOT NULL,
+    is_used    TINYINT(1)  NOT NULL DEFAULT 0,
+    reason     VARCHAR(255) NOT NULL DEFAULT '',
+    expires_at DATE DEFAULT NULL,
+    created_at TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_voucher_uid (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 

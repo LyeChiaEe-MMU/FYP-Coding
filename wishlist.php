@@ -64,6 +64,7 @@ $wishlist = $wl_stmt->get_result();
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>My Wishlist | Apex</title>
 <link rel="stylesheet" href="css/style.css?v=4">

@@ -105,6 +105,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Admin Login | Apex</title>
 <link rel="stylesheet" href="../css/style.css?v=4">
@@ -251,6 +252,85 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     .admin-login-wrap { grid-template-columns: 1fr; }
     .admin-brand-strip { display: none; }
 }
+
+/* ── Keyframes ── */
+@keyframes apxFadeUp {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes apxSlideIn {
+  from { opacity:0; transform:translateX(-24px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes apxBgPulse {
+  0%,100% { background-position:0% 60%; }
+  50%     { background-position:100% 40%; }
+}
+@keyframes apxFloat {
+  0%,100% { transform:rotate(-8deg) translateY(0); }
+  50%     { transform:rotate(-8deg) translateY(-18px); }
+}
+@keyframes apxRingPulse {
+  0%   { transform:scale(.8); opacity:.45; }
+  100% { transform:scale(1.75); opacity:0; }
+}
+
+/* Animated gradient on left strip */
+.admin-brand-strip {
+  background: linear-gradient(160deg,#B03828,#C8543C,#D06840,#C04032) !important;
+  background-size:300% 300% !important;
+  animation: apxBgPulse 10s ease infinite !important;
+}
+
+/* Decorative rings */
+.brand-deco {
+  position:absolute; border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.16);
+  pointer-events:none;
+}
+.brand-deco-1 { width:280px;height:280px; bottom:-70px;right:-70px; animation:apxRingPulse 4.5s ease-out infinite; }
+.brand-deco-2 { width:175px;height:175px; bottom:-25px;right:-25px; animation:apxRingPulse 4.5s 1.4s ease-out infinite; }
+.brand-deco-3 { width:200px;height:200px; top:-60px;left:-60px;    animation:apxRingPulse 5.5s 0.7s ease-out infinite; }
+
+/* Floating icon */
+.brand-float-icon {
+  position:absolute; right:30px; bottom:75px;
+  font-size:5rem; opacity:.1;
+  animation:apxFloat 7s ease-in-out infinite;
+  pointer-events:none;
+}
+
+/* Content animations */
+.admin-strip-logo    { animation:apxSlideIn .65s cubic-bezier(.22,1,.36,1) both; }
+.admin-strip-badge   { animation:apxFadeUp  .55s .18s cubic-bezier(.22,1,.36,1) both; }
+.admin-strip-divider { animation:apxFadeUp  .4s  .32s cubic-bezier(.22,1,.36,1) both; }
+.admin-strip-feat-item:nth-child(1) { animation:apxFadeUp .5s .46s cubic-bezier(.22,1,.36,1) both; }
+.admin-strip-feat-item:nth-child(2) { animation:apxFadeUp .5s .61s cubic-bezier(.22,1,.36,1) both; }
+.admin-strip-feat-item:nth-child(3) { animation:apxFadeUp .5s .76s cubic-bezier(.22,1,.36,1) both; }
+.admin-strip-feat-item:nth-child(4) { animation:apxFadeUp .5s .91s cubic-bezier(.22,1,.36,1) both; }
+
+/* Form panel entry */
+.admin-form-inner { animation:apxFadeUp .55s .05s cubic-bezier(.22,1,.36,1) both; }
+
+/* Back button */
+.back-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:9px 18px 9px 14px;
+  background:rgba(150,100,75,.09);
+  border:1.5px solid rgba(150,100,75,.25);
+  border-radius:100px;
+  color:var(--muted); font-size:.8rem; font-weight:600;
+  letter-spacing:.4px; text-decoration:none;
+  transition:all .22s;
+}
+.back-btn:hover {
+  color:var(--accent);
+  border-color:rgba(200,84,60,.55);
+  background:rgba(200,84,60,.08);
+  transform:translateX(-3px);
+}
+.back-btn i { font-size:.7rem; transition:transform .22s; }
+.back-btn:hover i { transform:translateX(-4px); }
 </style>
 </head>
 <body>
@@ -258,6 +338,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
   <!-- Left brand strip -->
   <div class="admin-brand-strip">
+    <div class="brand-deco brand-deco-1"></div>
+    <div class="brand-deco brand-deco-2"></div>
+    <div class="brand-deco brand-deco-3"></div>
+    <div class="brand-float-icon"><i class="fa-solid fa-shield-halved"></i></div>
     <div class="admin-strip-logo">APE<span>X</span></div>
     <div class="admin-strip-badge"><i class="fa-solid fa-shield-halved"></i> Admin Panel</div>
     <div class="admin-strip-divider"></div>
@@ -326,11 +410,9 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         </button>
       </form>
 
-      <div style="text-align:center;margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
-        <a href="../index.php" style="font-size:.82rem;color:var(--muted);transition:color .2s;"
-           onmouseover="this.style.color='var(--accent)'"
-           onmouseout="this.style.color='var(--muted)'">
-          ← Back to Store
+      <div style="text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+        <a href="../index.php" class="back-btn">
+          <i class="fa-solid fa-arrow-left"></i> Back to Store
         </a>
       </div>
 

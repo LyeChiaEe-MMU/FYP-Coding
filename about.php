@@ -43,7 +43,7 @@
         <p class="eyebrow">Our Story</p>
         <h2 class="sec-h2">BUILT FROM THE GROUND UP</h2>
         <p class="sec-p">Apex Sport was founded with a single belief — that every athlete, from the weekend warrior to the elite competitor, deserves footwear that works as hard as they do. We refused to accept the compromise between style and performance.</p>
-        <p class="sec-p">Starting from a small workshop in Cyberjaya, Malaysia, our team of engineers and designers obsessed over every millimetre of sole, every stitch of mesh, and every gram of foam. The result is a line of shoes that feel like they were made specifically for you.</p>
+        <p class="sec-p">Starting from a small workshop in Melaka, Malaysia, our team of engineers and designers obsessed over every millimetre of sole, every stitch of mesh, and every gram of foam. The result is a line of shoes that feel like they were made specifically for you.</p>
         <p class="sec-p">Today, Apex Sport is worn by thousands of athletes across Malaysia — but our mission remains the same: to help you reach the top of whatever game you're playing.</p>
       </div>
       <div style="background:linear-gradient(135deg,var(--navy2) 0%,var(--navy3) 100%);border:1px solid var(--border);border-radius:14px;padding:48px 36px;display:flex;flex-direction:column;justify-content:center;gap:28px;min-height:360px;">

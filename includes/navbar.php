@@ -15,6 +15,19 @@ if(is_logged()){
         $wl_notif_count = (int)$nc->get_result()->fetch_assoc()['c'];
     }
 }
+
+// In-app notification count (refunds, system alerts)
+$notif_unread = 0;
+if(is_logged()){
+    $tbl_n = $conn->query("SHOW TABLES LIKE 'notifications'");
+    if($tbl_n && $tbl_n->num_rows > 0){
+        $nn = $conn->prepare("SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND is_read=0");
+        $nn_uid = (int)$_SESSION['user_id'];
+        $nn->bind_param("i", $nn_uid);
+        $nn->execute();
+        $notif_unread = (int)$nn->get_result()->fetch_assoc()['c'];
+    }
+}
 $depth = (strpos($_SERVER['PHP_SELF'], '/admin/') !== false) ? '../' : '';
 $q     = e($_GET['q'] ?? '');
 
@@ -297,6 +310,15 @@ $mega = [
       <?php if(is_logged()): ?>
         <a href="<?=$depth?>profile.php" class="<?=$pg==='profile.php'?'on':''?>">My Profile</a>
         <a href="<?=$depth?>order_history.php" class="<?=$pg==='order_history.php'?'on':''?>">My Orders</a>
+        <a href="<?=$depth?>notifications.php"
+           class="<?=$pg==='notifications.php'?'on':''?>"
+           style="position:relative;padding:8px 10px!important;"
+           title="Notifications">
+          <i class="fa-solid fa-bell"></i>
+          <?php if($notif_unread > 0): ?>
+          <span style="position:absolute;top:3px;right:1px;background:#ef4444;color:#fff;border-radius:50%;width:15px;height:15px;font-size:.5rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1;"><?=$notif_unread?></span>
+          <?php endif; ?>
+        </a>
         <a href="<?=$depth?>wishlist.php" class="<?=$pg==='wishlist.php'?'on':''?>"
            style="position:relative;">
           Wishlist
@@ -413,6 +435,9 @@ $mega = [
   <?php if(is_logged()): ?>
     <a href="<?=$depth?>profile.php">My Profile</a>
     <a href="<?=$depth?>order_history.php">My Orders</a>
+    <a href="<?=$depth?>notifications.php">
+      🔔 Notifications<?php if($notif_unread > 0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$notif_unread?></span><?php endif; ?>
+    </a>
     <a href="<?=$depth?>wishlist.php">My Wishlist<?php if($wl_notif_count>0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$wl_notif_count?></span><?php endif; ?></a>
     <a href="<?=$depth?>design_request.php">Design Your Shoe</a>
     <a href="<?=$depth?>logout.php">Logout</a>

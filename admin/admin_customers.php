@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'auth_check.php';
 
 $msg = ''; $mtype = 'ok';
@@ -12,6 +12,8 @@ if(isset($_POST['confirm_delete_user'])){
     $admin = $conn->query("SELECT password FROM admins WHERE admin_id=".(int)$_SESSION['admin_id'])->fetch_assoc();
     if($admin && password_verify($password, $admin['password'])){
         // Delete in correct order to satisfy foreign key constraints
+        $conn->query("DELETE FROM notifications WHERE user_id=$uid");
+        $conn->query("DELETE FROM vouchers WHERE user_id=$uid");
         $conn->query("DELETE FROM wishlist_notifications WHERE user_id=$uid");
         $conn->query("DELETE FROM wishlists WHERE user_id=$uid");
         $conn->query("DELETE FROM cart_items WHERE user_id=$uid");
@@ -46,6 +48,7 @@ $customers = $conn->query("
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Customers | Apex Admin</title>
 <link rel="stylesheet" href="../css/style.css?v=4">

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require 'db.php';
 if(!is_logged()){ header("Location: login.php"); exit; }
@@ -81,6 +81,17 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['change_password'])){
     }
 }
 
+// ── Fetch vouchers ─────────────────────────────────────────────
+$vouchers_res = null;
+$tbl_v = $conn->query("SHOW TABLES LIKE 'vouchers'");
+if($tbl_v && $tbl_v->num_rows > 0){
+    $vouchers_res = $conn->query("
+        SELECT * FROM vouchers
+        WHERE user_id = $uid
+        ORDER BY is_used ASC, expires_at ASC, created_at DESC
+    ");
+}
+
 // ── Derived display values ─────────────────────────────────────
 $initials = strtoupper(substr($user['name'], 0, 1));
 if(strpos($user['name'], ' ') !== false){
@@ -98,6 +109,7 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>My Profile | Apex</title>
 <link rel="stylesheet" href="css/style.css?v=4">
@@ -164,6 +176,45 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
 .prof-input-icon .pw-toggle { position:absolute; right:12px; top:50%; transform:translateY(-50%);
     background:none; border:none; color:var(--muted); cursor:pointer; font-size:.9rem; padding:4px; }
 .prof-input-icon .pw-toggle:hover { color:var(--accent); }
+
+/* ── Voucher card ── */
+.voucher-card {
+    background:#FFFFFF; border:1.5px solid rgba(150,100,75,.18);
+    border-radius:12px; padding:0; overflow:hidden;
+    display:flex; flex-direction:column; position:relative; transition:.2s;
+}
+.voucher-card.active-voucher { border-color:rgba(42,155,90,.35); }
+.voucher-card.active-voucher:hover { border-color:var(--accent); box-shadow:0 8px 28px rgba(200,84,60,.12); }
+.voucher-stripe {
+    height:5px; background:linear-gradient(90deg, var(--accent), #D96A46);
+}
+.voucher-stripe.used { background:linear-gradient(90deg,#888,#aaa); }
+.voucher-stripe.expired { background:linear-gradient(90deg,#c0392b,#e74c3c); }
+.voucher-body { padding:18px 20px; flex:1; }
+.voucher-code {
+    font-family:'Oswald',sans-serif; font-size:1.25rem; letter-spacing:3px;
+    color:var(--accent); margin-bottom:6px; display:flex; align-items:center; gap:8px;
+}
+.voucher-code.dimmed { color:var(--muted); }
+.voucher-amount {
+    font-family:'Oswald',sans-serif; font-size:2rem; color:var(--white); line-height:1;
+    margin-bottom:8px;
+}
+.voucher-amount.dimmed { color:var(--muted); }
+.voucher-reason { font-size:.78rem; color:var(--muted); line-height:1.5; margin-bottom:10px; }
+.voucher-footer {
+    padding:10px 20px; background:rgba(0,0,0,.04);
+    border-top:1px solid rgba(150,100,75,.1);
+    display:flex; align-items:center; justify-content:space-between;
+}
+.voucher-status {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 10px; border-radius:100px; font-size:.65rem;
+    font-weight:700; letter-spacing:1px; text-transform:uppercase;
+}
+.vs-active   { background:rgba(42,155,90,.12); color:#2a9b5a; border:1px solid rgba(42,155,90,.3); }
+.vs-used     { background:rgba(150,150,150,.1); color:#888; border:1px solid rgba(150,150,150,.2); }
+.vs-expired  { background:rgba(214,64,64,.08); color:var(--danger); border:1px solid rgba(214,64,64,.2); }
 
 /* ── Pref pills (compact) ── */
 .pref-pills { display:flex; gap:10px; flex-wrap:wrap; }
@@ -238,11 +289,27 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
 
   <!-- ── Tabs ── -->
   <div class="profile-tabs">
-    <button class="prof-tab active" onclick="switchTab('info',this)">
+    <button class="prof-tab active" id="tab-btn-info" onclick="switchTab('info',this)">
       <i class="fa-solid fa-user" style="margin-right:6px;"></i>Personal Info
     </button>
-    <button class="prof-tab" onclick="switchTab('security',this)">
+    <button class="prof-tab" id="tab-btn-security" onclick="switchTab('security',this)">
       <i class="fa-solid fa-lock" style="margin-right:6px;"></i>Change Password
+    </button>
+    <button class="prof-tab" id="tab-btn-vouchers" onclick="switchTab('vouchers',this)">
+      <i class="fa-solid fa-ticket" style="margin-right:6px;"></i>My Vouchers
+      <?php
+      // Count active vouchers
+      $active_v = 0;
+      if($vouchers_res){
+          $vouchers_res->data_seek(0);
+          while($tmp=$vouchers_res->fetch_assoc()){
+              if(!$tmp['is_used'] && ($tmp['expires_at'] === null || $tmp['expires_at'] >= date('Y-m-d'))) $active_v++;
+          }
+          $vouchers_res->data_seek(0);
+      }
+      if($active_v > 0): ?>
+      <span style="background:var(--accent);color:#fff;border-radius:100px;padding:1px 7px;font-size:.58rem;margin-left:4px;font-weight:700;"><?=$active_v?></span>
+      <?php endif; ?>
     </button>
   </div>
 
@@ -433,6 +500,91 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
     </div>
   </div><!-- /tab-security -->
 
+  <!-- ════════════════════════════════════════
+       TAB 3 — My Vouchers
+  ═══════════════════════════════════════════ -->
+  <div id="tab-vouchers" class="tab-pane">
+
+    <?php if($vouchers_res && $vouchers_res->num_rows > 0):
+      $vouchers_res->data_seek(0);
+      $has_active = false;
+      $all_vouchers = [];
+      while($v = $vouchers_res->fetch_assoc()) $all_vouchers[] = $v;
+      foreach($all_vouchers as $v){
+          if(!$v['is_used'] && ($v['expires_at'] === null || $v['expires_at'] >= date('Y-m-d'))) { $has_active = true; break; }
+      }
+    ?>
+
+    <?php if($has_active): ?>
+    <div class="card" style="padding:16px 20px;margin-bottom:20px;background:rgba(42,155,90,.06);border:1px solid rgba(42,155,90,.25);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <i class="fa-solid fa-circle-check" style="color:#2a9b5a;font-size:1.1rem;"></i>
+        <div>
+          <div style="font-family:'Oswald',sans-serif;font-size:.85rem;letter-spacing:1.5px;color:var(--white);">VOUCHERS AVAILABLE</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px;">Present the voucher code when placing an order to receive your discount.</div>
+        </div>
+      </div>
+    </div>
+    <?php endif; ?>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+    <?php foreach($all_vouchers as $v):
+      $today     = date('Y-m-d');
+      $expired   = $v['expires_at'] && $v['expires_at'] < $today;
+      $used      = (bool)$v['is_used'];
+      $inactive  = $used || $expired;
+      $card_cls  = $inactive ? '' : 'active-voucher';
+      $code_cls  = $inactive ? 'dimmed' : '';
+      $amt_cls   = $inactive ? 'dimmed' : '';
+      if($used)         { $stripe='used'; $st_cls='vs-used'; $st_lbl='Used'; }
+      elseif($expired)  { $stripe='expired'; $st_cls='vs-expired'; $st_lbl='Expired'; }
+      else              { $stripe=''; $st_cls='vs-active'; $st_lbl='Active'; }
+    ?>
+    <div class="voucher-card <?=$card_cls?>">
+      <div class="voucher-stripe <?=$stripe?>"></div>
+      <div class="voucher-body">
+        <div class="voucher-code <?=$code_cls?>">
+          <i class="fa-solid fa-ticket"></i>
+          <?=e($v['code'])?>
+        </div>
+        <div class="voucher-amount <?=$amt_cls?>">
+          RM <?=number_format($v['amount'],2)?>
+        </div>
+        <div class="voucher-reason"><?=e($v['reason'])?></div>
+      </div>
+      <div class="voucher-footer">
+        <span class="voucher-status <?=$st_cls?>">● <?=$st_lbl?></span>
+        <span style="font-size:.72rem;color:var(--muted);">
+          <?php if($v['expires_at']): ?>
+            <?=$used ? 'Used' : ($expired ? 'Expired' : 'Valid until')?>:
+            <strong style="color:<?=$inactive?'var(--muted)':'var(--white)'?>;">
+              <?=date('d M Y', strtotime($v['expires_at']))?>
+            </strong>
+          <?php else: ?>
+            <span style="color:var(--muted);">No expiry</span>
+          <?php endif; ?>
+        </span>
+      </div>
+    </div>
+    <?php endforeach; ?>
+    </div>
+
+    <?php else: ?>
+    <!-- Empty state -->
+    <div style="text-align:center;padding:64px 24px;">
+      <div style="width:72px;height:72px;border-radius:50%;background:rgba(200,84,60,.08);border:1px solid rgba(200,84,60,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:1.8rem;color:var(--accent);">
+        <i class="fa-solid fa-ticket"></i>
+      </div>
+      <h3 style="font-family:'Oswald',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--white);margin-bottom:10px;">NO VOUCHERS YET</h3>
+      <p style="color:var(--muted);font-size:.875rem;max-width:320px;margin:0 auto 24px;">
+        Vouchers will appear here when they are issued to your account, such as refunds for cancelled orders.
+      </p>
+      <a href="products.php" class="btn btn-primary">Browse Shoes →</a>
+    </div>
+    <?php endif; ?>
+
+  </div><!-- /tab-vouchers -->
+
 </div><!-- /wrap -->
 </section>
 
@@ -447,13 +599,20 @@ function switchTab(name, btn){
     btn.classList.add('active');
 }
 
-// ── Auto-open password tab if password error/success ──
-<?php if($success==='password' || (isset($_POST['change_password']) && $error)): ?>
+// ── Auto-open correct tab on load ──────────────────────
 document.addEventListener('DOMContentLoaded', function(){
-    const btn = document.querySelectorAll('.prof-tab')[1];
-    switchTab('security', btn);
+    // URL param: profile.php?tab=vouchers
+    const urlTab = new URLSearchParams(window.location.search).get('tab');
+    <?php if($success==='password' || (isset($_POST['change_password']) && $error)): ?>
+    switchTab('security', document.getElementById('tab-btn-security'));
+    <?php else: ?>
+    if(urlTab === 'vouchers'){
+        switchTab('vouchers', document.getElementById('tab-btn-vouchers'));
+    } else if(urlTab === 'security'){
+        switchTab('security', document.getElementById('tab-btn-security'));
+    }
+    <?php endif; ?>
 });
-<?php endif; ?>
 
 // ── Password visibility toggle ─────────────────────────
 function togglePw(fieldId, iconId){

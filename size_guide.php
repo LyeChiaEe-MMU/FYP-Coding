@@ -3,6 +3,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Size Guide | Apex Sport</title>
 <link rel="stylesheet" href="css/style.css?v=4">
@@ -18,10 +19,10 @@
   .eyebrow{font-size:.72rem;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:12px}
   .sec-h2{font-family:'Oswald',sans-serif;font-size:clamp(22px,3vw,36px);letter-spacing:2px;color:var(--white);margin-bottom:20px}
   .sz-tbl{width:100%;border-collapse:collapse;font-size:.875rem}
-  .sz-tbl th{background:var(--accent);color:var(--navy);padding:12px 16px;text-align:center;font-weight:700;font-family:'Oswald',sans-serif;letter-spacing:1px}
-  .sz-tbl td{padding:11px 16px;text-align:center;border-bottom:1px solid var(--border);color:var(--text)}
-  .sz-tbl tr:hover td{background:rgba(100,255,218,.04);color:var(--white)}
-  .sz-tbl tr:nth-child(even) td{background:rgba(17,34,64,.5)}
+  .sz-tbl th{background:var(--accent);color:#fff;padding:13px 16px;text-align:center;font-weight:700;font-family:'Oswald',sans-serif;letter-spacing:1px;font-size:.82rem}
+  .sz-tbl td{padding:12px 16px;text-align:center;border-bottom:1px solid rgba(150,100,75,.1);color:var(--text);background:#fff}
+  .sz-tbl tr:nth-child(even) td{background:#F9F4F0}
+  .sz-tbl tr:hover td{background:rgba(200,84,60,.07)!important;color:var(--white)}
   @media(max-width:1024px){.info-grid-2{grid-template-columns:1fr}.info-grid-4{grid-template-columns:1fr 1fr}}
   @media(max-width:768px){.info-grid-4{grid-template-columns:1fr}}
 </style>
@@ -65,15 +66,15 @@
       <div class="info-card">
         <div style="font-family:'Oswald',sans-serif;font-size:1rem;letter-spacing:2px;color:var(--white);margin-bottom:18px;">QUICK TIPS</div>
         <?php foreach([
-          ['👣','Measure in the afternoon — feet swell throughout the day and are largest then.'],
-          ['🧦','Measure wearing the socks you plan to wear with the shoes.'],
-          ['📏','Always measure both feet — most people have one slightly larger than the other.'],
-          ['🏃','For running shoes, add 0.5cm to allow space for foot movement.'],
-          ['🏀','For basketball shoes, a snug fit is preferred — go true to size.'],
+          'Measure in the afternoon — feet swell throughout the day and are largest then.',
+          'Measure wearing the socks you plan to wear with the shoes.',
+          'Always measure both feet — most people have one slightly larger than the other.',
+          'For running shoes, add 0.5cm to allow space for foot movement.',
+          'For basketball shoes, a snug fit is preferred — go true to size.',
         ] as $t): ?>
-        <div style="display:flex;gap:12px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
-          <span style="font-size:1.1rem;"><?=$t[0]?></span>
-          <span style="font-size:.875rem;color:var(--muted);line-height:1.65;"><?=htmlspecialchars($t[1])?></span>
+        <div style="padding:11px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:baseline;">
+          <span style="width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:7px;display:inline-block;"></span>
+          <span style="font-size:.875rem;color:var(--muted);line-height:1.7;"><?=htmlspecialchars($t)?></span>
         </div>
         <?php endforeach; ?>
       </div>
@@ -125,15 +126,15 @@
     <h2 class="sec-h2">FIT BY CATEGORY</h2>
     <div class="info-grid-4">
       <?php foreach([
-        ['🏃','Running','Go half a size up. Foot expands during long runs and needs space.'],
-        ['🏀','Basketball','True to size or half down for a snug locked-in feel.'],
-        ['💪','Training','True to size. A stable platform is essential for heavy lifts.'],
-        ['✨','Lifestyle','True to size or half up for all-day comfort.'],
+        ['Running','Go half a size up. Foot expands during long runs and needs space.'],
+        ['Basketball','True to size or half down for a snug locked-in feel.'],
+        ['Training','True to size. A stable platform is essential for heavy lifts.'],
+        ['Lifestyle','True to size or half up for all-day comfort.'],
       ] as $c): ?>
       <div class="info-card">
-        <div style="font-size:1.8rem;margin-bottom:12px;"><?=$c[0]?></div>
-        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;letter-spacing:1px;color:var(--white);margin-bottom:8px;"><?=htmlspecialchars($c[1])?></div>
-        <p style="font-size:.82rem;color:var(--muted);margin:0;"><?=htmlspecialchars($c[2])?></p>
+        <div style="width:32px;height:3px;background:var(--accent);border-radius:2px;margin-bottom:14px;"></div>
+        <div style="font-family:'Oswald',sans-serif;font-size:.95rem;letter-spacing:1px;color:var(--white);margin-bottom:8px;"><?=htmlspecialchars($c[0])?></div>
+        <p style="font-size:.82rem;color:var(--muted);margin:0;line-height:1.65;"><?=htmlspecialchars($c[1])?></p>
       </div>
       <?php endforeach; ?>
     </div>

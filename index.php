@@ -14,12 +14,11 @@ foreach($hero_extensions as $ext){
     }
 }
 
-// New Arrivals — latest 12 active products
+// New Arrivals — latest 12 products (active + inactive; inactive shown as grayed/unavailable)
 $featured = $conn->query("
     SELECT p.*, c.category_name
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    WHERE p.is_active = 1
     ORDER BY p.created_at DESC LIMIT 12
 ");
 
@@ -35,14 +34,27 @@ $cat_showcase = $conn->query("
     )
     ORDER BY c.category_name
 ");
+
+// Hero stats — auto-calculated
+$stat_models     = 0;
+$stat_collections = 0;
+$stat_min_price  = 0;
+$sr = $conn->query("SELECT COUNT(*) AS total, MIN(price) AS min_price FROM products WHERE is_active=1");
+if($sr){ $row = $sr->fetch_assoc(); $stat_models = (int)$row['total']; $stat_min_price = (float)$row['min_price']; }
+$cr = $conn->query("SELECT COUNT(DISTINCT category_id) AS total FROM products WHERE is_active=1");
+if($cr){ $stat_collections = (int)$cr->fetch_assoc()['total']; }
+$stat_models_label     = $stat_models > 0 ? $stat_models.'+' : '—';
+$stat_collections_label = $stat_collections > 0 ? $stat_collections : '—';
+$stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_price, 0) : '—';
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Apex | Premium Sport Shoes</title>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=5">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
@@ -72,7 +84,11 @@ $cat_showcase = $conn->query("
         <a href="products.php?gender=Men" class="btn btn-lg" style="background:#1C1410;color:#FDF7F2;border:none;font-family:'Oswald',sans-serif;font-weight:700;letter-spacing:1.5px;">Men's →</a>
       </div>
       <div style="display:flex;gap:40px;margin-top:52px;padding-top:36px;border-top:1px solid rgba(150,100,75,.2);">
-        <?php foreach([['10+','Models'],['3','Collections'],['RM259','Starting From']] as $s): ?>
+        <?php foreach([
+          [$stat_models_label,     'Models'],
+          [$stat_collections_label,'Collections'],
+          [$stat_price_label,      'Starting From'],
+        ] as $s): ?>
         <div>
           <div style="font-family:'Oswald',sans-serif;font-size:1.8rem;color:#C8543C;"><?=e($s[0])?></div>
           <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:#4A3028;margin-top:3px;"><?=e($s[1])?></div>
@@ -101,21 +117,37 @@ $cat_showcase = $conn->query("
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">
       <?php if($featured && $featured->num_rows > 0):
         while($p = $featured->fetch_assoc()):
-          $img = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
+          $img      = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
+          $isActive = (int)($p['is_active'] ?? 1);
       ?>
-      <div class="prod-card">
+      <div class="prod-card<?= $isActive ? '' : ' prod-unavailable' ?>">
+        <?php if($isActive): ?>
         <a href="product_detail.php?id=<?=(int)$p['product_id']?>">
+        <?php else: ?>
+        <div>
+        <?php endif; ?>
           <div class="prod-img">
             <img src="<?=$img?>" alt="<?=e($p['name'])?>" loading="lazy">
             <span class="prod-badge"><?=e($p['category_name'])?></span>
+            <?php if(!$isActive): ?><span class="badge-unavailable">Unavailable</span><?php endif; ?>
           </div>
-        </a>
+        <?php if($isActive): ?></a><?php else: ?></div><?php endif; ?>
         <div class="prod-body">
           <div class="prod-cat"><?=e($p['category_name'])?></div>
-          <div class="prod-name"><a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=e($p['name'])?></a></div>
+          <div class="prod-name">
+            <?php if($isActive): ?>
+            <a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=e($p['name'])?></a>
+            <?php else: ?>
+            <span style="color:var(--muted);"><?=e($p['name'])?></span>
+            <?php endif; ?>
+          </div>
           <div class="prod-footer">
             <span class="prod-price">RM <?=number_format($p['price'],2)?></span>
+            <?php if($isActive): ?>
             <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>
+            <?php else: ?>
+            <span style="font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:#888;font-weight:600;">Unavailable</span>
+            <?php endif; ?>
           </div>
         </div>
       </div>

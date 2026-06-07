@@ -32,8 +32,7 @@
         <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px;">
           <li><a href="<?=$depth?>leaderboard.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">Leaderboard</a></li>
           <li><a href="<?=$depth?>about.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">About Apex</a></li>
-          <li><a href="<?=$depth?>size_guide.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">Size Guide</a></li>
-          <li><a href="<?=$depth?>contact.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">Contact Us</a></li>
+          <li><a href="<?=$depth?>notifications.php" style="color:var(--muted);font-size:.875rem;transition:color .2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--muted)'">Notifications</a></li>
         </ul>
       </div>
     </div>
