@@ -30,13 +30,7 @@ if($tbl->num_rows > 0){
     $is->bind_param("i",$pid); $is->execute();
     $images = $is->get_result()->fetch_all(MYSQLI_ASSOC);
 }
-// Main image always first
 $main_img = !empty($product['image_url']) ? $product['image_url'] : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
-array_unshift($images, ['image_url' => $main_img, 'color_name' => 'Default']);
-// Deduplicate
-$seen=[]; $uniq=[];
-foreach($images as $img){ if(!in_array($img['image_url'],$seen)){ $seen[]=$img['image_url']; $uniq[]=$img; } }
-$images = $uniq;
 
 // Get ALL stock data for this product grouped by color
 $stock_data = [];
@@ -54,6 +48,19 @@ if(empty($stock_data)){
         }
     }
 }
+
+// Main image always first — label it with whichever stock colour has no dedicated variant image
+// (stock_data must be built first so we can check which colour has no variant image)
+$_variant_colors = array_column($images, 'color_name');
+$_main_color = 'Default'; // fallback
+foreach($stock_data as $_col => $_sizes){
+    if(!in_array($_col, $_variant_colors)){ $_main_color = $_col; break; }
+}
+array_unshift($images, ['image_url' => $main_img, 'color_name' => $_main_color]);
+// Deduplicate
+$seen=[]; $uniq=[];
+foreach($images as $img){ if(!in_array($img['image_url'],$seen)){ $seen[]=$img['image_url']; $uniq[]=$img; } }
+$images = $uniq;
 
 // Get all unique sizes across all colours
 $all_sizes = [];
@@ -93,6 +100,21 @@ $related_stmt->bind_param("ii", $product['category_id'], $pid);
 $related_stmt->execute();
 $related_products = $related_stmt->get_result();
 
+// ── Reviews ─────────────────────────────────────────────────────
+$rev_stats = $conn->query("SELECT COUNT(*) AS total, ROUND(AVG(rating),1) AS avg_rating FROM reviews WHERE product_id=$pid");
+$rev_row   = $rev_stats ? $rev_stats->fetch_assoc() : ['total'=>0,'avg_rating'=>0];
+$rev_count = (int)$rev_row['total'];
+$rev_avg   = (float)$rev_row['avg_rating'];
+
+$reviews_res = $conn->query("
+    SELECT r.rating, r.comment, r.created_at, u.name AS user_name
+    FROM reviews r
+    JOIN users u ON r.user_id = u.user_id
+    WHERE r.product_id = $pid
+    ORDER BY r.created_at DESC
+    LIMIT 20
+");
+
 $flash=''; $ftype='';
 if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION['cart_msg_type']??'ok'; unset($_SESSION['cart_msg'],$_SESSION['cart_msg_type']); }
 ?>
@@ -105,17 +127,17 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
 <title><?=e($product['name'])?> | Apex</title>
 <link rel="stylesheet" href="css/style.css?v=4">
 <style>
-.slider-wrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:var(--navy2);width:100%;max-width:520px;height:480px}
-.slider-main{width:100%;height:100%;object-fit:contain;display:block;padding:12px;transition:opacity .25s ease}
-.sl-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(10,25,47,.8);border:1px solid var(--border);color:var(--white);width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:all .2s;z-index:2}
-.sl-btn:hover{background:var(--accent);color:var(--navy);border-color:var(--accent)}
+.slider-wrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#fff;width:100%;max-width:520px;aspect-ratio:1/1}
+.slider-main{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;transition:opacity .25s ease}
+.sl-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.85);border:1px solid var(--border);color:#1C1410;width:42px;height:42px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.3rem;transition:all .2s;z-index:2;backdrop-filter:blur(4px)}
+.sl-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .sl-btn:disabled{opacity:.25;cursor:default;pointer-events:none}
 .sl-prev{left:12px}.sl-next{right:12px}
-.sl-counter{position:absolute;bottom:10px;right:12px;background:rgba(10,25,47,.7);color:var(--muted);font-size:.7rem;padding:4px 10px;border-radius:100px;border:1px solid var(--border)}
+.sl-counter{position:absolute;bottom:10px;right:12px;background:rgba(255,255,255,.88);color:#1C1410;font-size:.7rem;padding:4px 10px;border-radius:100px;border:1px solid var(--border);backdrop-filter:blur(4px)}
 .thumb-row{display:flex;gap:10px;margin-top:12px;overflow-x:auto;padding-bottom:4px}
-.thumb-img{width:72px;height:72px;border-radius:8px;object-fit:cover;cursor:pointer;border:2px solid var(--border);transition:all .2s;flex-shrink:0}
-.thumb-img:hover{border-color:rgba(100,255,218,.5)}
-.thumb-img.on{border-color:var(--accent)}
+.thumb-img{width:76px;height:76px;border-radius:8px;object-fit:cover;object-position:center top;cursor:pointer;border:2px solid var(--border);transition:all .2s;flex-shrink:0}
+.thumb-img:hover{border-color:var(--accent)}
+.thumb-img.on{border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,84,60,.18)}
 
 /* Colour swatches */
 .color-swatch-btn{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:var(--radius);border:2px solid var(--border);background:var(--navy2);cursor:pointer;transition:all .2s}
@@ -188,6 +210,22 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
     <div class="detail-cat"><?=e($product['category_name'])?></div>
     <h1 class="detail-name"><?=e($product['name'])?></h1>
     <div class="detail-price">RM <?=number_format($product['price'],2)?></div>
+
+    <!-- Inline rating summary -->
+    <?php if($rev_count > 0): ?>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <div style="display:flex;gap:2px;">
+        <?php for($s=1;$s<=5;$s++): $filled = $s <= round($rev_avg); ?>
+        <span style="color:<?=$filled?'#f59e0b':'var(--border)'?>;font-size:1rem;">★</span>
+        <?php endfor; ?>
+      </div>
+      <span style="font-size:.88rem;font-weight:700;color:var(--white);"><?=number_format($rev_avg,1)?></span>
+      <a href="#reviews" style="font-size:.78rem;color:var(--muted);border-bottom:1px dashed var(--border);"><?=$rev_count?> review<?=$rev_count!=1?'s':''?></a>
+    </div>
+    <?php else: ?>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:14px;">No reviews yet — be the first!</div>
+    <?php endif; ?>
+
     <p class="detail-desc"><?=nl2br(e($product['description']))?></p>
 
     <form action="cart_action.php" method="POST" id="addCartForm">
@@ -202,14 +240,15 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
       <div style="margin-bottom:22px;">
         <div class="size-label" style="margin-bottom:10px;">
           SELECT COLOUR:
-          <span id="colorSelectedLbl" style="color:var(--accent);font-weight:700;font-size:.8rem;margin-left:6px;text-transform:none;letter-spacing:0;">Default</span>
+          <span id="colorSelectedLbl" style="color:var(--accent);font-weight:700;font-size:.8rem;margin-left:6px;text-transform:none;letter-spacing:0;"><?=e($first_color)?></span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <!-- Default -->
+          <!-- First/main colour -->
+          <?php $fc_label = e($first_color); $fc_js = addslashes($first_color); ?>
           <button type="button" class="color-swatch-btn color-active" id="colorBtn_0"
-                  onclick="pickColor(this,0,'Default')" title="Default">
+                  onclick="pickColor(this,0,'<?=$fc_js?>')" title="<?=$fc_label?>">
             <img src="<?=e($images[0]['image_url'])?>" style="width:30px;height:30px;border-radius:4px;object-fit:cover;border:1px solid var(--border);" alt="">
-            <span style="font-size:.82rem;color:var(--muted);">Default</span>
+            <span style="font-size:.82rem;color:var(--muted);"><?=$fc_label?></span>
           </button>
           <?php foreach($images as $idx=>$img):
             if($idx===0) continue;
@@ -317,6 +356,62 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
 
 </div>
 </div>
+
+<!-- ── Customer Reviews ── -->
+<section id="reviews" style="padding:56px 0;border-top:1px solid var(--border);">
+  <div class="wrap" style="max-width:800px;">
+    <div style="margin-bottom:32px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+      <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Verified Buyers</p>
+      <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(20px,2.5vw,30px);letter-spacing:2px;color:var(--white);">
+        CUSTOMER REVIEWS
+        <?php if($rev_count > 0): ?>
+        <span style="font-size:.9rem;color:var(--muted);font-weight:400;letter-spacing:0;margin-left:12px;"><?=$rev_count?> review<?=$rev_count!=1?'s':''?></span>
+        <?php endif; ?>
+      </h2>
+      <?php if($rev_count > 0): ?>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+        <div style="display:flex;gap:2px;">
+          <?php for($s=1;$s<=5;$s++): $filled=$s<=round($rev_avg); ?>
+          <span style="color:<?=$filled?'#f59e0b':'var(--border)'?>;font-size:1.4rem;">★</span>
+          <?php endfor; ?>
+        </div>
+        <span style="font-family:'Oswald',sans-serif;font-size:1.8rem;color:var(--white);"><?=number_format($rev_avg,1)?></span>
+        <span style="font-size:.78rem;color:var(--muted);">out of 5</span>
+      </div>
+      <?php endif; ?>
+    </div>
+
+    <?php if($reviews_res && $reviews_res->num_rows > 0):
+      while($rv = $reviews_res->fetch_assoc()):
+        $rstars = (int)$rv['rating'];
+    ?>
+    <div style="padding:20px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-weight:600;color:var(--white);font-size:.9rem;margin-bottom:4px;"><?=e($rv['user_name'])?></div>
+          <div style="display:flex;gap:2px;margin-bottom:6px;">
+            <?php for($s=1;$s<=5;$s++): ?>
+            <span style="color:<?=$s<=$rstars?'#f59e0b':'var(--border)'?>;font-size:.9rem;">★</span>
+            <?php endfor; ?>
+            <span style="font-size:.75rem;color:var(--muted);margin-left:6px;font-weight:600;"><?=number_format($rstars,0)?>/5</span>
+          </div>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);"><?=date('d M Y',strtotime($rv['created_at']))?></div>
+      </div>
+      <?php if(!empty($rv['comment'])): ?>
+      <p style="font-size:.875rem;color:var(--text);line-height:1.75;margin:0;"><?=nl2br(e($rv['comment']))?></p>
+      <?php else: ?>
+      <p style="font-size:.82rem;color:var(--muted);font-style:italic;margin:0;">No comment left.</p>
+      <?php endif; ?>
+    </div>
+    <?php endwhile; else: ?>
+    <div style="text-align:center;padding:48px 20px;color:var(--muted);">
+      <div style="font-size:2.5rem;margin-bottom:12px;">💬</div>
+      <div style="font-size:.9rem;">No reviews yet. Purchase this product to leave a review!</div>
+    </div>
+    <?php endif; ?>
+  </div>
+</section>
 
 <?php if($related_products && $related_products->num_rows > 0): ?>
 <!-- ── You May Also Like ── -->

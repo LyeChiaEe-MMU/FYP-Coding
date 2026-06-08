@@ -42,15 +42,15 @@ if ($q) {
 $where = 'WHERE ' . implode(' AND ', $conditions);
 
 // ── Sort ─────────────────────────────────────────────────────
-$order        = 'p.created_at DESC';
+$order        = 'p.is_active DESC, p.created_at DESC';
 $extra_select = '';
 $extra_join   = '';
 $group_by     = '';
 
-if ($sort === 'price_asc')  $order = 'p.price ASC';
-if ($sort === 'price_desc') $order = 'p.price DESC';
-if ($sort === 'name_az')    $order = 'p.name ASC';
-if ($sort === 'name_za')    $order = 'p.name DESC';
+if ($sort === 'price_asc')  $order = 'p.is_active DESC, p.price ASC';
+if ($sort === 'price_desc') $order = 'p.is_active DESC, p.price DESC';
+if ($sort === 'name_az')    $order = 'p.is_active DESC, p.name ASC';
+if ($sort === 'name_za')    $order = 'p.is_active DESC, p.name DESC';
 if ($sort === 'popular') {
     $extra_select = ', COALESCE(SUM(oi.quantity), 0) AS total_sold';
     $extra_join   = 'LEFT JOIN order_items oi ON oi.product_id = p.product_id';

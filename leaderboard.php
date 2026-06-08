@@ -171,9 +171,6 @@ $medals = ['🥇','🥈','🥉'];
   <div class="wrap">
     <div class="breadcrumb"><a href="index.php">Home</a><span class="sep">/</span><span>Leaderboard</span></div>
     <h1>SHOE <span style="color:var(--accent)">LEADERBOARD</span></h1>
-    <p style="color:var(--muted);margin-top:8px;max-width:580px;">
-      Only shoes with real sales are ranked. Rankings are driven by customer reviews and sales performance — updated automatically.
-    </p>
   </div>
 </div>
 
@@ -197,9 +194,6 @@ $medals = ['🥇','🥈','🥉'];
       <div style="display:flex;align-items:center;gap:8px;background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.15);border-radius:6px;padding:7px 14px;">
         <span style="font-size:.85rem;">🛒 Units Sold</span>
         <span style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:.85rem;">× 3 pts</span>
-      </div>
-      <div style="font-size:.75rem;color:var(--muted);padding:7px 0;">
-        · Only shoes with <strong style="color:var(--white)">at least 1 sale</strong> appear here
       </div>
     </div>
   </div>

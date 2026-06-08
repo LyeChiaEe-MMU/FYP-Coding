@@ -78,6 +78,74 @@ $conn->query("CREATE TABLE IF NOT EXISTS vouchers (
     INDEX idx_voucher_uid (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+// ── One-time migration: add address column to users if missing ───
+$_uaddr = $conn->query("SHOW COLUMNS FROM users LIKE 'address'");
+if($_uaddr && $_uaddr->num_rows === 0){
+    $conn->query("ALTER TABLE users ADD COLUMN address TEXT DEFAULT NULL");
+}
+
+// ── One-time migration: add is_banned column to users if missing ─
+$_ubancol = $conn->query("SHOW COLUMNS FROM users LIKE 'is_banned'");
+if($_ubancol && $_ubancol->num_rows === 0){
+    $conn->query("ALTER TABLE users ADD COLUMN is_banned TINYINT(1) NOT NULL DEFAULT 0");
+}
+
+// ── Create reviews table if missing ──────────────────────────────
+$conn->query("CREATE TABLE IF NOT EXISTS reviews (
+    review_id  INT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT NOT NULL,
+    product_id INT NOT NULL,
+    order_id   INT NOT NULL DEFAULT 0,
+    rating     TINYINT(1) NOT NULL,
+    comment    TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_rev_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// ── Add order_id to reviews if table already existed without it ──
+$_rvcol = $conn->query("SHOW COLUMNS FROM reviews LIKE 'order_id'");
+if($_rvcol && $_rvcol->num_rows === 0){
+    $conn->query("ALTER TABLE reviews ADD COLUMN order_id INT NOT NULL DEFAULT 0 AFTER product_id");
+}
+
+// ── Add UNIQUE KEY uq_review if not present (safe to ignore if exists) ──
+// Use a try-approach: silently drop+re-add or skip if already there
+$_rvkey = $conn->query("SHOW INDEX FROM reviews WHERE Key_name='uq_review'");
+if($_rvkey && $_rvkey->num_rows === 0){
+    // Only add if order_id column now exists
+    $_rvcol2 = $conn->query("SHOW COLUMNS FROM reviews LIKE 'order_id'");
+    if($_rvcol2 && $_rvcol2->num_rows > 0){
+        $conn->query("ALTER TABLE reviews ADD UNIQUE KEY uq_review (user_id, product_id, order_id)");
+    }
+}
+
+// ── One-time migration: add color column to order_items if missing ─
+$_oicol = $conn->query("SHOW COLUMNS FROM order_items LIKE 'color'");
+if($_oicol && $_oicol->num_rows === 0){
+    $conn->query("ALTER TABLE order_items ADD COLUMN color VARCHAR(80) NOT NULL DEFAULT 'Default' AFTER size");
+}
+
+// ── One-time migration: add payment_method to orders ─────────────
+$_pmcol = $conn->query("SHOW COLUMNS FROM orders LIKE 'payment_method'");
+if($_pmcol && $_pmcol->num_rows === 0){
+    $conn->query("ALTER TABLE orders ADD COLUMN payment_method VARCHAR(50) DEFAULT 'Online Banking' AFTER shipping_address");
+}
+// ── One-time migration: add payment_detail to orders ─────────────
+$_pdcol = $conn->query("SHOW COLUMNS FROM orders LIKE 'payment_detail'");
+if($_pdcol && $_pdcol->num_rows === 0){
+    $conn->query("ALTER TABLE orders ADD COLUMN payment_detail VARCHAR(100) DEFAULT NULL AFTER payment_method");
+}
+// ── One-time migration: add discount_amount to orders ────────────
+$_dacol = $conn->query("SHOW COLUMNS FROM orders LIKE 'discount_amount'");
+if($_dacol && $_dacol->num_rows === 0){
+    $conn->query("ALTER TABLE orders ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER total_amount");
+}
+// ── One-time migration: add voucher_code to orders ───────────────
+$_vccol = $conn->query("SHOW COLUMNS FROM orders LIKE 'voucher_code'");
+if($_vccol && $_vccol->num_rows === 0){
+    $conn->query("ALTER TABLE orders ADD COLUMN voucher_code VARCHAR(20) DEFAULT NULL AFTER discount_amount");
+}
+
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 

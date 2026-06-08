@@ -96,15 +96,21 @@ if(isset($_POST['toggle_status'])){
 // ── Add Product ───────────────────────────────────
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     csrf_check();
-    $name        = trim($_POST['name']        ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $category_id = (int)($_POST['category_id'] ?? 0);
-    $price       = floatval($_POST['price']   ?? 0);
-    $stock       = (int)($_POST['stock']      ?? 0);
-    $is_on_sale  = isset($_POST['is_on_sale']) ? 1 : 0;
-    $image_url   = trim($_POST['image_url']   ?? '');
-    $allowed_genders = ['Men','Women','Kids','Unisex'];
-    $gender      = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Unisex';
+    $name             = trim($_POST['name']        ?? '');
+    $description      = trim($_POST['description'] ?? '');
+    $category_id      = (int)($_POST['category_id'] ?? 0);
+    $price            = floatval($_POST['price']   ?? 0);
+    $is_on_sale       = isset($_POST['is_on_sale']) ? 1 : 0;
+    $image_url        = trim($_POST['image_url']   ?? '');
+    $allowed_genders  = ['Men','Women','Kids'];
+    $gender           = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Men';
+    // Stock is derived from per-size entries — never typed manually
+    $color_names_post = $_POST['color_name']  ?? ['Default'];
+    $size_stock_post  = $_POST['size_stock']  ?? [];
+    $stock = 0;
+    foreach($size_stock_post as $sizes){
+        foreach((array)$sizes as $qty){ $stock += max(0,(int)$qty); }
+    }
 
     if(!empty($_FILES['image_file']['name'])){
         $file = $_FILES['image_file'];
@@ -130,6 +136,22 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
             $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,is_on_sale,image_url) VALUES (?,?,?,?,?,?,?,?)");
             $stmt->bind_param("ssisdiis",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$image_url);
             $stmt->execute();
+            $new_pid = (int)$conn->insert_id;
+
+            // Insert per-size-per-colour stock into product_stock
+            // blank input = size not carried (skip); "0" = size carried but OOS (store)
+            foreach($size_stock_post as $col_idx => $sizes){
+                $col_idx  = (int)$col_idx;
+                $col_name = isset($color_names_post[$col_idx]) ? trim($color_names_post[$col_idx]) : 'Default';
+                if(!$col_name) $col_name = 'Default';
+                foreach((array)$sizes as $sz => $raw){
+                    if($raw === '' || $raw === null) continue; // blank = skip
+                    $qty_int = max(0,(int)$raw);
+                    $ss = $conn->prepare("INSERT INTO product_stock (product_id,color_name,size,stock) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE stock=VALUES(stock)");
+                    $ss->bind_param("issi",$new_pid,$col_name,$sz,$qty_int);
+                    $ss->execute();
+                }
+            }
             header("Location: admin_products.php?msg=Product+added+successfully."); exit;
         }
     }
@@ -150,6 +172,20 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 <title>Products | Apex Admin</title>
 <link rel="stylesheet" href="../css/style.css?v=4">
 <style>
+/* ── Size / Stock grid ── */
+.sz-stock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;padding:14px;background:var(--navy2);border-radius:8px;border:1px solid var(--border);margin-bottom:10px;}
+.sz-entry-box{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.sz-entry-label{font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.sz-entry-input{width:100%;background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:8px 4px;color:#1C1410;font-size:.82rem;text-align:center;outline:none;transition:border-color .2s;}
+.sz-entry-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(200,84,60,.12);}
+.sz-entry-input:not([value=""]):valid{background:rgba(200,84,60,.05);border-color:rgba(200,84,60,.35);}
+.color-group-block{margin-bottom:14px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--card);}
+.color-name-row{display:flex;align-items:flex-end;gap:10px;margin-bottom:10px;padding:10px 12px;background:var(--navy2);border-radius:8px;border:1px solid var(--border);}
+.color-name-field{flex:1;}
+.color-name-field label{font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;display:block;}
+.color-name-field input{width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--white);font-size:.875rem;outline:none;transition:border-color .2s;}
+.color-name-field input:focus{border-color:var(--accent);}
+
 /* Password modal */
 .del-modal-bg{
     display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);
@@ -212,8 +248,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
             </div>
             <div class="form-group">
               <label>Gender *</label>
-              <select name="gender" required>
-                <option value="Unisex">Unisex (shows in all)</option>
+              <select name="gender" id="genderSelect" required onchange="updateAddSizeGrid(this.value)">
                 <option value="Men">Men</option>
                 <option value="Women">Women</option>
                 <option value="Kids">Kids</option>
@@ -223,9 +258,37 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
               <label>Price (RM) *</label>
               <input type="number" name="price" step="0.01" min="0.01" placeholder="299.00" required>
             </div>
-            <div class="form-group">
-              <label>Total Stock Qty *</label>
-              <input type="number" name="stock" min="0" placeholder="50" required>
+            <div class="form-group span-2">
+              <label>Stock Per Size &amp; Colour</label>
+              <div id="colorGroups">
+                <!-- Default colour group -->
+                <div class="color-group-block" data-idx="0">
+                  <div class="color-name-row">
+                    <div class="color-name-field">
+                      <label>Colour Name</label>
+                      <input type="text" name="color_name[]" value="Default" placeholder="e.g. Black, White, Neon Green">
+                    </div>
+                    <button type="button" class="btn btn-sm remove-color-btn"
+                            style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;display:none;"
+                            onclick="removeColorGroup(this)">✕ Remove</button>
+                  </div>
+                  <div class="sz-stock-grid" id="defaultSizeGrid">
+                    <?php foreach(['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12','13'] as $sz): ?>
+                    <div class="sz-entry-box">
+                      <div class="sz-entry-label">UK <?=$sz?></div>
+                      <input type="number" name="size_stock[0][<?=$sz?>]" min="0" value="" placeholder="0"
+                             class="sz-entry-input" oninput="recalcTotal()">
+                    </div>
+                    <?php endforeach; ?>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:4px;display:flex;align-items:center;gap:14px;">
+                <span style="font-size:.82rem;color:var(--muted);">
+                  Total Stock: <strong id="totalStockDisplay" style="color:var(--accent);">0</strong> pairs
+                </span>
+                <input type="hidden" name="stock" id="stockHidden" value="0">
+              </div>
             </div>
             <div class="form-group span-2">
               <label>Product Image</label>
@@ -355,6 +418,94 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 </div>
 
 <script>
+// ── Size/Stock grid ──────────────────────────────────────────
+const SIZE_RANGES = {
+    'Men':    ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12','13'],
+    'Women':  ['3','3.5','4','4.5','5','5.5','6','6.5','7','7.5','8'],
+    'Kids':   ['1','1.5','2','2.5','3','3.5','4','4.5','5','5.5','6'],
+    'Unisex': ['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12','13'],
+};
+function getSizes(gender){ return SIZE_RANGES[gender] || SIZE_RANGES['Men']; }
+let colorIdx = 0;
+
+function recalcTotal(){
+    let t = 0;
+    document.querySelectorAll('#colorGroups .sz-entry-input').forEach(inp => {
+        t += Math.max(0, parseInt(inp.value) || 0);
+    });
+    document.getElementById('totalStockDisplay').textContent = t;
+    document.getElementById('stockHidden').value = t;
+}
+
+// Rebuild ALL colour grids when gender changes
+function updateAddSizeGrid(gender){
+    const sizes = getSizes(gender);
+    document.querySelectorAll('#colorGroups .color-group-block').forEach(block => {
+        const idx  = block.dataset.idx;
+        const grid = block.querySelector('.sz-stock-grid');
+        if(!grid) return;
+        // Preserve already-typed values
+        const saved = {};
+        grid.querySelectorAll('input[type=number]').forEach(inp => {
+            const m = inp.name.match(/\[([^\]]+)\]$/);
+            if(m && inp.value !== '') saved[m[1]] = inp.value;
+        });
+        grid.innerHTML = sizes.map(sz => `
+            <div class="sz-entry-box">
+                <div class="sz-entry-label">UK ${sz}</div>
+                <input type="number" name="size_stock[${idx}][${sz}]" min="0"
+                       value="${saved[sz]??''}" placeholder="0"
+                       class="sz-entry-input" oninput="recalcTotal()">
+            </div>`).join('');
+        recalcTotal();
+    });
+}
+
+function addColorGroup(){
+    colorIdx++;
+    const idx    = colorIdx;
+    const gender = document.getElementById('genderSelect')?.value || 'Men';
+    const sizes  = getSizes(gender);
+    const sizesHtml = sizes.map(sz => `
+        <div class="sz-entry-box">
+            <div class="sz-entry-label">UK ${sz}</div>
+            <input type="number" name="size_stock[${idx}][${sz}]" min="0" value="" placeholder="0"
+                   class="sz-entry-input" oninput="recalcTotal()">
+        </div>`).join('');
+
+    const block = document.createElement('div');
+    block.className = 'color-group-block';
+    block.dataset.idx = idx;
+    block.innerHTML = `
+        <div class="color-name-row">
+            <div class="color-name-field">
+                <label>Colour Name</label>
+                <input type="text" name="color_name[]" value="" placeholder="e.g. Black, White, Neon Green">
+            </div>
+            <button type="button" class="btn btn-sm remove-color-btn"
+                    style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;"
+                    onclick="removeColorGroup(this)">✕ Remove</button>
+        </div>
+        <div class="sz-stock-grid">${sizesHtml}</div>`;
+    document.getElementById('colorGroups').appendChild(block);
+    updateRemoveBtns();
+    block.querySelector('input[type=text]').focus();
+}
+
+function removeColorGroup(btn){
+    btn.closest('.color-group-block').remove();
+    recalcTotal();
+    updateRemoveBtns();
+}
+
+function updateRemoveBtns(){
+    const groups = document.querySelectorAll('#colorGroups .color-group-block');
+    groups.forEach(g => {
+        const btn = g.querySelector('.remove-color-btn');
+        if(btn) btn.style.display = groups.length > 1 ? 'inline-flex' : 'none';
+    });
+}
+
 function previewImg(input){
     const preview = document.getElementById('imgPreview');
     if(input.files && input.files[0]){

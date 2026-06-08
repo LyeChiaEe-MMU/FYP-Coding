@@ -10,6 +10,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $email   = trim($_POST['email']   ?? '');
     $pass    = $_POST['password']     ?? '';
     $phone   = trim($_POST['phone']   ?? '');
+    $street   = trim($_POST['street']   ?? '');
+    $city     = trim($_POST['city']     ?? '');
+    $state    = trim($_POST['state']    ?? '');
+    $postcode = trim($_POST['postcode'] ?? '');
+    $address  = implode(', ', array_filter([$street, $city, $state, $postcode]));
     $pref    = $_POST['shopping_preference'] ?? '';
     $dob_day   = $_POST['dob_day']   ?? '';
     $dob_month = $_POST['dob_month'] ?? '';
@@ -47,8 +52,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $error = "An account with this email already exists.";
         } else {
             $hashed = password_hash($pass, PASSWORD_DEFAULT);
-            $ins = $conn->prepare("INSERT INTO users (name,email,password,phone,shopping_preference,date_of_birth) VALUES (?,?,?,?,?,?)");
-            $ins->bind_param("ssssss",$name,$email,$hashed,$phone,$pref,$dob);
+            $ins = $conn->prepare("INSERT INTO users (name,email,password,phone,address,shopping_preference,date_of_birth) VALUES (?,?,?,?,?,?,?)");
+            $ins->bind_param("sssssss",$name,$email,$hashed,$phone,$address,$pref,$dob);
             if($ins->execute()){
                 $success = "Account created! You can now login.";
             } else {
@@ -217,6 +222,36 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           </div>
         </div>
 
+        <!-- Shipping Address -->
+        <div class="form-group">
+          <label>Shipping Address</label>
+          <div class="input-icon-wrap">
+            <i class="fa-solid fa-location-dot"></i>
+            <input type="text" name="street" placeholder="Street / Unit No." value="<?=e($_POST['street']??'')?>">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>City</label>
+            <input type="text" name="city" placeholder="" value="<?=e($_POST['city']??'')?>">
+          </div>
+          <div class="form-group">
+            <label>Postcode</label>
+            <input type="text" name="postcode" placeholder="" maxlength="5"
+                   oninput="this.value=this.value.replace(/\D/g,'')"
+                   value="<?=e($_POST['postcode']??'')?>">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>State</label>
+          <select name="state">
+            <option value="" disabled <?=empty($_POST['state'])?'selected':''?>>— Select State —</option>
+            <?php foreach(['Johor','Kedah','Kelantan','Melaka','Negeri Sembilan','Pahang','Perak','Perlis','Pulau Pinang','Sabah','Sarawak','Selangor','Terengganu','W.P. Kuala Lumpur','W.P. Labuan','W.P. Putrajaya'] as $s): ?>
+            <option value="<?=e($s)?>" <?=($_POST['state']??'')===$s?'selected':''?>><?=e($s)?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+
         <!-- Password -->
         <div class="form-group">
           <label>Password</label>
@@ -313,7 +348,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           <label class="custom-check">
             <input type="checkbox" id="agreeTerms" required>
             <span class="checkmark"></span>
-            <span>I agree to Apex's <a href="#" class="link-accent">Terms of Use</a> and <a href="#" class="link-accent">Privacy Policy</a></span>
+            <span>I agree to Apex's <a href="terms.php" target="_blank" class="link-accent">Terms of Use</a> and <a href="privacy.php" target="_blank" class="link-accent">Privacy Policy</a></span>
           </label>
         </div>
 

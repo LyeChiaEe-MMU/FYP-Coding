@@ -111,7 +111,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $prefill_email = $_POST['email'] ?? '';
         if(!$prefill_email && is_logged()){
             $ep = $conn->prepare("SELECT email FROM users WHERE user_id=?");
-            $ep->bind_param("i",(int)$_SESSION['user_id']); $ep->execute();
+            $ep_uid = (int)$_SESSION['user_id'];
+            $ep->bind_param("i", $ep_uid); $ep->execute();
             $prefill_email = $ep->get_result()->fetch_assoc()['email'] ?? '';
         }
         ?>
@@ -185,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
     <div style="text-align:center;margin-top:32px;">
       <p style="color:var(--muted);font-size:.875rem;margin-bottom:16px;">Can't find what you're looking for?</p>
-      <a href="mailto:ApexStore@gmail.com" class="btn btn-primary">Email Us Directly</a>
+      <a href="https://mail.google.com/mail/?view=cm&to=ApexStore@gmail.com" target="_blank" rel="noopener" class="btn btn-primary">Email Us Directly</a>
     </div>
   </div>
 </section>

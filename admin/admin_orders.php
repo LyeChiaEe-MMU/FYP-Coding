@@ -7,7 +7,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
     csrf_check();
     $oid        = (int)$_POST['order_id'];
     $new_status = $_POST['status'];
-    $allowed    = ['Processing','Delivered','Completed','Cancelled'];
+    $allowed    = ['Processing','Delivered','Cancelled']; // Completed is set by customer only
     if(in_array($new_status,$allowed)){
         $upd = $conn->prepare("UPDATE orders SET status=? WHERE order_id=?");
         $upd->bind_param("si",$new_status,$oid);
@@ -111,11 +111,19 @@ $orders = $conn->query("
                   <input type="hidden" name="order_id" value="<?=(int)$o['order_id']?>">
                   <select name="status"
                     style="background:var(--navy2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:.82rem;cursor:pointer;">
-                    <?php foreach(['Processing','Delivered','Completed','Cancelled'] as $s): ?>
+                    <?php
+                    // Completed is set by the customer via "Mark as Received" — not by admin
+                    $admin_statuses = ['Processing','Delivered','Cancelled'];
+                    // If currently Completed, show it as readonly label instead of dropdown
+                    if($o['status']==='Completed'): ?>
+                    <option value="Completed" selected>Completed</option>
+                    <?php else:
+                    foreach($admin_statuses as $s): ?>
                     <option value="<?=$s?>" <?=$o['status']===$s?'selected':''?>><?=$s?></option>
-                    <?php endforeach; ?>
+                    <?php endforeach; endif; ?>
                   </select>
-                  <button type="submit" name="update_status" class="btn btn-primary btn-sm">Save</button>
+                  <button type="submit" name="update_status" class="btn btn-primary btn-sm"
+                    <?=$o['status']==='Completed'?'disabled title="Marked received by customer — cannot change"':''?>>Save</button>
                 </form>
               </td>
             </tr>

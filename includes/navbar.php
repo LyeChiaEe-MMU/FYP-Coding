@@ -312,12 +312,8 @@ $mega = [
         <a href="<?=$depth?>order_history.php" class="<?=$pg==='order_history.php'?'on':''?>">My Orders</a>
         <a href="<?=$depth?>notifications.php"
            class="<?=$pg==='notifications.php'?'on':''?>"
-           style="position:relative;padding:8px 10px!important;"
-           title="Notifications">
-          <i class="fa-solid fa-bell"></i>
-          <?php if($notif_unread > 0): ?>
-          <span style="position:absolute;top:3px;right:1px;background:#ef4444;color:#fff;border-radius:50%;width:15px;height:15px;font-size:.5rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1;"><?=$notif_unread?></span>
-          <?php endif; ?>
+           style="position:relative;">
+          Notification<?php if($notif_unread > 0): ?><span style="position:absolute;top:-4px;right:-10px;background:#ef4444;color:#fff;border-radius:50%;width:15px;height:15px;font-size:.5rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;line-height:1;"><?=$notif_unread?></span><?php endif; ?>
         </a>
         <a href="<?=$depth?>wishlist.php" class="<?=$pg==='wishlist.php'?'on':''?>"
            style="position:relative;">

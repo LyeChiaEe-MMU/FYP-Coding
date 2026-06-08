@@ -19,7 +19,7 @@ $featured = $conn->query("
     SELECT p.*, c.category_name
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    ORDER BY p.created_at DESC LIMIT 12
+    ORDER BY p.is_active DESC, p.created_at DESC LIMIT 12
 ");
 
 // Shop by Category — latest active product image per category

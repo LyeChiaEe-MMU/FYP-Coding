@@ -7,7 +7,10 @@ $uid = (int)$_SESSION['user_id'];
 
 $stmt = $conn->prepare("
     SELECT c.cart_id, c.quantity, c.size, c.color,
-           p.product_id, p.name, p.price, p.image_url
+           p.product_id, p.name, p.price, p.image_url,
+           (SELECT pi.image_url FROM product_images pi
+            WHERE pi.product_id = c.product_id AND pi.color_name = c.color
+            ORDER BY pi.sort_order ASC LIMIT 1) AS color_image
     FROM cart_items c
     JOIN products p ON c.product_id = p.product_id
     WHERE c.user_id = ?
@@ -63,7 +66,7 @@ $total    = $subtotal + $shipping;
         <div>Product</div><div>Size</div><div>Qty</div><div>Subtotal</div><div></div>
       </div>
       <?php foreach($rows as $r):
-        $img = !empty($r['image_url']) ? e($r['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120&q=70';
+        $img = !empty($r['color_image']) ? e($r['color_image']) : (!empty($r['image_url']) ? e($r['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=120&q=70');
       ?>
       <div class="cart-row">
         <!-- Product -->

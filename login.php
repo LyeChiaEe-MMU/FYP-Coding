@@ -9,16 +9,20 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $email    = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    $stmt = $conn->prepare("SELECT user_id, name, password FROM users WHERE email=?");
+    $stmt = $conn->prepare("SELECT user_id, name, password, is_banned FROM users WHERE email=?");
     $stmt->bind_param("s",$email);
     $stmt->execute();
     $user = $stmt->get_result()->fetch_assoc();
 
     if($user && password_verify($password,$user['password'])){
-        session_regenerate_id(true);
-        $_SESSION['user_id']   = $user['user_id'];
-        $_SESSION['user_name'] = $user['name'];
-        header("Location: index.php"); exit;
+        if(!empty($user['is_banned'])){
+            $error = "Your account has been suspended. Please contact support.";
+        } else {
+            session_regenerate_id(true);
+            $_SESSION['user_id']   = $user['user_id'];
+            $_SESSION['user_name'] = $user['name'];
+            header("Location: index.php"); exit;
+        }
     } else {
         $error = "Invalid email or password. Please try again.";
     }
