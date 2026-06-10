@@ -6,6 +6,7 @@ $pass   = "";
 $dbname = "apex_store";
 
 $conn = new mysqli($host, $user, $pass, $dbname);
+date_default_timezone_set('Asia/Kuala_Lumpur');
 if ($conn->connect_error) {
     die('<div style="font-family:monospace;background:#0d0d1a;color:#ff4d4f;padding:24px 28px;border-left:4px solid #ff4d4f;margin:20px;border-radius:6px;">
         <strong>Database Connection Failed</strong><br><br>
@@ -14,6 +15,7 @@ if ($conn->connect_error) {
     </div>');
 }
 $conn->set_charset('utf8mb4');
+$conn->query("SET time_zone = '+08:00'");
 
 // ── One-time migration: add color column to cart_items if missing ─
 $_col = $conn->query("SHOW COLUMNS FROM cart_items LIKE 'color'");
@@ -26,8 +28,7 @@ $_gcol = $conn->query("SHOW COLUMNS FROM products LIKE 'gender'");
 if($_gcol && $_gcol->num_rows === 0){
     $conn->query("ALTER TABLE products ADD COLUMN gender VARCHAR(20) NOT NULL DEFAULT 'Unisex' AFTER category_id");
 }
-// ── Set existing products to Men gender (they are men's shoes) ───
-$conn->query("UPDATE products SET gender='Men' WHERE gender='Unisex'");
+// (one-time data migration was already applied — no recurring UPDATE needed)
 
 // ── One-time migration: add is_on_sale column to products if missing ──
 $_scol = $conn->query("SHOW COLUMNS FROM products LIKE 'is_on_sale'");
@@ -40,6 +41,28 @@ $_acol = $conn->query("SHOW COLUMNS FROM products LIKE 'is_active'");
 if($_acol && $_acol->num_rows === 0){
     $conn->query("ALTER TABLE products ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER is_on_sale");
 }
+
+// ── Create site_settings table if missing ────────────────────────
+$conn->query("CREATE TABLE IF NOT EXISTS site_settings (
+    setting_key   VARCHAR(80) NOT NULL PRIMARY KEY,
+    setting_value TEXT DEFAULT NULL,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// ── One-time migration: add banner_image to categories ───────────
+$_catbanner = $conn->query("SHOW COLUMNS FROM categories LIKE 'banner_image'");
+if($_catbanner && $_catbanner->num_rows === 0){
+    $conn->query("ALTER TABLE categories ADD COLUMN banner_image VARCHAR(255) DEFAULT NULL");
+}
+
+// ── Create order_status_history table if missing ──────────────────
+$conn->query("CREATE TABLE IF NOT EXISTS order_status_history (
+    history_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id   INT NOT NULL,
+    status     VARCHAR(30) NOT NULL,
+    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_osh_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 // ── Create contact_messages table if missing ──────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS contact_messages (
@@ -148,6 +171,12 @@ if($_vccol && $_vccol->num_rows === 0){
 
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+
+function add_notification($conn, $user_id, $title, $message, $type = 'info'){
+    $s = $conn->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)");
+    $s->bind_param("isss", $user_id, $title, $message, $type);
+    $s->execute();
+}
 
 function cart_count($conn){
     if(empty($_SESSION['user_id'])) return 0;

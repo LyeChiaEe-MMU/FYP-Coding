@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 session_start();
 require 'db.php';
 
@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!valid_image_upload($file, $upload_err)) {
             $errors[] = $upload_err;
         } else {
+            $ext       = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $filename  = 'design_' . $uid . '_' . time() . '.' . $ext;
             $uploadDir = __DIR__ . '/uploads/designs/';
             if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
@@ -84,7 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <?php if ($success): ?>
   <div style="text-align:center;padding:60px 20px;">
-    <div style="font-size:3rem;margin-bottom:20px;">✅</div>
     <h2 style="font-family:'Oswald',sans-serif;font-size:1.8rem;letter-spacing:2px;color:var(--white);margin-bottom:12px;">DESIGN SUBMITTED!</h2>
     <p style="color:var(--muted);margin-bottom:28px;max-width:440px;margin-left:auto;margin-right:auto;">
       Thank you! Our team will review your idea and update the status within 3–5 business days.
@@ -103,8 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <?php endforeach; ?>
 
   <!-- Info banner -->
-  <div style="background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.2);border-radius:10px;padding:20px 24px;margin-bottom:32px;display:flex;gap:16px;align-items:flex-start;">
-    <div style="font-size:1.5rem;flex-shrink:0;">💡</div>
+  <div style="background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.2);border-radius:10px;padding:20px 24px;margin-bottom:32px;">
     <div>
       <div style="font-family:'Oswald',sans-serif;font-size:.95rem;letter-spacing:1px;color:var(--white);margin-bottom:6px;">HOW IT WORKS</div>
       <ol style="color:var(--muted);font-size:.85rem;line-height:2;padding-left:18px;">
@@ -204,3 +203,5 @@ if (desc && cnt) {
     });
 }
 </script>
+</body>
+</html>

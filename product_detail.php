@@ -92,13 +92,28 @@ $related_stmt = $conn->prepare("
            IF(p.category_id = ?, 0, 1) AS sort_order
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    WHERE p.product_id != ?
+    WHERE p.product_id != ? AND p.is_active = 1
     ORDER BY sort_order ASC, p.created_at DESC
     LIMIT 4
 ");
 $related_stmt->bind_param("ii", $product['category_id'], $pid);
 $related_stmt->execute();
 $related_products = $related_stmt->get_result();
+
+// ── Pre-load wishlist state for all related products (single query, no N+1) ──
+$related_wishlisted = [];
+if(is_logged() && $related_products && $related_products->num_rows > 0){
+    $related_products->data_seek(0);
+    $rp_ids = [];
+    while($rp = $related_products->fetch_assoc()) $rp_ids[] = (int)$rp['product_id'];
+    $related_products->data_seek(0);
+    if(!empty($rp_ids)){
+        $in_placeholders = implode(',', $rp_ids); // safe — all ints
+        $wl_uid_r = (int)$_SESSION['user_id'];
+        $rw = $conn->query("SELECT product_id FROM wishlists WHERE user_id=$wl_uid_r AND product_id IN($in_placeholders)");
+        if($rw) while($rwr = $rw->fetch_assoc()) $related_wishlisted[(int)$rwr['product_id']] = true;
+    }
+}
 
 // ── Reviews ─────────────────────────────────────────────────────
 $rev_stats = $conn->query("SELECT COUNT(*) AS total, ROUND(AVG(rating),1) AS avg_rating FROM reviews WHERE product_id=$pid");
@@ -244,7 +259,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <!-- First/main colour -->
-          <?php $fc_label = e($first_color); $fc_js = addslashes($first_color); ?>
+          <?php $fc_label = e($first_color); $fc_js = htmlspecialchars(addslashes($first_color), ENT_QUOTES); ?>
           <button type="button" class="color-swatch-btn color-active" id="colorBtn_0"
                   onclick="pickColor(this,0,'<?=$fc_js?>')" title="<?=$fc_label?>">
             <img src="<?=e($images[0]['image_url'])?>" style="width:30px;height:30px;border-radius:4px;object-fit:cover;border:1px solid var(--border);" alt="">
@@ -252,12 +267,13 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
           </button>
           <?php foreach($images as $idx=>$img):
             if($idx===0) continue;
-            $clabel = !empty($img['color_name']) ? e($img['color_name']) : 'Colour '.$idx;
+            $clabel_raw = !empty($img['color_name']) ? $img['color_name'] : 'Colour '.$idx;
+            $clabel     = e($clabel_raw);
           ?>
           <button type="button" class="color-swatch-btn" id="colorBtn_<?=$idx?>"
-                  onclick="pickColor(this,<?=$idx?>,'<?=addslashes($clabel)?>')" title="<?=$clabel?>">
+                  onclick="pickColor(this,<?=$idx?>,'<?=htmlspecialchars(addslashes($clabel_raw),ENT_QUOTES)?>')" title="<?=$clabel?>">
             <img src="<?=e($img['image_url'])?>" style="width:30px;height:30px;border-radius:4px;object-fit:cover;border:1px solid var(--border);" alt="">
-            <span style="font-size:.82rem;color:var(--muted);"><?=$clabel?></span>
+            <span style="font-size:.82rem;color:var(--muted);"><?=$clabel /* already e()-encoded */ ?></span>
           </button>
           <?php endforeach; ?>
         </div>
@@ -290,7 +306,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
           <span class="uk-num"><?=e($sz)?></span>
           <span class="uk-lbl">UK</span>
           <?php if(!$oos): ?>
-          <span class="sz-stock"><?=$stk?>✓</span>
+          <span class="sz-stock"><?=$stk?></span>
           <?php endif; ?>
         </button>
         <?php endforeach;
@@ -406,7 +422,6 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
     </div>
     <?php endwhile; else: ?>
     <div style="text-align:center;padding:48px 20px;color:var(--muted);">
-      <div style="font-size:2.5rem;margin-bottom:12px;">💬</div>
       <div style="font-size:.9rem;">No reviews yet. Purchase this product to leave a review!</div>
     </div>
     <?php endif; ?>
@@ -435,17 +450,8 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
         $rimg = !empty($rp['image_url'])
             ? (str_starts_with($rp['image_url'],'http') ? e($rp['image_url']) : e($rp['image_url']))
             : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
-
-        // Check if this related product is wishlisted
-        $rp_wishlisted = false;
-        if(is_logged()){
-            $rwl = $conn->prepare("SELECT wishlist_id FROM wishlists WHERE user_id=? AND product_id=?");
-            $rwl_uid = (int)$_SESSION['user_id'];
-            $rwl_pid = (int)$rp['product_id'];
-            $rwl->bind_param("ii", $rwl_uid, $rwl_pid);
-            $rwl->execute();
-            $rp_wishlisted = $rwl->get_result()->num_rows > 0;
-        }
+        // Use pre-loaded wishlist map — no extra DB query per card
+        $rp_wishlisted = isset($related_wishlisted[(int)$rp['product_id']]);
       ?>
       <div class="prod-card" style="position:relative;">
         <!-- Wishlist heart on card -->
@@ -620,7 +626,7 @@ function renderSizes(grid, stockForColor){
         btn.disabled = oos;
         btn.title = 'UK '+sz+' — '+(oos?'Out of stock':stk+' pairs left');
         btn.innerHTML = `<span class="uk-num">${sz}</span><span class="uk-lbl">UK</span>`
-                      + (!oos ? `<span class="sz-stock">${stk}✓</span>` : '');
+                      + (!oos ? `<span class="sz-stock">${stk}</span>` : '');
         if(!oos) btn.onclick = ()=>{ pickSize(btn, sz); };
         grid.appendChild(btn);
     });
@@ -642,11 +648,11 @@ function pickSize(btn, size){
     const bar = document.getElementById('stockBar');
     bar.style.display='block';
     if(stk === undefined || stk === null){
-        bar.className='stock-bar'; bar.textContent='ℹ️ Stock info not set up yet for this colour.';
+        bar.className='stock-bar'; bar.textContent='Stock info not set up yet for this colour.';
     } else if(stk===0){
-        bar.className='stock-bar out'; bar.textContent='❌ Out of stock for this size.';
+        bar.className='stock-bar out'; bar.textContent='Out of stock for this size.';
     } else if(stk<=3){
-        bar.className='stock-bar low'; bar.textContent='⚠️ Only '+stk+' pairs left for UK '+size+' in '+activeColor+'!';
+        bar.className='stock-bar low'; bar.textContent='Only '+stk+' pairs left for UK '+size+' in '+activeColor+'!';
     } else {
         bar.className='stock-bar ok'; bar.textContent=stk+' pairs available — UK '+size+', '+activeColor;
     }

@@ -9,7 +9,7 @@ $gender = $_GET['gender'] ?? '';
 $sale   = isset($_GET['sale']) ? 1 : 0;   // sale filter flag
 
 // ── Build WHERE ──────────────────────────────────────────────
-$conditions = ['p.is_active = 1'];
+$conditions = []; // show all products incl. unavailable — filtered only on homepage
 
 // Category filter
 if ($cat) {
@@ -39,7 +39,7 @@ if ($q) {
     }
 }
 
-$where = 'WHERE ' . implode(' AND ', $conditions);
+$where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
 // ── Sort ─────────────────────────────────────────────────────
 $order        = 'p.is_active DESC, p.created_at DESC';
@@ -84,11 +84,11 @@ if ($sort === 'popular') {
     $cat_counts   = [];
     $filtered     = [];
     foreach ($product_rows as $row) {
-        $cat = $row['category_name'];
-        $cat_counts[$cat] = $cat_counts[$cat] ?? 0;
-        if ($cat_counts[$cat] < 5) {
+        $row_cat = $row['category_name'];
+        $cat_counts[$row_cat] = $cat_counts[$row_cat] ?? 0;
+        if ($cat_counts[$row_cat] < 5) {
             $filtered[] = $row;
-            $cat_counts[$cat]++;
+            $cat_counts[$row_cat]++;
         }
     }
     $product_rows = $filtered;
@@ -98,9 +98,9 @@ $total = count($product_rows);
 
 // ── Page label helpers ────────────────────────────────────────
 $page_mode = 'shop'; // default
-if ($sale)                  $page_mode = 'sale';
-elseif ($sort === 'popular') $page_mode = 'bestsellers';
-elseif ($sort === 'newest')  $page_mode = 'newarrivals';
+if ($sale)                                                   $page_mode = 'sale';
+elseif ($sort === 'popular')                                 $page_mode = 'bestsellers';
+elseif ($sort === 'newest' && !$cat && !$gender && !$q)     $page_mode = 'newarrivals';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -117,10 +117,21 @@ elseif ($sort === 'newest')  $page_mode = 'newarrivals';
 <!-- Page Header -->
 <div style="background:var(--navy3);border-bottom:1px solid var(--border);padding:36px 0;">
   <div class="wrap">
+    <?php
+      // Build breadcrumb + title pieces
+      $gLabel   = $gender ? strtoupper(e($gender)) . ($gender==='Kids' ? "'" : "'S") : '';
+      $catUpper = $cat    ? strtoupper(e($cat)) : '';
+    ?>
     <div class="breadcrumb">
       <a href="index.php">Home</a><span class="sep">/</span>
       <?php if ($q): ?>
         <a href="products.php">Shop</a><span class="sep">/</span><span>Search</span>
+      <?php elseif ($gender && $cat): ?>
+        <a href="products.php">Shop</a><span class="sep">/</span>
+        <a href="products.php?gender=<?=urlencode($gender)?>"><?=e($gender)?>'s</a><span class="sep">/</span>
+        <span><?=e($cat)?></span>
+      <?php elseif ($gender): ?>
+        <a href="products.php">Shop</a><span class="sep">/</span><span><?=e($gender)?>'s Shoes</span>
       <?php elseif ($cat): ?>
         <a href="products.php">Shop</a><span class="sep">/</span><span><?=e($cat)?></span>
       <?php else: ?>
@@ -129,42 +140,57 @@ elseif ($sort === 'newest')  $page_mode = 'newarrivals';
     </div>
 
     <?php if ($q): ?>
-      <!-- Search heading -->
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
         RESULTS FOR <span style="color:var(--accent)">"<?=strtoupper(e($q))?>"</span>
       </h1>
       <p style="color:var(--muted);margin-top:8px;font-size:.875rem;">
-        <?php if ($total > 0): ?>
-          <?=$total?> shoe<?=$total!=1?'s':''?> found
-          <?php if ($cat): ?> in <strong style="color:var(--white)"><?=e($cat)?></strong><?php endif; ?>
-        <?php else: ?>
-          No shoes matched your search
-        <?php endif; ?>
+        <?= $total > 0 ? "$total shoe".($total!=1?'s':'')." found" : "No shoes matched your search" ?>
+        <?php if ($cat): ?> in <strong style="color:var(--white)"><?=e($cat)?></strong><?php endif; ?>
       </p>
+
     <?php elseif ($page_mode === 'sale'): ?>
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
         <span style="color:var(--danger)">SALE</span> — <?=$total?> style<?=$total!=1?'s':''?>
       </h1>
       <p style="color:var(--muted);margin-top:6px;font-size:.875rem;">Limited-time discounts. Grab them before they're gone.</p>
+
     <?php elseif ($page_mode === 'bestsellers'): ?>
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
         BEST <span style="color:var(--accent)">SELLERS</span>
       </h1>
       <p style="color:var(--muted);margin-top:6px;font-size:.875rem;">Ranked by units sold — the shoes customers love most.</p>
+
     <?php elseif ($page_mode === 'newarrivals'): ?>
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
         NEW <span style="color:var(--accent)">ARRIVALS</span>
       </h1>
       <p style="color:var(--muted);margin-top:6px;font-size:.875rem;">Fresh drops — <?=$total?> latest style<?=$total!=1?'s':''?>.</p>
-    <?php else: ?>
+
+    <?php elseif ($cat && $gender): ?>
+      <!-- e.g. MEN'S RUNNING -->
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
-        <?php
-          $gLabel = $gender ? (strtoupper(e($gender)) . ($gender==='Kids' ? '\'' : '\'S')) : '';
-          if($gender && $cat) echo "$gLabel <span style='color:var(--accent)'>".strtoupper(e($cat))."</span>";
-          elseif($gender)     echo "$gLabel <span style='color:var(--accent)'>SHOES</span>";
-          elseif($cat)        echo strtoupper(e($cat));
-          else                echo 'ALL <span style="color:var(--accent)">SHOES</span>';
-        ?>
+        <?=$gLabel?> <span style="color:var(--accent)"><?=$catUpper?></span>
+      </h1>
+      <p style="color:var(--muted);margin-top:6px;font-size:.875rem;"><?=$total?> style<?=$total!=1?'s':''?> found</p>
+
+    <?php elseif ($cat): ?>
+      <!-- e.g. BASKETBALL / RUNNING / TRAINING / LIFESTYLE -->
+      <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
+        <?=$catUpper?> <span style="color:var(--accent)">SHOES</span>
+      </h1>
+      <p style="color:var(--muted);margin-top:6px;font-size:.875rem;"><?=$total?> style<?=$total!=1?'s':''?> found</p>
+
+    <?php elseif ($gender): ?>
+      <!-- e.g. MEN'S SHOES / WOMEN'S SHOES / KIDS' SHOES -->
+      <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
+        <?=$gLabel?> <span style="color:var(--accent)">SHOES</span>
+      </h1>
+      <p style="color:var(--muted);margin-top:6px;font-size:.875rem;"><?=$total?> style<?=$total!=1?'s':''?> available</p>
+
+    <?php else: ?>
+      <!-- All shoes, no filter -->
+      <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
+        ALL <span style="color:var(--accent)">SHOES</span>
       </h1>
       <p style="color:var(--muted);margin-top:6px;font-size:.875rem;"><?=$total?> style<?=$total!=1?'s':''?> found</p>
     <?php endif; ?>
@@ -215,7 +241,7 @@ elseif ($sort === 'newest')  $page_mode = 'newarrivals';
            style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:100px;border:1px solid var(--border);color:var(--muted);font-size:.8rem;transition:.2s;"
            onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'"
            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
-          ✕ Clear "<?=e($q)?>"
+          &times; Clear "<?=e($q)?>"
         </a>
         <?php endif; ?>
         <form method="GET" style="display:flex;align-items:center;gap:8px;">
@@ -238,7 +264,6 @@ elseif ($sort === 'newest')  $page_mode = 'newarrivals';
     <!-- ── Results ── -->
     <?php if ($total === 0): ?>
       <div style="text-align:center;padding:80px 0;">
-        <div style="font-size:3rem;margin-bottom:16px;"><?= $page_mode==='bestsellers' ? '🏆' : '🔍' ?></div>
         <h3 style="font-family:'Oswald',sans-serif;font-size:1.3rem;color:var(--white);margin-bottom:8px;">
           <?php
             if ($page_mode === 'bestsellers') echo 'No Best Sellers Yet';
@@ -282,20 +307,6 @@ elseif ($sort === 'newest')  $page_mode = 'newarrivals';
 
     <?php else: ?>
 
-      <!-- Keyword highlight note -->
-      <?php if ($q): ?>
-      <div style="margin-bottom:20px;padding:10px 16px;background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.2);border-radius:var(--radius);font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:8px;">
-        <span style="color:var(--accent);">🔍</span>
-        Showing all shoes matching
-        <?php
-        $words = preg_split('/\s+/', $q);
-        foreach ($words as $w) {
-            echo '<strong style="color:var(--accent);margin:0 3px;">"'.e($w).'"</strong>';
-        }
-        echo '— ' . $total . ' result' . ($total!=1?'s':'') . ' found';
-        ?>
-      </div>
-      <?php endif; ?>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">
         <?php
@@ -322,13 +333,20 @@ elseif ($sort === 'newest')  $page_mode = 'newarrivals';
               }
           }
         ?>
-        <div class="prod-card">
+        <?php $isActive = (int)($p['is_active'] ?? 1); ?>
+        <div class="prod-card<?= $isActive ? '' : ' prod-unavailable' ?>">
+          <?php if($isActive): ?>
           <a href="product_detail.php?id=<?=(int)$p['product_id']?>">
+          <?php else: ?>
+          <div>
+          <?php endif; ?>
             <div class="prod-img">
               <img src="<?=$img?>" alt="<?=e($p['name'])?>" loading="lazy">
               <span class="prod-badge"><?=e($p['category_name'])?></span>
-              <?php if($page_mode === 'bestsellers'): ?>
-                <?php $medal = ['🥇','🥈','🥉','#4','#5'][$cat_rank-1] ?? ''; ?>
+              <?php if(!$isActive): ?>
+              <span class="badge-unavailable">Unavailable</span>
+              <?php elseif($page_mode === 'bestsellers'): ?>
+                <?php $medal = ['#1','#2','#3','#4','#5'][$cat_rank-1] ?? ''; ?>
                 <span style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.55);color:#fff;font-size:.65rem;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px;">
                   <?=$medal?> <?=(int)($p['total_sold'] ?? 0)?> sold
                 </span>
@@ -338,15 +356,23 @@ elseif ($sort === 'newest')  $page_mode = 'newarrivals';
               <span style="position:absolute;top:10px;right:10px;background:var(--success);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;">NEW</span>
               <?php endif; ?>
             </div>
-          </a>
+          <?php if($isActive): ?></a><?php else: ?></div><?php endif; ?>
           <div class="prod-body">
             <div class="prod-cat"><?=e($p['category_name'])?></div>
             <div class="prod-name">
+              <?php if($isActive): ?>
               <a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=$display_name?></a>
+              <?php else: ?>
+              <span style="color:var(--muted);"><?=$display_name?></span>
+              <?php endif; ?>
             </div>
             <div class="prod-footer">
-              <span class="prod-price">RM <?=number_format($p['price'],2)?></span>
+              <span class="prod-price" style="<?= $isActive ? '' : 'color:var(--muted);text-decoration:line-through;' ?>">RM <?=number_format($p['price'],2)?></span>
+              <?php if($isActive): ?>
               <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>
+              <?php else: ?>
+              <span style="font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:#888;font-weight:600;">Unavailable</span>
+              <?php endif; ?>
             </div>
           </div>
         </div>

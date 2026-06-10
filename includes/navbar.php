@@ -432,7 +432,7 @@ $mega = [
     <a href="<?=$depth?>profile.php">My Profile</a>
     <a href="<?=$depth?>order_history.php">My Orders</a>
     <a href="<?=$depth?>notifications.php">
-      🔔 Notifications<?php if($notif_unread > 0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$notif_unread?></span><?php endif; ?>
+      Notifications<?php if($notif_unread > 0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$notif_unread?></span><?php endif; ?>
     </a>
     <a href="<?=$depth?>wishlist.php">My Wishlist<?php if($wl_notif_count>0): ?> <span style="background:#ef4444;color:#fff;border-radius:100px;padding:1px 6px;font-size:.65rem;margin-left:4px;"><?=$wl_notif_count?></span><?php endif; ?></a>
     <a href="<?=$depth?>design_request.php">Design Your Shoe</a>
@@ -470,7 +470,7 @@ function apexSearch(val){
                     <a href="<?=$depth?>product_detail.php?id=${p.id}">
                         <img src="${p.image}" alt="">
                         <div style="flex:1;min-width:0;">
-                            <div style="font-size:.88rem;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${apexHl(p.name,q)}</div>
+                            <div style="font-size:.88rem;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.replace(/</g,'&lt;')}</div>
                             <div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${p.category}</div>
                         </div>
                         <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--accent);flex-shrink:0;">RM ${parseFloat(p.price).toFixed(2)}</div>
@@ -478,22 +478,13 @@ function apexSearch(val){
                 `).join('')+`
                 <a href="<?=$depth?>products.php?q=${encodeURIComponent(q)}"
                    style="display:block;text-align:center;padding:11px;font-size:.82rem;color:var(--accent);font-weight:600;border-top:1px solid var(--border);">
-                   🔍 See all results for "${q.replace(/</g,'&lt;')}"
+                   See all results for "${q.replace(/</g,'&lt;')}"
                 </a>`;
                 apexDropEl.style.display='block';
             });
     },220);
 }
 
-function apexHl(text,query){
-    const words=query.split(/\s+/).filter(w=>w.length>0);
-    let r=text;
-    words.forEach(w=>{
-        const re=new RegExp('('+w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');
-        r=r.replace(re,'<span style="color:var(--accent);font-weight:700;">$1</span>');
-    });
-    return r;
-}
 
 function hideApexDrop(){if(apexDropEl)apexDropEl.style.display='none';}
 document.addEventListener('click',e=>{

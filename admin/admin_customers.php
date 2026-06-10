@@ -114,7 +114,7 @@ $customers = $conn->query("
 <!-- ── Ban/Unban Confirmation Modal ── -->
 <div class="ban-modal-bg" id="banModal">
   <div class="ban-modal">
-    <div style="font-size:1.8rem;margin-bottom:12px;" id="banModalIcon">🚫</div>
+    <div style="font-size:1rem;font-weight:700;margin-bottom:12px;letter-spacing:1px;color:var(--danger);" id="banModalIcon">BAN USER</div>
     <h3 id="banModalTitle">BAN CUSTOMER</h3>
     <p id="banModalDesc"></p>
     <form method="POST" id="banForm">
@@ -135,13 +135,13 @@ function openBanModal(id, name, isBanned){
     document.getElementById('banUserId').value    = id;
     document.getElementById('banCurrentVal').value = isBanned;
     if(isBanned){
-        document.getElementById('banModalIcon').textContent  = '✅';
+        document.getElementById('banModalIcon').textContent  = 'UNBAN USER';
         document.getElementById('banModalTitle').textContent = 'UNBAN CUSTOMER';
         document.getElementById('banModalDesc').innerHTML    = 'Restore access for <strong style="color:#fff;">'+name+'</strong>? They will be able to log in again.';
         document.getElementById('banConfirmBtn').textContent = 'CONFIRM UNBAN';
         document.getElementById('banConfirmBtn').className   = 'btn btn-primary';
     } else {
-        document.getElementById('banModalIcon').textContent  = '🚫';
+        document.getElementById('banModalIcon').textContent  = 'BAN USER';
         document.getElementById('banModalTitle').textContent = 'BAN CUSTOMER';
         document.getElementById('banModalDesc').innerHTML    = 'Ban <strong style="color:#fff;">'+name+'</strong>? They will not be able to log in until unbanned.';
         document.getElementById('banConfirmBtn').textContent = 'CONFIRM BAN';

@@ -39,7 +39,7 @@ $reqs = $conn->query("
 
 <?php if ($reqs->num_rows === 0): ?>
   <div class="empty-cart" style="padding:80px 0;">
-    <div class="ec-icon">✏️</div>
+    <div class="ec-icon" style="font-family:'Oswald',sans-serif;font-size:1.5rem;letter-spacing:2px;opacity:.3;">DESIGN</div>
     <h3>No Design Requests Yet</h3>
     <p style="color:var(--muted);margin-bottom:24px;">Have a shoe idea? Submit it and our team will review it!</p>
     <a href="design_request.php" class="btn btn-primary">Submit Your First Design</a>
@@ -48,10 +48,10 @@ $reqs = $conn->query("
 <?php else: while ($r = $reqs->fetch_assoc()):
   // Status colours
   $sc = match($r['status']) {
-    'Approved'  => ['bg'=>'rgba(82,196,26,.15)',  'color'=>'#73d13d',  'icon'=>'✅'],
-    'Rejected'  => ['bg'=>'rgba(255,77,79,.15)',  'color'=>'#ff7070',  'icon'=>'❌'],
-    'In Review' => ['bg'=>'rgba(100,149,237,.15)','color'=>'#8ab4f8',  'icon'=>'🔍'],
-    default     => ['bg'=>'rgba(255,200,0,.15)',  'color'=>'#ffc800',  'icon'=>'⏳'],
+    'Approved'  => ['bg'=>'rgba(82,196,26,.15)',  'color'=>'#73d13d',  'icon'=>''],
+    'Rejected'  => ['bg'=>'rgba(255,77,79,.15)',  'color'=>'#ff7070',  'icon'=>''],
+    'In Review' => ['bg'=>'rgba(100,149,237,.15)','color'=>'#8ab4f8',  'icon'=>''],
+    default     => ['bg'=>'rgba(255,200,0,.15)',  'color'=>'#ffc800',  'icon'=>''],
   };
 ?>
   <div class="card" style="margin-bottom:18px;overflow:hidden;">

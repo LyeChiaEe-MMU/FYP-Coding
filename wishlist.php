@@ -150,7 +150,7 @@ $wishlist = $wl_stmt->get_result();
 
   <?php if ($wishlist->num_rows === 0): ?>
   <div class="empty-cart" style="padding:80px 0;">
-    <div class="ec-icon">🤍</div>
+    <div class="ec-icon" style="font-family:'Oswald',sans-serif;font-size:1.5rem;letter-spacing:2px;opacity:.3;">WISHLIST</div>
     <h3>Your wishlist is empty</h3>
     <p style="color:var(--muted);margin-bottom:24px;">Save shoes you love — you'll be notified when prices drop!</p>
     <a href="products.php" class="btn btn-primary">Browse Shoes</a>

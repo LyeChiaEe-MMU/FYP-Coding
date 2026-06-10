@@ -58,5 +58,5 @@ if ($chk->get_result()->num_rows > 0) {
     $ins = $conn->prepare("INSERT IGNORE INTO wishlists (user_id,product_id) VALUES (?,?)");
     $ins->bind_param("ii", $uid, $pid);
     $ins->execute();
-    echo json_encode(['status'=>'ok','wishlisted'=>true,'msg'=>'Added to wishlist! ♥']);
+    echo json_encode(['status'=>'ok','wishlisted'=>true,'msg'=>'Added to wishlist!']);
 }

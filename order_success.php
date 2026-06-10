@@ -39,7 +39,6 @@ $items = $conn->query("
 <div class="success-wrap">
   <div class="success-box">
     <div class="card" style="padding:44px;text-align:center;">
-      <div class="success-icon">✅</div>
       <h1 style="font-family:'Oswald',sans-serif;font-size:1.8rem;letter-spacing:2px;color:var(--white);margin-bottom:8px;">ORDER CONFIRMED!</h1>
       <p style="color:var(--muted);margin-bottom:28px;">Thank you <?=e($_SESSION['user_name']??'')?>! Your order has been placed and is being processed.</p>
 

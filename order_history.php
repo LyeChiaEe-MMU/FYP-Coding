@@ -14,6 +14,14 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['mark_received'])){
     if($chk->get_result()->num_rows > 0){
         $conn->query("UPDATE orders SET status='Completed' WHERE order_id=$oid");
         $conn->query("INSERT INTO order_status_history (order_id,status) VALUES ($oid,'Completed')");
+        // Notification — received confirmed
+        $order_num = '#' . str_pad($oid, 6, '0', STR_PAD_LEFT);
+        add_notification(
+            $conn, $uid,
+            'Order ' . $order_num . ' Received — Thank You!',
+            'You have confirmed receipt of order ' . $order_num . '. We hope you love your new shoes! You can now write a review for any item in this order.',
+            'success'
+        );
     }
     header("Location: order_history.php?msg=Order+marked+as+received."); exit;
 }
@@ -34,7 +42,20 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['submit_review'])){
     $chk->bind_param("iii",$oid,$uid,$pid); $chk->execute();
     if($chk->get_result()->num_rows > 0){
         $ins = $conn->prepare("INSERT IGNORE INTO reviews (user_id,product_id,order_id,rating,comment) VALUES (?,?,?,?,?)");
-        $ins->bind_param("iiiis",$uid,$pid,$oid,$rating,$comment); $ins->execute();
+        $ins->bind_param("iiiis",$uid,$pid,$oid,$rating,$comment);
+        $ins->execute();
+        if($ins->affected_rows > 0){
+            // Notification — review submitted
+            $pname_r = $conn->query("SELECT name FROM products WHERE product_id=$pid");
+            $pname   = $pname_r ? ($pname_r->fetch_assoc()['name'] ?? 'the product') : 'the product';
+            $stars   = str_repeat('★', $rating) . str_repeat('☆', 5 - $rating);
+            add_notification(
+                $conn, $uid,
+                'Review Submitted — Thank You!',
+                'Your ' . $stars . ' review for "' . $pname . '" has been published. Your feedback helps other shoppers make better choices!',
+                'review'
+            );
+        }
     }
     header("Location: order_history.php?msg=Review+submitted.+Thank+you!"); exit;
 }
@@ -116,7 +137,7 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
 
 <?php if($result->num_rows===0): ?>
 <div class="empty-cart" style="padding:80px 0;">
-  <div class="ec-icon">📦</div>
+  <div class="ec-icon" style="font-family:'Oswald',sans-serif;font-size:1.5rem;letter-spacing:2px;opacity:.3;">ORDERS</div>
   <h3>No Orders Yet</h3>
   <p>You haven't placed any orders yet.</p>
   <a href="products.php" class="btn btn-primary" style="margin-top:8px;">Start Shopping</a>
@@ -171,7 +192,7 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
         </div>
         <?php if($disc > 0 && $vc !== ''): ?>
         <div style="font-size:.68rem;color:#22c55e;font-weight:600;white-space:nowrap;">
-          🎟️ <?=e($vc)?> −RM <?=number_format($disc,2)?>
+          <?=e($vc)?> −RM <?=number_format($disc,2)?>
         </div>
         <?php endif; ?>
       </div>
@@ -198,7 +219,7 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
           <?php else: ?>
           <button type="button" class="btn-review"
                   onclick="openReview(<?=$oid?>,<?=(int)$it['product_id']?>,'<?=e(addslashes($it['name']))?>')">
-            ★ Review
+            Review
           </button>
           <?php endif; ?>
         <?php endif; ?>
@@ -209,6 +230,11 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
 
   <!-- Timeline + actions -->
   <div style="padding:18px 22px;">
+    <?php if($status === 'Cancelled'): ?>
+    <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:100px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);">
+      <span style="color:#ef4444;font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;">✗ Order Cancelled</span>
+    </div>
+    <?php else: ?>
     <div style="display:flex;align-items:center;">
       <?php foreach($steps as $i=>$step):
         $done   = $i <= $cur;
@@ -225,18 +251,19 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
       </div>
       <?php endforeach; ?>
     </div>
+    <?php endif; ?>
 
     <!-- Mark as Received button -->
     <?php if($status === 'Delivered'): ?>
     <div style="margin-top:16px;">
       <button type="button" class="btn-received" onclick="openReceiveConfirm(<?=$oid?>)">
-        ✅ Mark as Received
+        Mark as Received
       </button>
     </div>
     <?php endif; ?>
 
     <div style="margin-top:12px;font-size:.78rem;color:var(--muted);">
-      📍 <?=e($o['shipping_address'])?>
+      <?=e($o['shipping_address'])?>
     </div>
   </div>
 
@@ -249,12 +276,11 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
 <!-- ── Mark as Received Confirmation Modal ── -->
 <div class="confirm-modal-bg" id="receiveModal">
   <div class="confirm-modal">
-    <div style="font-size:2rem;margin-bottom:10px;">📦</div>
     <h3>CONFIRM ORDER RECEIVED</h3>
     <p>Please confirm that you have <strong style="color:var(--white);">physically received</strong> your order and the items are in good condition.</p>
 
     <div class="disclaimer">
-      ⚠️ <strong>Important Notice:</strong> By clicking <em>"Yes, I Received It"</em>, you confirm that your order has been delivered to you. This action <strong>cannot be undone</strong>.<br><br>
+      <strong>Important Notice:</strong> By clicking <em>"Yes, I Received It"</em>, you confirm that your order has been delivered to you. This action <strong>cannot be undone</strong>.<br><br>
       Once confirmed, Apex Sport will not be held responsible for any claims of non-delivery. If you have not received your package yet, please click <strong>"Not Yet"</strong> and contact our support team.
     </div>
 
@@ -264,7 +290,7 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
       <input type="hidden" name="order_id" id="receive_order_id" value="">
       <div style="display:flex;gap:10px;margin-top:6px;">
         <button type="submit" class="btn btn-primary btn-sm" style="background:#22c55e;border-color:#22c55e;flex:1;">
-          ✅ Yes, I Received It
+          ✓ Yes, I Received It
         </button>
         <button type="button" class="btn btn-secondary btn-sm" onclick="closeReceiveConfirm()" style="flex:1;">
           ✗ Not Yet
@@ -277,7 +303,6 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
 <!-- ── Review Modal ── -->
 <div class="review-modal-bg" id="reviewModal">
   <div class="review-modal">
-    <div style="font-size:1.6rem;margin-bottom:8px;">⭐</div>
     <h3 id="reviewModalTitle">WRITE A REVIEW</h3>
     <p id="reviewProductName" style="color:var(--muted);font-size:.82rem;margin-top:4px;"></p>
 

@@ -77,10 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <p style="color:var(--muted);margin-bottom:36px;">Our support team is available Monday to Friday, 9:00 AM – 6:00 PM (MYT). We aim to respond within 1 business day.</p>
 
         <?php foreach([
-          ['📍','Our Address','Multimedia University Melaka<br>Jalan Ayer Keroh Lama, 75450<br>Melaka, Malaysia'],
-          ['📧','Email Us','ApexStore@gmail.com<br><span style="font-size:.78rem;color:var(--muted)">Response within 1 business day</span>'],
-          ['📞','Call Us','+60 11-3190 8939<br><span style="font-size:.78rem;color:var(--muted)">Mon – Fri, 9:00 AM – 6:00 PM</span>'],
-          ['💬','WhatsApp','+60 11-3190 8939<br><span style="font-size:.78rem;color:var(--muted)">Quick replies during office hours</span>'],
+          ['','Our Address','Multimedia University Melaka<br>Jalan Ayer Keroh Lama, 75450<br>Melaka, Malaysia'],
+          ['','Email Us','ApexStore@gmail.com<br><span style="font-size:.78rem;color:var(--muted)">Response within 1 business day</span>'],
+          ['','Call Us','+60 11-3190 8939<br><span style="font-size:.78rem;color:var(--muted)">Mon – Fri, 9:00 AM – 6:00 PM</span>'],
+          ['','WhatsApp','+60 11-3190 8939<br><span style="font-size:.78rem;color:var(--muted)">Quick replies during office hours</span>'],
         ] as $ci): ?>
         <div class="ci-block">
           <div style="font-size:1.5rem;flex-shrink:0;margin-top:2px;"><?=$ci[0]?></div>

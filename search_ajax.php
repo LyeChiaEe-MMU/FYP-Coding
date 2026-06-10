@@ -12,7 +12,10 @@ if (strlen($raw) < 2) { echo json_encode([]); exit; }
 // Split into individual keywords — so "apex gen" becomes ["apex","gen"]
 // Every keyword must appear somewhere in the product name or category
 $keywords = preg_split('/\s+/', $raw);
-$keywords = array_filter($keywords, fn($w) => strlen($w) >= 1);
+$keywords = array_values(array_filter($keywords, fn($w) => strlen($w) >= 1));
+
+// Guard: if no usable keywords remain (e.g. all-whitespace input), return empty
+if(empty($keywords)){ echo json_encode([]); exit; }
 
 // Build WHERE clause: each keyword is checked with LIKE
 $conditions = [];

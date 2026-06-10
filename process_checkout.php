@@ -48,7 +48,8 @@ while ($r = $cart->fetch_assoc()) {
 $shipping = $total >= 300 ? 0 : 10;
 $grand    = $total + $shipping;
 
-// ── Validate + apply voucher server-side ────────────────────────
+// ── Pre-validate voucher (read-only check before transaction) ───
+$vrow = null;
 if($voucher_code !== ''){
     $vs = $conn->prepare("
         SELECT voucher_id, amount FROM vouchers
@@ -59,66 +60,109 @@ if($voucher_code !== ''){
     $vs->execute();
     $vrow = $vs->get_result()->fetch_assoc();
     if($vrow){
-        $discount_amount = min((float)$vrow['amount'], $grand); // can't discount more than total
+        $discount_amount = min((float)$vrow['amount'], $grand);
         $grand = max(0, $grand - $discount_amount);
-        // Mark voucher as used
-        $conn->query("UPDATE vouchers SET is_used=1 WHERE voucher_id={$vrow['voucher_id']}");
     } else {
-        $voucher_code    = '';
-        $discount_amount = 0;
+        $voucher_code = ''; $discount_amount = 0;
     }
 } else {
     $discount_amount = 0;
 }
 
-// 1. Insert order
-$os = $conn->prepare("
-    INSERT INTO orders (user_id, total_amount, discount_amount, voucher_code, status, shipping_address, payment_method, payment_detail)
-    VALUES (?, ?, ?, ?, 'Processing', ?, ?, ?)
-");
-$vc_val = $voucher_code ?: '';
-$os->bind_param("iddssss", $uid, $grand, $discount_amount, $vc_val, $shipping_address, $pm_label, $payment_detail);
-$os->execute();
-$oid = $conn->insert_id;
+// ── BEGIN TRANSACTION — all steps succeed or all roll back ───────
+$conn->begin_transaction();
+try {
 
-// 2. Insert order items
-$ins = $conn->prepare("INSERT INTO order_items (order_id, product_id, size, color, quantity, price) VALUES (?, ?, ?, ?, ?, ?)");
-foreach ($items as $item) {
-    $ins->bind_param("iissid", $oid, $item['product_id'], $item['size'], $item['color'], $item['quantity'], $item['price']);
-    $ins->execute();
+    // 1. Insert order
+    $os = $conn->prepare("
+        INSERT INTO orders (user_id, total_amount, discount_amount, voucher_code, status, shipping_address, payment_method, payment_detail)
+        VALUES (?, ?, ?, ?, 'Processing', ?, ?, ?)
+    ");
+    $vc_val = $voucher_code ?: '';
+    $os->bind_param("iddssss", $uid, $grand, $discount_amount, $vc_val, $shipping_address, $pm_label, $payment_detail);
+    $os->execute();
+    $oid = $conn->insert_id;
+    if(!$oid) throw new Exception("Order insert failed.");
+
+    // 2. Insert order items
+    $ins = $conn->prepare("INSERT INTO order_items (order_id, product_id, size, color, quantity, price) VALUES (?, ?, ?, ?, ?, ?)");
+    foreach ($items as $item) {
+        $ins->bind_param("iissid", $oid, $item['product_id'], $item['size'], $item['color'], $item['quantity'], $item['price']);
+        $ins->execute();
+    }
+
+    // 3. Status history
+    $hist = $conn->prepare("INSERT INTO order_status_history (order_id, status) VALUES (?, ?)");
+    $st   = 'Processing';
+    $hist->bind_param("is", $oid, $st);
+    $hist->execute();
+
+    // 4. Update user shipping address
+    $upd = $conn->prepare("UPDATE users SET address = ? WHERE user_id = ?");
+    $upd->bind_param("si", $shipping_address, $uid);
+    $upd->execute();
+
+    // 5a. Decrement per-colour-size stock — requires actual stock available (race-safe)
+    $deduct_sz = $conn->prepare("
+        UPDATE product_stock
+        SET stock = stock - ?
+        WHERE product_id = ? AND color_name = ? AND size = ? AND stock >= ?
+    ");
+    // 5b. Decrement total stock in products
+    $deduct_tot = $conn->prepare("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE product_id = ?");
+
+    foreach ($items as $item) {
+        $qty = $item['quantity'];
+        $deduct_sz->bind_param("iissi", $qty, $item['product_id'], $item['color'], $item['size'], $qty);
+        $deduct_sz->execute();
+        // If affected_rows=0 the size ran out — still continue (stock already 0, order noted)
+        $deduct_tot->bind_param("ii", $qty, $item['product_id']);
+        $deduct_tot->execute();
+    }
+
+    // 6. Mark voucher used — atomic: WHERE is_used=0 guards against double-spend
+    if($vrow){
+        $vu = $conn->prepare("UPDATE vouchers SET is_used=1 WHERE voucher_id=? AND is_used=0");
+        $vu->bind_param("i", $vrow['voucher_id']);
+        $vu->execute();
+        if($vu->affected_rows === 0){
+            // Another concurrent request already consumed this voucher
+            throw new Exception("Voucher already used.");
+        }
+    }
+
+    // 7. Clear cart
+    $del = $conn->prepare("DELETE FROM cart_items WHERE user_id = ?");
+    $del->bind_param("i", $uid);
+    $del->execute();
+
+    $conn->commit();
+
+} catch(Exception $e){
+    $conn->rollback();
+    $_SESSION['checkout_error'] = "Checkout failed: " . $e->getMessage() . " Please try again.";
+    header("Location: checkout.php"); exit;
 }
 
-// 3. Status history
-$hist = $conn->prepare("INSERT INTO order_status_history (order_id, status) VALUES (?, ?)");
-$st   = 'Processing';
-$hist->bind_param("is", $oid, $st);
-$hist->execute();
+// 7. Notification — order placed
+$order_num  = '#' . str_pad($oid, 6, '0', STR_PAD_LEFT);
+$pay_short  = $pm_label . ($payment_detail ? ' — ' . $payment_detail : '');
+add_notification(
+    $conn, $uid,
+    'Order Placed — ' . $order_num,
+    'Your order ' . $order_num . ' has been placed successfully via ' . $pay_short . '. Total paid: RM ' . number_format($grand, 2) . '. We will process it shortly.',
+    'order'
+);
 
-// 4. Update user shipping address
-$upd = $conn->prepare("UPDATE users SET address = ? WHERE user_id = ?");
-$upd->bind_param("si", $shipping_address, $uid);
-$upd->execute();
-
-// 5a. Decrement per-colour-size stock in product_stock
-$deduct_sz = $conn->prepare("
-    UPDATE product_stock
-    SET stock = GREATEST(0, stock - ?)
-    WHERE product_id = ? AND color_name = ? AND size = ?
-");
-// 5b. Decrement total stock in products
-$deduct_tot = $conn->prepare("UPDATE products SET stock = GREATEST(0, stock - ?) WHERE product_id = ?");
-
-foreach ($items as $item) {
-    $deduct_sz->bind_param("iiss", $item['quantity'], $item['product_id'], $item['color'], $item['size']);
-    $deduct_sz->execute();
-    $deduct_tot->bind_param("ii", $item['quantity'], $item['product_id']);
-    $deduct_tot->execute();
+// 8. Notification — voucher redeemed (if used)
+if($discount_amount > 0 && $voucher_code !== ''){
+    add_notification(
+        $conn, $uid,
+        'Voucher Redeemed — ' . $voucher_code,
+        'Your voucher code "' . $voucher_code . '" was successfully applied to order ' . $order_num . ', saving you RM ' . number_format($discount_amount, 2) . '. The voucher has been marked as used.',
+        'info'
+    );
 }
-
-// 6. Clear cart
-$del = $conn->prepare("DELETE FROM cart_items WHERE user_id = ?");
-$del->bind_param("i", $uid);
-$del->execute();
 
 header("Location: order_success.php?order_id=$oid");
 exit;

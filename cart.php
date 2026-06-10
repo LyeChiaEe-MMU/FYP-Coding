@@ -50,7 +50,7 @@ $total    = $subtotal + $shipping;
 
 <?php if(empty($rows)): ?>
 <div class="empty-cart">
-  <div class="ec-icon">🛒</div>
+  <div class="ec-icon" style="font-family:'Oswald',sans-serif;font-size:1.5rem;letter-spacing:2px;opacity:.3;">CART</div>
   <h3>Your cart is empty</h3>
   <p style="color:var(--muted)">Looks like you haven't added anything yet.</p>
   <a href="products.php" class="btn btn-primary">Shop Now</a>
@@ -107,7 +107,7 @@ $total    = $subtotal + $shipping;
             <?=csrf_field()?>
             <input type="hidden" name="action" value="remove">
             <input type="hidden" name="cart_id" value="<?=(int)$r['cart_id']?>">
-            <button type="submit" class="ci-remove" title="Remove">✕</button>
+            <button type="submit" class="ci-remove" title="Remove">&times;</button>
           </form>
         </div>
       </div>

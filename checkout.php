@@ -105,14 +105,13 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
       <p id="payMethodErr" style="font-size:.78rem;color:#ef4444;display:none;margin-bottom:8px;">Please select a payment method.</p>
       <div class="payment-options">
         <?php foreach([
-          ['online_banking','🏦','Online Banking','FPX — All major banks'],
-          ['credit_card',   '💳','Credit / Debit','Visa, Mastercard'],
-          ['ewallet',       '📱','E-Wallet','GrabPay, Touch n Go'],
-          ['cod',           '💵','Cash on Delivery','Pay upon receiving'],
+          ['online_banking','','Online Banking','FPX — All major banks'],
+          ['credit_card',   '','Credit / Debit','Visa, Mastercard'],
+          ['ewallet',       '','E-Wallet','GrabPay, Touch n Go'],
+          ['cod',           '','Cash on Delivery','Pay upon receiving'],
         ] as $pm): ?>
         <label class="pay-opt" data-method="<?=e($pm[0])?>"
                onclick="selectPayment('<?=e($pm[0])?>')">
-          <span style="font-size:1.4rem;"><?=$pm[1]?></span>
           <div>
             <div style="font-weight:600;font-size:.875rem;"><?=e($pm[2])?></div>
             <div style="font-size:.75rem;color:var(--muted);"><?=e($pm[3])?></div>
@@ -183,11 +182,11 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
       <!-- COD detail -->
       <div id="detail_cod" class="pay-detail" style="display:none;">
         <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(200,84,60,.06);border:1px solid rgba(200,84,60,.2);border-radius:8px;font-size:.82rem;color:var(--muted);">
-          💡 Pay the delivery rider in cash when your order arrives. No online payment required.
+          Pay the delivery rider in cash when your order arrives. No online payment required.
         </div>
       </div>
 
-      <div class="sim-note" style="margin-top:14px;">⚠️ This is a simulated payment gateway for FYP purposes — no real money is processed.</div>
+      <div class="sim-note" style="margin-top:14px;">Note: This is a simulated payment gateway for FYP purposes — no real money is processed.</div>
     </div>
   </div>
 
@@ -215,7 +214,7 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
     <!-- Voucher -->
     <div style="margin:14px 0 2px;border-top:1px solid var(--border);padding-top:14px;">
       <div style="font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">
-        🎟️ Voucher Code
+        Voucher Code
         <?php if(!empty($my_vouchers)): ?>
         <span style="color:var(--accent);font-weight:600;"> (<?=count($my_vouchers)?> available)</span>
         <?php endif; ?>
@@ -234,13 +233,13 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
       <div class="voucher-row">
         <input type="text" id="voucherDisplay" class="voucher-input" placeholder="Enter voucher code" maxlength="20">
         <button type="button" class="btn btn-outline btn-sm" onclick="applyVoucher()" id="applyVoucherBtn">Apply</button>
-        <button type="button" class="btn btn-secondary btn-sm" onclick="removeVoucher()" id="removeVoucherBtn" style="display:none;">✕</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="removeVoucher()" id="removeVoucherBtn" style="display:none;">&times; Remove</button>
       </div>
       <div id="voucherMsg" class="voucher-msg"></div>
     </div>
 
     <div id="discountRow" class="discount-row" style="display:none;">
-      <span>🎟️ Voucher Discount</span>
+      <span>Voucher Discount</span>
       <span id="discountDisplay" style="color:#22c55e;">-RM 0.00</span>
     </div>
 
@@ -420,10 +419,14 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e){
         const cvv      = document.getElementById('cardCvv').value.trim();
         const cardName = document.getElementById('cardName').value.trim();
 
-        setFieldErr('grp_card_number','cardNumberErr', cardNum.length !== 16, ok); if(cardNum.length!==16) ok=false;
-        setFieldErr('grp_card_expiry','cardExpiryErr', expiry.length < 7, ok);    if(expiry.length<7) ok=false;
-        setFieldErr('grp_card_cvv',   'cardCvvErr',    cvv.length !== 3, ok);     if(cvv.length!==3) ok=false;
-        setFieldErr('grp_card_name',  'cardNameErr',   cardName.length < 2, ok);  if(cardName.length<2) ok=false;
+        if(cardNum.length !== 16){ setFieldErr('grp_card_number','cardNumberErr', true);  ok=false; }
+        else                     { setFieldErr('grp_card_number','cardNumberErr', false); }
+        if(expiry.length < 7)    { setFieldErr('grp_card_expiry','cardExpiryErr', true);  ok=false; }
+        else                     { setFieldErr('grp_card_expiry','cardExpiryErr', false); }
+        if(cvv.length !== 3)     { setFieldErr('grp_card_cvv',   'cardCvvErr',    true);  ok=false; }
+        else                     { setFieldErr('grp_card_cvv',   'cardCvvErr',    false); }
+        if(cardName.length < 2)  { setFieldErr('grp_card_name',  'cardNameErr',   true);  ok=false; }
+        else                     { setFieldErr('grp_card_name',  'cardNameErr',   false); }
 
         // Build last-4 display for receipt
         if(cardNum.length === 16){

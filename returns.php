@@ -87,7 +87,7 @@
           'Items without original packaging or missing tags',
         ] as $item): ?>
         <li style="display:flex;gap:10px;align-items:flex-start;font-size:.9rem;color:var(--muted);">
-          <span style="color:var(--danger);flex-shrink:0;">✕</span>
+          <span style="color:var(--danger);font-size:1rem;flex-shrink:0;margin-top:1px;">✗</span>
           <?=htmlspecialchars($item)?>
         </li>
         <?php endforeach; ?>

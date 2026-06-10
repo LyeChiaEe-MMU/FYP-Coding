@@ -33,8 +33,8 @@ if($v){
         'valid'  => true,
         'amount' => (float)$v['amount'],
         'reason' => $v['reason'],
-        'msg'    => '✅ Voucher applied! You save RM '.number_format($v['amount'],2).'.',
+        'msg'    => 'Voucher applied! You save RM '.number_format($v['amount'],2).'.',
     ]);
 } else {
-    echo json_encode(['valid'=>false,'msg'=>'❌ Invalid, expired, or already used voucher code.']);
+    echo json_encode(['valid'=>false,'msg'=>'Invalid, expired, or already used voucher code.']);
 }

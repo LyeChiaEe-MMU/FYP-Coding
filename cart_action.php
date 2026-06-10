@@ -32,25 +32,35 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             exit;
         }
 
-        // ── Check stock in product_stock table ──────────────
+        // ── Check how many are already in cart for this size+colour ──
+        $chk = $conn->prepare("SELECT cart_id, quantity FROM cart_items WHERE user_id=? AND product_id=? AND size=? AND color=?");
+        $chk->bind_param("iiss",$user_id,$product_id,$size,$color);
+        $chk->execute();
+        $row = $chk->get_result()->fetch_assoc();
+        $already_in_cart = $row ? (int)$row['quantity'] : 0;
+
+        // ── Check stock — must have enough for what's already in cart + new qty ──
         $stk_chk = $conn->prepare("SELECT stock FROM product_stock WHERE product_id=? AND color_name=? AND size=?");
         if($stk_chk){
             $stk_chk->bind_param("iss",$product_id,$color,$size);
             $stk_chk->execute();
             $stk_row = $stk_chk->get_result()->fetch_assoc();
-            if($stk_row !== null && (int)$stk_row['stock'] < 1){
-                $_SESSION['cart_msg']      = "Sorry, UK $size in $color is out of stock.";
-                $_SESSION['cart_msg_type'] = "err";
-                header("Location: product_detail.php?id=$product_id");
-                exit;
+            if($stk_row !== null){
+                $available = (int)$stk_row['stock'];
+                if($available < 1){
+                    $_SESSION['cart_msg']      = "Sorry, UK $size in $color is out of stock.";
+                    $_SESSION['cart_msg_type'] = "err";
+                    header("Location: product_detail.php?id=$product_id");
+                    exit;
+                }
+                if(($already_in_cart + $quantity) > $available){
+                    $_SESSION['cart_msg']      = "Only $available unit(s) available for UK $size in $color (you already have $already_in_cart in cart).";
+                    $_SESSION['cart_msg_type'] = "err";
+                    header("Location: product_detail.php?id=$product_id");
+                    exit;
+                }
             }
         }
-
-        // ── Add to cart (include color in uniqueness check) ─────────
-        $chk = $conn->prepare("SELECT cart_id, quantity FROM cart_items WHERE user_id=? AND product_id=? AND size=? AND color=?");
-        $chk->bind_param("iiss",$user_id,$product_id,$size,$color);
-        $chk->execute();
-        $row = $chk->get_result()->fetch_assoc();
 
         if($row){
             $nq = $row['quantity'] + $quantity;
@@ -63,7 +73,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $ins->execute();
         }
 
-        $_SESSION['cart_msg']      = "Added to cart! 🛒 UK $size" . ($color && $color!='Default' ? " — $color" : "");
+        $_SESSION['cart_msg']      = "Added to cart! UK $size" . ($color && $color!='Default' ? " — $color" : "");
         $_SESSION['cart_msg_type'] = "ok";
         header("Location: product_detail.php?id=$product_id");
         exit;

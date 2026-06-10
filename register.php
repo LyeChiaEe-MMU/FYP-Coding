@@ -46,11 +46,29 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     } elseif(!$error && !in_array($pref, ['men','women','kids'])){
         $error = "Please select a shopping preference.";
     } else if(!$error) {
-        $chk = $conn->prepare("SELECT user_id FROM users WHERE email=?");
-        $chk->bind_param("s",$email); $chk->execute();
-        if($chk->get_result()->num_rows > 0){
-            $error = "An account with this email already exists.";
-        } else {
+        // Check duplicate email
+        $chk_e = $conn->prepare("SELECT user_id FROM users WHERE email=?");
+        $chk_e->bind_param("s",$email); $chk_e->execute();
+        if($chk_e->get_result()->num_rows > 0){
+            $error = "An account with this email address already exists.";
+        }
+        // Check duplicate phone
+        if(!$error){
+            $chk_p = $conn->prepare("SELECT user_id FROM users WHERE phone=?");
+            $chk_p->bind_param("s",$phone); $chk_p->execute();
+            if($chk_p->get_result()->num_rows > 0){
+                $error = "This phone number is already registered to another account.";
+            }
+        }
+        // Check duplicate name
+        if(!$error){
+            $chk_n = $conn->prepare("SELECT user_id FROM users WHERE name=?");
+            $chk_n->bind_param("s",$name); $chk_n->execute();
+            if($chk_n->get_result()->num_rows > 0){
+                $error = "This name is already taken. Please use a different name.";
+            }
+        }
+        if(!$error){
             $hashed = password_hash($pass, PASSWORD_DEFAULT);
             $ins = $conn->prepare("INSERT INTO users (name,email,password,phone,address,shopping_preference,date_of_birth) VALUES (?,?,?,?,?,?,?)");
             $ins->bind_param("sssssss",$name,$email,$hashed,$phone,$address,$pref,$dob);

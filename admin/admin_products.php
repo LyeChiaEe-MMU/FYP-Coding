@@ -28,54 +28,63 @@ if(isset($_POST['toggle_status'])){
             ");
 
             $refund_count = 0;
-            if($affected && $affected->num_rows > 0){
-                while($ord = $affected->fetch_assoc()){
-                    $oid       = (int)$ord['order_id'];
-                    $uid_c     = (int)$ord['user_id'];
-                    $amt       = (float)$ord['total_amount'];
-                    $ord_label = str_pad($oid, 6, '0', STR_PAD_LEFT);
+            $conn->begin_transaction();
+            try {
+                if($affected && $affected->num_rows > 0){
+                    $osh_exists = (bool)$conn->query("SHOW TABLES LIKE 'order_status_history'")->num_rows;
+                    while($ord = $affected->fetch_assoc()){
+                        $oid       = (int)$ord['order_id'];
+                        $uid_c     = (int)$ord['user_id'];
+                        $amt       = (float)$ord['total_amount'];
+                        $ord_label = str_pad($oid, 6, '0', STR_PAD_LEFT);
 
-                    // Cancel the order
-                    $conn->query("UPDATE orders SET status='Cancelled' WHERE order_id=$oid");
+                        // Cancel the order
+                        $conn->query("UPDATE orders SET status='Cancelled' WHERE order_id=$oid");
 
-                    // Log into order_status_history (if table exists)
-                    $osh = $conn->query("SHOW TABLES LIKE 'order_status_history'");
-                    if($osh && $osh->num_rows > 0){
-                        $conn->query("INSERT INTO order_status_history (order_id,status) VALUES ($oid,'Cancelled')");
+                        // Log into order_status_history
+                        if($osh_exists){
+                            $conn->query("INSERT INTO order_status_history (order_id,status) VALUES ($oid,'Cancelled')");
+                        }
+
+                        // Generate a unique voucher code: APEX-XXXXXXXX
+                        do {
+                            $vcode    = 'APEX-'.strtoupper(bin2hex(random_bytes(4)));
+                            $vcode_e  = $conn->real_escape_string($vcode);
+                            $v_exists = $conn->query("SELECT voucher_id FROM vouchers WHERE code='$vcode_e'");
+                        } while($v_exists && $v_exists->num_rows > 0);
+
+                        $expires  = date('Y-m-d', strtotime('+90 days'));
+                        $v_reason = "Refund — Order #$ord_label ($prod_name discontinued)";
+
+                        $sv = $conn->prepare("INSERT INTO vouchers (user_id,code,amount,reason,expires_at) VALUES (?,?,?,?,?)");
+                        $sv->bind_param("isdss", $uid_c, $vcode, $amt, $v_reason, $expires);
+                        $sv->execute();
+
+                        // Create in-app notification for the customer
+                        $n_title   = "Order Cancelled — Refund Voucher Issued";
+                        $n_message = "Your order #$ord_label has been cancelled because \"$prod_name\" is no longer available. "
+                                   . "We apologise for the inconvenience. A full refund voucher of RM ".number_format($amt,2)
+                                   . " has been added to your account (Voucher Code: $vcode). Valid for 90 days. "
+                                   . "Check My Vouchers in your profile to use it on your next purchase!";
+
+                        $sn = $conn->prepare("INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,'refund')");
+                        $sn->bind_param("iss", $uid_c, $n_title, $n_message);
+                        $sn->execute();
+
+                        $refund_count++;
                     }
-
-                    // Generate a unique voucher code: APEX-XXXXXXXX
-                    do {
-                        $vcode    = 'APEX-'.strtoupper(bin2hex(random_bytes(4)));
-                        $vcode_e  = $conn->real_escape_string($vcode);
-                        $v_exists = $conn->query("SELECT voucher_id FROM vouchers WHERE code='$vcode_e'");
-                    } while($v_exists && $v_exists->num_rows > 0);
-
-                    $expires  = date('Y-m-d', strtotime('+90 days'));
-                    $v_reason = "Refund — Order #$ord_label ($prod_name discontinued)";
-
-                    $sv = $conn->prepare("INSERT INTO vouchers (user_id,code,amount,reason,expires_at) VALUES (?,?,?,?,?)");
-                    $sv->bind_param("isdss", $uid_c, $vcode, $amt, $v_reason, $expires);
-                    $sv->execute();
-
-                    // Create in-app notification for the customer
-                    $n_title   = "Order Cancelled — Refund Voucher Issued";
-                    $n_message = "Your order #$ord_label has been cancelled because \"$prod_name\" is no longer available. "
-                               . "We apologise for the inconvenience. A full refund voucher of RM ".number_format($amt,2)
-                               . " has been added to your account (Voucher Code: $vcode). Valid for 90 days. "
-                               . "Check My Vouchers in your profile to use it on your next purchase!";
-
-                    $sn = $conn->prepare("INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,'refund')");
-                    $sn->bind_param("iss", $uid_c, $n_title, $n_message);
-                    $sn->execute();
-
-                    $refund_count++;
                 }
-            }
 
-            // Deactivate the product
-            $stmt = $conn->prepare("UPDATE products SET is_active=0 WHERE product_id=?");
-            $stmt->bind_param("i", $id); $stmt->execute();
+                // Deactivate the product
+                $stmt = $conn->prepare("UPDATE products SET is_active=0 WHERE product_id=?");
+                $stmt->bind_param("i", $id); $stmt->execute();
+
+                $conn->commit();
+            } catch(Exception $e){
+                $conn->rollback();
+                $redir_err = "Error during deactivation: " . $e->getMessage();
+                header("Location: admin_products.php?msg=".urlencode($redir_err)."&mtype=err"); exit;
+            }
 
             $redir = $refund_count > 0
                 ? "Product deactivated. {$refund_count} order(s) cancelled — refund vouchers issued to customers."
@@ -133,6 +142,14 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
         if(!$name || !$description || !$category_id || $price <= 0){
             $msg = "Name, description, category and price are required."; $mtype='err';
         } else {
+            // Check for duplicate product name
+            $dup = $conn->prepare("SELECT product_id FROM products WHERE name=?");
+            $dup->bind_param("s",$name); $dup->execute();
+            if($dup->get_result()->num_rows > 0){
+                $msg = "A product named \"".htmlspecialchars($name)."\" already exists. Please use a different name."; $mtype='err';
+            }
+        }
+        if(!$msg){
             $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,is_on_sale,image_url) VALUES (?,?,?,?,?,?,?,?)");
             $stmt->bind_param("ssisdiis",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$image_url);
             $stmt->execute();
@@ -270,7 +287,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
                     </div>
                     <button type="button" class="btn btn-sm remove-color-btn"
                             style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;display:none;"
-                            onclick="removeColorGroup(this)">✕ Remove</button>
+                            onclick="removeColorGroup(this)">&times; Remove</button>
                   </div>
                   <div class="sz-stock-grid" id="defaultSizeGrid">
                     <?php foreach(['6','6.5','7','7.5','8','8.5','9','9.5','10','10.5','11','11.5','12','13'] as $sz): ?>
@@ -294,7 +311,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
               <label>Product Image</label>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
                 <div style="background:rgba(100,255,218,.04);border:1px dashed rgba(100,255,218,.3);border-radius:var(--radius);padding:16px;">
-                  <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;font-weight:600;">✅ Upload From Computer</div>
+                  <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:8px;font-weight:600;">Upload From Computer</div>
                   <input type="file" name="image_file" accept=".jpg,.jpeg,.png,.gif,.webp"
                          style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;"
                          onchange="previewImg(this)">
@@ -389,14 +406,13 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 <!-- ── Deactivate Confirmation Modal ── -->
 <div class="del-modal-bg" id="deactivateModal">
   <div class="del-modal">
-    <div style="font-size:1.8rem;margin-bottom:12px;">🚫</div>
     <h3>DEACTIVATE PRODUCT</h3>
     <p>
       You are about to deactivate <strong id="deactProductName" style="color:var(--white);"></strong>.<br><br>
-      <span style="color:var(--danger);font-size:.82rem;">⚠ Orders in "Processing" with this product will be auto-cancelled.</span><br>
-      <span style="color:var(--success);font-size:.82rem;">✔ Affected customers receive a full refund voucher + notification.</span><br>
-      <span style="color:var(--success);font-size:.82rem;">✔ Delivered / Completed orders are NOT affected.</span><br>
-      <span style="color:var(--success);font-size:.82rem;">✔ You can re-activate this product at any time.</span><br><br>
+      <span style="color:var(--danger);font-size:.82rem;">Note: Orders in "Processing" with this product will be auto-cancelled.</span><br>
+      <span style="color:var(--success);font-size:.82rem;">- Affected customers receive a full refund voucher + notification.</span><br>
+      <span style="color:var(--success);font-size:.82rem;">- Delivered / Completed orders are NOT affected.</span><br>
+      <span style="color:var(--success);font-size:.82rem;">- You can re-activate this product at any time.</span><br><br>
       Enter your admin password to confirm:
     </p>
     <form method="POST" id="deactivateForm">
@@ -484,7 +500,7 @@ function addColorGroup(){
             </div>
             <button type="button" class="btn btn-sm remove-color-btn"
                     style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;"
-                    onclick="removeColorGroup(this)">✕ Remove</button>
+                    onclick="removeColorGroup(this)">&times; Remove</button>
         </div>
         <div class="sz-stock-grid">${sizesHtml}</div>`;
     document.getElementById('colorGroups').appendChild(block);

@@ -111,7 +111,6 @@ $unread   = $conn->query("SELECT COUNT(*) AS c FROM contact_messages WHERE is_re
       <?php if($messages->num_rows === 0): ?>
       <!-- Empty state -->
       <div style="text-align:center;padding:80px 24px;">
-        <div style="font-size:3rem;margin-bottom:16px;opacity:.3;">✉️</div>
         <div style="font-family:'Oswald',sans-serif;font-size:1.1rem;letter-spacing:2px;color:var(--muted);">NO MESSAGES YET</div>
         <p style="color:var(--muted);font-size:.875rem;margin-top:8px;">Messages submitted via the Contact page will appear here.</p>
       </div>

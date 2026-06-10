@@ -79,7 +79,6 @@ $reqs = $conn->query("
 
       <?php if ($reqs->num_rows === 0): ?>
       <div style="text-align:center;padding:60px;color:var(--muted);">
-        <div style="font-size:2.5rem;margin-bottom:14px;">📭</div>
         <p>No design requests<?=$filter?' with status "'.e($filter).'"':''?> yet.</p>
       </div>
 

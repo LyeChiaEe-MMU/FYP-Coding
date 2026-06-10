@@ -22,11 +22,11 @@ require 'db.php';
 
 // ── Filter & Sort parameters ─────────────────────────────────────
 $sort_options = [
-    'score_desc'  => ['label' => '🏆 Top Score',     'sql' => 'score DESC'],
-    'score_asc'   => ['label' => '📉 Lowest Score',  'sql' => 'score ASC'],
-    'rating_desc' => ['label' => '⭐ Highest Rated', 'sql' => 'avg_rating DESC'],
-    'rating_asc'  => ['label' => '☆ Lowest Rated',  'sql' => 'avg_rating ASC'],
-    'sold_desc'   => ['label' => '🛒 Most Sold',     'sql' => 'units_sold DESC'],
+    'score_desc'  => ['label' => 'Top Score',      'sql' => 'score DESC'],
+    'score_asc'   => ['label' => 'Lowest Score',   'sql' => 'score ASC'],
+    'rating_desc' => ['label' => 'Highest Rated',  'sql' => 'avg_rating DESC'],
+    'rating_asc'  => ['label' => 'Lowest Rated',   'sql' => 'avg_rating ASC'],
+    'sold_desc'   => ['label' => 'Most Sold',       'sql' => 'units_sold DESC'],
 ];
 $sort = $_GET['sort'] ?? 'score_desc';
 if(!array_key_exists($sort, $sort_options)) $sort = 'score_desc';
@@ -75,7 +75,7 @@ while ($row = $leaderboard->fetch_assoc()) {
     $by_cat[$row['category_name']][] = $row;
 }
 
-$medals = ['🥇','🥈','🥉'];
+$medals = ['#1','#2','#3'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -180,19 +180,19 @@ $medals = ['🥇','🥈','🥉'];
     <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
       <span style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);">Score =</span>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.15);border-radius:6px;padding:7px 14px;">
-        <span style="font-size:.85rem;">⭐ Rating</span>
+        <span style="font-size:.85rem;">Rating</span>
         <span style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:.85rem;">× 40 pts</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:7px 14px;">
-        <span style="font-size:.85rem;">👍 Good Review (4–5★)</span>
+        <span style="font-size:.85rem;">Good Review (4–5 stars)</span>
         <span style="font-family:'Oswald',sans-serif;color:#22c55e;font-size:.85rem;">+10 pts</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:7px 14px;">
-        <span style="font-size:.85rem;">👎 Bad Review (1–2★)</span>
+        <span style="font-size:.85rem;">Bad Review (1–2 stars)</span>
         <span style="font-family:'Oswald',sans-serif;color:#ef4444;font-size:.85rem;">−10 pts</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(100,255,218,.06);border:1px solid rgba(100,255,218,.15);border-radius:6px;padding:7px 14px;">
-        <span style="font-size:.85rem;">🛒 Units Sold</span>
+        <span style="font-size:.85rem;">Units Sold</span>
         <span style="font-family:'Oswald',sans-serif;color:var(--accent);font-size:.85rem;">× 3 pts</span>
       </div>
     </div>
@@ -243,7 +243,6 @@ $medals = ['🥇','🥈','🥉'];
 
 <?php if (empty($by_cat)): ?>
   <div style="text-align:center;padding:80px 0;color:var(--muted);">
-    <div style="font-size:3rem;margin-bottom:14px;">🏆</div>
     <h3 style="font-family:'Oswald',sans-serif;font-size:1.2rem;color:var(--white);margin-bottom:8px;">No Rankings Yet</h3>
     <p style="margin-bottom:20px;">Rankings appear automatically once customers start purchasing shoes.</p>
     <a href="products.php" class="btn btn-primary">Browse Shoes</a>
@@ -253,8 +252,7 @@ $medals = ['🥇','🥈','🥉'];
   foreach ($by_cat as $category => $shoes):
     $max_score = max(array_column($shoes, 'score'));
     $max_score = max((float)$max_score, 1);
-    $cat_icons = ['Running'=>'🏃','Basketball'=>'🏀','Training'=>'💪','Lifestyle'=>'✨'];
-    $icon = $cat_icons[$category] ?? '👟';
+    $icon = '';
 ?>
 <div class="lb-section">
   <div class="lb-cat-head">
@@ -292,8 +290,9 @@ $medals = ['🥇','🥈','🥉'];
   ?>
   <div class="lb-row <?=$cls?>">
 
-    <!-- Rank -->
-    <div class="lb-rank"><?=$rank<=3?$medals[$idx]:"#$rank"?></div>
+    <!-- Rank: only show medals when sorting by a descending (best-first) metric -->
+    <?php $is_desc_sort = str_ends_with($sort, '_desc'); ?>
+    <div class="lb-rank"><?=($is_desc_sort && $rank<=3)?$medals[$idx]:"#$rank"?></div>
 
     <!-- Image -->
     <a href="product_detail.php?id=<?=(int)$shoe['product_id']?>">
@@ -311,12 +310,12 @@ $medals = ['🥇','🥈','🥉'];
           <span class="v">&nbsp;<?=$avg>0?number_format($avg,1):'—'?></span>
         </span>
         <?php if($good > 0): ?>
-        <span>👍 <span class="good-rev"><?=$good?> good</span></span>
+        <span><span class="good-rev"><?=$good?> good</span></span>
         <?php endif; ?>
         <?php if($bad > 0): ?>
-        <span>👎 <span class="bad-rev"><?=$bad?> bad</span></span>
+        <span><span class="bad-rev"><?=$bad?> bad</span></span>
         <?php endif; ?>
-        <span>🛒 <span class="v"><?=$sold?></span> sold</span>
+        <span><span class="v"><?=$sold?></span> sold</span>
         <span>RM <span class="v"><?=number_format($shoe['price'],2)?></span></span>
       </div>
       <!-- Score breakdown on hover -->

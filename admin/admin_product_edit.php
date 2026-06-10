@@ -85,28 +85,11 @@ if(isset($_GET['del_stock'])){
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['bulk_stock_update'])){
     csrf_check();
 
-    // ── Step 1: Rename colours (orig→new) before touching stock ──
-    $orig_colors = array_values($_POST['orig_color'] ?? []);
-    $new_colors  = array_values($_POST['new_color']  ?? []);
-    $rename_map  = []; // old_name => new_name
-    foreach($orig_colors as $i => $orig){
-        $orig = trim((string)$orig);
-        $new  = trim((string)($new_colors[$i] ?? $orig)) ?: $orig;
-        if($orig !== '' && $new !== $orig){
-            $r1 = $conn->prepare("UPDATE product_stock  SET color_name=? WHERE product_id=? AND color_name=?");
-            $r1->bind_param("sis",$new,$pid,$orig); $r1->execute();
-            $r2 = $conn->prepare("UPDATE product_images SET color_name=? WHERE product_id=? AND color_name=?");
-            $r2->bind_param("sis",$new,$pid,$orig); $r2->execute();
-            $rename_map[$orig] = $new;
-        }
-    }
-
-    // ── Step 2: Process stock grid ──
+    // ── Process stock grid ──
     // blank input = size not carried (skip); "0" = size carried but OOS (store/update)
     $csg = $_POST['color_size_stock'] ?? [];
     foreach($csg as $col_name => $sizes){
-        // Apply rename if this colour was just renamed
-        $col_name = $rename_map[$col_name] ?? (trim($col_name) ?: 'Default');
+        $col_name = trim($col_name) ?: 'Default';
         foreach((array)$sizes as $sz => $raw){
             if($raw === '' || $raw === null) continue; // blank = leave untouched
             $qty_int = max(0,(int)$raw);
@@ -215,6 +198,14 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     if(!$name || $price<=0){
         $msg = "Name and price are required."; $mtype='err';
     } else {
+        // Check duplicate product name (exclude current product)
+        $dup = $conn->prepare("SELECT product_id FROM products WHERE name=? AND product_id != ?");
+        $dup->bind_param("si",$name,$pid); $dup->execute();
+        if($dup->get_result()->num_rows > 0){
+            $msg = "Another product named \"".htmlspecialchars($name)."\" already exists. Please use a different name."; $mtype='err';
+        }
+    }
+    if(!$msg && $_POST['update_product']){
         // If new image was uploaded, delete the OLD local image file
         if($image_url !== $product['image_url'] && !str_starts_with($product['image_url'],'http') && !empty($product['image_url'])){
             $old_file = dirname(__DIR__) . '/' . $product['image_url'];
@@ -227,7 +218,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
         $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
         $msg = "Product updated successfully.";
 
-        // ── Price drop → notify wishlisted users ──────────────────
+        // ── Price drop → notify wishlisted users via notifications table ──
         if($price < $old_price){
             $tbl_chk = $conn->query("SHOW TABLES LIKE 'wishlists'");
             if($tbl_chk && $tbl_chk->num_rows > 0){
@@ -236,13 +227,17 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
                 $wl_users->execute();
                 $wl_result = $wl_users->get_result();
                 if($wl_result->num_rows > 0){
-                    $notif_msg = "Price drop! \"$name\" is now RM ".number_format($price,2)." (was RM ".number_format($old_price,2).")";
-                    $notif_ins = $conn->prepare("INSERT INTO wishlist_notifications (user_id,product_id,message) VALUES (?,?,?)");
+                    $notif_count = 0;
                     while($wu = $wl_result->fetch_assoc()){
-                        $notif_ins->bind_param("iis",$wu['user_id'],$pid,$notif_msg);
-                        $notif_ins->execute();
+                        add_notification(
+                            $conn, (int)$wu['user_id'],
+                            'Price Drop — ' . $name,
+                            '"' . $name . '" is now RM ' . number_format($price,2) . ' (was RM ' . number_format($old_price,2) . '). Check it out before it\'s gone!',
+                            'info'
+                        );
+                        $notif_count++;
                     }
-                    $msg = "Product updated & price drop notified to ".($wl_result->num_rows > 0 ? $wl_result->num_rows : 'wishlisted')." user(s).";
+                    $msg = "Product updated. Price drop notification sent to {$notif_count} wishlisted user(s).";
                 }
             }
         }
@@ -321,8 +316,6 @@ foreach($stock_by_color as $col => $entries)
 .color-group-block{margin-bottom:14px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--card);}
 .color-group-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:8px 12px;background:var(--navy2);border-radius:8px;border:1px solid var(--border);}
 .color-group-title{font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700;}
-.color-name-edit-input{font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:700;background:transparent;border:none;border-bottom:1.5px dashed rgba(200,84,60,.4);outline:none;padding:2px 4px;min-width:80px;width:auto;max-width:220px;font-family:inherit;transition:border-color .2s,background .2s;}
-.color-name-edit-input:focus{border-bottom-color:var(--accent);background:rgba(200,84,60,.06);border-radius:3px 3px 0 0;}
 </style>
 </head>
 <body>
@@ -395,7 +388,7 @@ foreach($stock_by_color as $col => $entries)
                   <label>Main Product Image</label>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
                     <div style="background:rgba(100,255,218,.04);border:1px dashed rgba(100,255,218,.3);border-radius:var(--radius);padding:14px;">
-                      <div style="font-size:.68rem;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:8px;">✅ Upload File</div>
+                      <div style="font-size:.68rem;letter-spacing:2px;color:var(--accent);font-weight:700;margin-bottom:8px;">Upload File</div>
                       <!-- Named main_image_file — DIFFERENT from variant form -->
                       <input type="file" name="main_image_file" accept=".jpg,.jpeg,.png,.gif,.webp"
                              style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:.82rem;"
@@ -436,10 +429,7 @@ foreach($stock_by_color as $col => $entries)
               <?php foreach($available_colors as $col_name): ?>
               <div class="color-group-block" data-color="<?=e($col_name)?>">
                 <div class="color-group-header">
-                  <input type="hidden" name="orig_color[]" value="<?=e($col_name)?>">
-                  <input type="text" name="new_color[]" value="<?=e($col_name)?>"
-                         class="color-name-edit-input" placeholder="Colour name"
-                         spellcheck="false" title="Click to rename this colour">
+                  <span class="color-group-title"><?=e($col_name)?></span>
                   <span style="font-size:.68rem;color:var(--muted);">
                     Total: <strong style="color:var(--accent);"><?=array_sum(array_column($stock_by_color[$col_name] ?? [], 'stock'))?></strong> pairs
                   </span>
@@ -490,7 +480,7 @@ foreach($stock_by_color as $col => $entries)
                 </div>
                 <a href="admin_product_edit.php?id=<?=$pid?>&del_img=<?=(int)$vi['image_id']?>"
                    onclick="return confirm('Remove this variant?')"
-                   style="position:absolute;top:-7px;right:-7px;background:var(--danger);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.65rem;text-decoration:none;">✕</a>
+                   style="position:absolute;top:-7px;right:-7px;background:var(--danger);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;text-decoration:none;">&times;</a>
               </div>
               <?php endwhile; ?>
             </div>
@@ -609,13 +599,10 @@ function addEditColorGroup(){
     block.dataset.color = name;
     block.innerHTML = `
         <div class="color-group-header">
-            <input type="hidden" name="orig_color[]" value="${name}">
-            <input type="text" name="new_color[]" value="${name}"
-                   class="color-name-edit-input" placeholder="Colour name"
-                   spellcheck="false" title="Click to rename this colour">
+            <span class="color-group-title">${name}</span>
             <button type="button" class="btn btn-sm" onclick="this.closest('.color-group-block').remove()"
                     style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#ef4444;">
-                ✕ Remove
+                &times; Remove
             </button>
         </div>
         <div class="sz-stock-grid">${sizesHtml}</div>`;

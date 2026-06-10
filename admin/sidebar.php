@@ -10,21 +10,21 @@ $pg = basename($_SERVER['PHP_SELF']);
 
   <div class="sidebar-section">Dashboard</div>
   <a href="admin_dashboard.php" class="sidebar-link <?=$pg==='admin_dashboard.php'?'active':''?>">
-    📊 &nbsp; Overview
+    Overview
   </a>
 
   <div class="sidebar-section">Store</div>
   <a href="admin_products.php" class="sidebar-link <?=in_array($pg,['admin_products.php','admin_product_edit.php'])?'active':''?>">
-    👟 &nbsp; Products
+    Products
   </a>
   <a href="admin_orders.php" class="sidebar-link <?=$pg==='admin_orders.php'?'active':''?>">
-    📦 &nbsp; Orders
+    Orders
   </a>
   <a href="admin_customers.php" class="sidebar-link <?=$pg==='admin_customers.php'?'active':''?>">
-    👥 &nbsp; Customers
+    Customers
   </a>
   <a href="admin_requests.php" class="sidebar-link <?=$pg==='admin_requests.php'?'active':''?>">
-    ✏️ &nbsp; Design Requests
+    Design Requests
   </a>
   <?php
   $sb_unread_msgs = 0;
@@ -35,13 +35,16 @@ $pg = basename($_SERVER['PHP_SELF']);
   ?>
   <a href="admin_messages.php" class="sidebar-link <?=$pg==='admin_messages.php'?'active':''?>"
      style="display:flex;align-items:center;justify-content:space-between;">
-    <span>✉️ &nbsp; Messages</span>
+    <span>Messages</span>
     <?php if($sb_unread_msgs > 0): ?>
     <span style="background:var(--accent);color:#fff;border-radius:100px;font-size:.58rem;font-weight:700;padding:2px 7px;letter-spacing:.5px;"><?=$sb_unread_msgs?></span>
     <?php endif; ?>
   </a>
+  <a href="admin_banners.php" class="sidebar-link <?=$pg==='admin_banners.php'?'active':''?>">
+    Banners
+  </a>
 
   <div class="sidebar-section">Account</div>
-  <a href="../index.php" class="sidebar-link">🏠 &nbsp; View Store</a>
-  <a href="admin_logout.php" class="sidebar-link" style="color:var(--danger);">🚪 &nbsp; Logout</a>
+  <a href="../index.php" class="sidebar-link">View Store</a>
+  <a href="admin_logout.php" class="sidebar-link" style="color:var(--danger);">Logout</a>
 </aside>

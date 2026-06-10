@@ -16,6 +16,28 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
         $h->bind_param("is",$oid,$new_status);
         $h->execute();
         $_SESSION['admin_flash'] = "Order #".str_pad($oid,6,'0',STR_PAD_LEFT)." updated to $new_status.";
+
+        // Notify the customer
+        $order_num = '#' . str_pad($oid, 6, '0', STR_PAD_LEFT);
+        $owner = $conn->query("SELECT user_id FROM orders WHERE order_id=$oid");
+        if($owner && $row_o = $owner->fetch_assoc()){
+            $cust_uid = (int)$row_o['user_id'];
+            if($new_status === 'Delivered'){
+                add_notification(
+                    $conn, $cust_uid,
+                    'Order ' . $order_num . ' Has Been Delivered!',
+                    'Great news! Your order ' . $order_num . ' has been delivered to your address. Please click "Mark as Received" on your order once you have the package in hand.',
+                    'delivery'
+                );
+            } elseif($new_status === 'Cancelled'){
+                add_notification(
+                    $conn, $cust_uid,
+                    'Order ' . $order_num . ' Cancelled',
+                    'Your order ' . $order_num . ' has been cancelled. If you believe this is a mistake or need help, please contact our support team.',
+                    'warning'
+                );
+            }
+        }
     }
     header("Location: admin_orders.php"); exit;
 }
