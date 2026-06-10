@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'auth_check.php';
 
 $msg = ''; $mtype = 'ok';
@@ -84,7 +84,7 @@ if($_hb && $_hbr = $_hb->fetch_assoc()) $hero_img = $_hbr['setting_value'] ?? ''
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Banner Management | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css?v=4">
+<link rel="stylesheet" href="../css/style.css?v=10">
 <style>
 .banner-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:22px;}
 .banner-preview{width:100%;max-height:200px;object-fit:cover;border-radius:8px;border:1px solid var(--border);margin-bottom:14px;display:block;}

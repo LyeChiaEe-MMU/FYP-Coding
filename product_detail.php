@@ -140,7 +140,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title><?=e($product['name'])?> | Apex</title>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=10">
 <style>
 .slider-wrap{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);background:#fff;width:100%;max-width:520px;aspect-ratio:1/1}
 .slider-main{width:100%;height:100%;object-fit:cover;object-position:center top;display:block;transition:opacity .25s ease}

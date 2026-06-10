@@ -7,12 +7,12 @@ $hero_bg = '';
 $_hb = $conn->query("SELECT setting_value FROM site_settings WHERE setting_key='hero_image'");
 if($_hb && $_hbr = $_hb->fetch_assoc()) $hero_bg = $_hbr['setting_value'] ?? '';
 
-// New Arrivals — latest 12 active products only
+// New Arrivals — latest 12 active, in-stock products only
 $featured = $conn->query("
     SELECT p.*, c.category_name
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    WHERE p.is_active = 1
+    WHERE p.is_active = 1 AND p.stock > 0
     ORDER BY p.created_at DESC LIMIT 12
 ");
 
@@ -22,7 +22,7 @@ $_af = $conn->query("
     SELECT p.*, c.category_name
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
-    WHERE p.is_active = 1
+    WHERE p.is_active = 1 AND p.stock > 0
     ORDER BY c.category_name ASC, p.created_at DESC
 ");
 if ($_af) {
@@ -53,7 +53,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Apex | Premium Sport Shoes</title>
-<link rel="stylesheet" href="css/style.css?v=5">
+<link rel="stylesheet" href="css/style.css?v=10">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>

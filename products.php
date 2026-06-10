@@ -9,7 +9,7 @@ $gender = $_GET['gender'] ?? '';
 $sale   = isset($_GET['sale']) ? 1 : 0;   // sale filter flag
 
 // ── Build WHERE ──────────────────────────────────────────────
-$conditions = []; // show all products incl. unavailable — filtered only on homepage
+$conditions = ['p.is_active = 1']; // only show active products
 
 // Category filter
 if ($cat) {
@@ -100,7 +100,7 @@ $total = count($product_rows);
 $page_mode = 'shop'; // default
 if ($sale)                                                   $page_mode = 'sale';
 elseif ($sort === 'popular')                                 $page_mode = 'bestsellers';
-elseif ($sort === 'newest' && !$cat && !$gender && !$q)     $page_mode = 'newarrivals';
+elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newarrivals';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -109,7 +109,7 @@ elseif ($sort === 'newest' && !$cat && !$gender && !$q)     $page_mode = 'newarr
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title><?= $q ? 'Search: '.e($q) : ($cat ? e($cat) : 'Shop All') ?> | Apex</title>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
 <?php include 'includes/navbar.php'; ?>
@@ -126,6 +126,12 @@ elseif ($sort === 'newest' && !$cat && !$gender && !$q)     $page_mode = 'newarr
       <a href="index.php">Home</a><span class="sep">/</span>
       <?php if ($q): ?>
         <a href="products.php">Shop</a><span class="sep">/</span><span>Search</span>
+      <?php elseif ($page_mode === 'newarrivals' && $gender): ?>
+        <a href="products.php">Shop</a><span class="sep">/</span>
+        <a href="products.php?gender=<?=urlencode($gender)?>"><?=e($gender)?>'s Shoes</a><span class="sep">/</span>
+        <span>New Arrivals</span>
+      <?php elseif ($page_mode === 'newarrivals'): ?>
+        <a href="products.php">Shop</a><span class="sep">/</span><span>New Arrivals</span>
       <?php elseif ($gender && $cat): ?>
         <a href="products.php">Shop</a><span class="sep">/</span>
         <a href="products.php?gender=<?=urlencode($gender)?>"><?=e($gender)?>'s</a><span class="sep">/</span>
@@ -162,7 +168,7 @@ elseif ($sort === 'newest' && !$cat && !$gender && !$q)     $page_mode = 'newarr
 
     <?php elseif ($page_mode === 'newarrivals'): ?>
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
-        NEW <span style="color:var(--accent)">ARRIVALS</span>
+        <?php if($gender): ?><?=$gLabel?> <?php endif; ?>NEW <span style="color:var(--accent)">ARRIVALS</span>
       </h1>
       <p style="color:var(--muted);margin-top:6px;font-size:.875rem;">Fresh drops — <?=$total?> latest style<?=$total!=1?'s':''?>.</p>
 

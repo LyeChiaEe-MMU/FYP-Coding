@@ -38,7 +38,7 @@ $unread   = $conn->query("SELECT COUNT(*) AS c FROM contact_messages WHERE is_re
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Messages | Apex Admin</title>
-<link rel="stylesheet" href="../css/style.css?v=5">
+<link rel="stylesheet" href="../css/style.css?v=10">
 <style>
 .msg-card {
     background:var(--card);border:1px solid var(--border);border-radius:10px;

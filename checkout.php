@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 session_start();
 require 'db.php';
 if(!is_logged()){ header("Location: login.php"); exit; }
@@ -38,7 +38,7 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Checkout | Apex</title>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=10">
 <style>
 .bank-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;}
 .bank-btn{cursor:pointer;}

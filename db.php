@@ -208,10 +208,10 @@ function price_html($price, $percent, $mode = 'card'){
              . $badge
              . '</div>';
     }
-    return '<span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'
-         . '<span style="text-decoration:line-through;color:var(--muted);font-size:.78rem;">RM '.number_format((float)$price,2).'</span>'
-         . '<span class="prod-price" style="color:var(--danger);">RM '.number_format($sp,2).'</span>'
-         . $badge
+    // Stack strikethrough above sale price — keeps total width narrow so button never gets squeezed
+    return '<span style="display:inline-flex;flex-direction:column;gap:1px;align-self:center;">'
+         . '<span style="text-decoration:line-through;color:var(--muted);font-size:.72rem;line-height:1.3;white-space:nowrap;">RM '.number_format((float)$price,2).'</span>'
+         . '<span class="prod-price" style="color:var(--danger);line-height:1.2;white-space:nowrap;">RM '.number_format($sp,2).'</span>'
          . '</span>';
 }
 

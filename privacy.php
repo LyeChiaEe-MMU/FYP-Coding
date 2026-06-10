@@ -1,4 +1,4 @@
-<?php session_start(); require 'db.php'; ?>
+﻿<?php session_start(); require 'db.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +6,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Privacy Policy | Apex</title>
-<link rel="stylesheet" href="css/style.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=10">
 <style>
 .policy-wrap{max-width:780px;margin:60px auto;padding:0 24px 80px;}
 .policy-wrap h1{font-family:'Oswald',sans-serif;font-size:2rem;letter-spacing:3px;margin-bottom:6px;}

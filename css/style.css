@@ -110,7 +110,7 @@ input,select,textarea,button { font-family:'Inter',sans-serif; }
 .prod-name a:hover { color:var(--accent); }
 .prod-footer { display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(150,100,75,0.12); padding-top:14px; }
 .prod-price { font-family:'Oswald',sans-serif; font-size:1.3rem; color:var(--accent); }
-.btn-view { background:var(--accent); color:#fff; border:none; border-radius:var(--radius); padding:8px 18px; font-family:'Oswald',sans-serif; font-size:.8rem; letter-spacing:1px; cursor:pointer; transition:.2s; font-weight:700; }
+.btn-view { background:var(--accent); color:#fff; border:none; border-radius:var(--radius); padding:8px 18px; font-family:'Oswald',sans-serif; font-size:.8rem; letter-spacing:1px; cursor:pointer; transition:.2s; font-weight:700; white-space:nowrap; flex-shrink:0; align-self:center; display:inline-flex; align-items:center; line-height:1; }
 .btn-view:hover { background:#A83E28; transform:scale(1.04); }
 
 /* ── Unavailable Product Card ── */
