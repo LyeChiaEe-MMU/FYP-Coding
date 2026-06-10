@@ -84,6 +84,12 @@ $items = $conn->query("
           <div style="flex:1;">
             <div style="font-weight:600;font-size:.9rem;color:#2a1a10;"><?=e($it['name'])?></div>
             <div style="font-size:.75rem;color:#8a7060;">UK <?=e($it['size'] ?? '—')?><?=!empty($it['color'])&&$it['color']!=='Default'?' · '.e($it['color']):''?> × <?=(int)$it['quantity']?></div>
+            <?php $it_orig = (float)($it['original_price'] ?? $it['price']); if($it_orig > (float)$it['price']): ?>
+            <div style="font-size:.72rem;margin-top:2px;">
+              <span style="text-decoration:line-through;color:#b09a8a;">RM <?=number_format($it_orig,2)?>/pc</span>
+              <span style="color:#C8543C;font-weight:600;"> RM <?=number_format($it['price'],2)?>/pc</span>
+            </div>
+            <?php endif; ?>
           </div>
           <div style="font-family:'Oswald',sans-serif;color:#C8543C;font-size:1.05rem;">
             RM <?=number_format($it['price']*$it['quantity'],2)?>

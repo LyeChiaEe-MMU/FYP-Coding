@@ -26,9 +26,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS `wishlist_notifications` (
     KEY `user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-// Mark all notifications as read
-$conn->prepare("UPDATE wishlist_notifications SET is_read=1 WHERE user_id=?")
-    ->bind_param("i", $uid) || null;
+// Mark all wishlist notifications as read
 $mark = $conn->prepare("UPDATE wishlist_notifications SET is_read=1 WHERE user_id=?");
 $mark->bind_param("i", $uid);
 $mark->execute();
@@ -48,8 +46,8 @@ $notifs = $notifs_stmt->get_result();
 
 // Fetch wishlist items
 $wl_stmt = $conn->prepare("
-    SELECT w.wishlist_id, w.added_at, p.product_id, p.name, p.price, p.image_url, p.stock,
-           c.category_name
+    SELECT w.wishlist_id, w.added_at, p.product_id, p.name, p.price, p.sale_percent,
+           p.image_url, p.stock, c.category_name
     FROM wishlists w
     JOIN products p ON w.product_id = p.product_id
     JOIN categories c ON p.category_id = c.category_id
@@ -183,7 +181,7 @@ $wishlist = $wl_stmt->get_result();
         <div class="wl-card-name">
           <a href="product_detail.php?id=<?=(int)$item['product_id']?>" style="color:inherit;"><?=e($item['name'])?></a>
         </div>
-        <div class="wl-card-price">RM <?=number_format($item['price'],2)?></div>
+        <div class="wl-card-price"><?=price_html($item['price'], (int)($item['sale_percent']??0))?></div>
         <?php if ($item['stock'] > 0): ?>
         <a href="product_detail.php?id=<?=(int)$item['product_id']?>" class="btn btn-primary btn-full btn-sm">View &amp; Buy</a>
         <?php else: ?>

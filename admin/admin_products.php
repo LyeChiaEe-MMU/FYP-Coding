@@ -109,7 +109,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     $description      = trim($_POST['description'] ?? '');
     $category_id      = (int)($_POST['category_id'] ?? 0);
     $price            = floatval($_POST['price']   ?? 0);
-    $is_on_sale       = isset($_POST['is_on_sale']) ? 1 : 0;
+    $sale_percent     = max(0, min(99, (int)($_POST['sale_percent'] ?? 0)));
+    $is_on_sale       = $sale_percent > 0 ? 1 : 0;
     $image_url        = trim($_POST['image_url']   ?? '');
     $allowed_genders  = ['Men','Women','Kids'];
     $gender           = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Men';
@@ -150,8 +151,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
             }
         }
         if(!$msg){
-            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,is_on_sale,image_url) VALUES (?,?,?,?,?,?,?,?)");
-            $stmt->bind_param("ssisdiis",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$image_url);
+            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,is_on_sale,sale_percent,image_url) VALUES (?,?,?,?,?,?,?,?,?)");
+            $stmt->bind_param("ssisdiiis",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$sale_percent,$image_url);
             $stmt->execute();
             $new_pid = (int)$conn->insert_id;
 
@@ -252,28 +253,31 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
           <div class="form-grid-2">
             <div class="form-group">
               <label>Product Name *</label>
-              <input type="text" name="name" placeholder="e.g. Apex Velocity Pro" required>
+              <input type="text" name="name" placeholder="e.g. Apex Velocity Pro"
+                     value="<?=e($_POST['name']??'')?>" required>
             </div>
             <div class="form-group">
               <label>Category *</label>
               <select name="category_id" required>
                 <option value="">-- Select Category --</option>
                 <?php $categories->data_seek(0); while($c=$categories->fetch_assoc()): ?>
-                <option value="<?=(int)$c['category_id']?>"><?=e($c['category_name'])?></option>
+                <option value="<?=(int)$c['category_id']?>" <?=(isset($_POST['category_id'])&&(int)$_POST['category_id']===$c['category_id'])?'selected':''?>><?=e($c['category_name'])?></option>
                 <?php endwhile; ?>
               </select>
             </div>
             <div class="form-group">
               <label>Gender *</label>
+              <?php $prevGender = $_POST['gender'] ?? 'Men'; ?>
               <select name="gender" id="genderSelect" required onchange="updateAddSizeGrid(this.value)">
-                <option value="Men">Men</option>
-                <option value="Women">Women</option>
-                <option value="Kids">Kids</option>
+                <option value="Men"   <?=$prevGender==='Men'  ?'selected':''?>>Men</option>
+                <option value="Women" <?=$prevGender==='Women'?'selected':''?>>Women</option>
+                <option value="Kids"  <?=$prevGender==='Kids' ?'selected':''?>>Kids</option>
               </select>
             </div>
             <div class="form-group">
               <label>Price (RM) *</label>
-              <input type="number" name="price" step="0.01" min="0.01" placeholder="299.00" required>
+              <input type="number" name="price" step="0.01" min="0.01" placeholder="299.00"
+                     value="<?=e($_POST['price']??'')?>" required>
             </div>
             <div class="form-group span-2">
               <label>Stock Per Size &amp; Colour</label>
@@ -321,6 +325,7 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
                 <div style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;">
                   <div style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:600;">Or Paste Image URL</div>
                   <input type="text" name="image_url" id="imageUrlInput" placeholder="https://images.unsplash.com/..."
+                         value="<?=e($_POST['image_url']??'')?>"
                          style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px;color:var(--text);font-size:.85rem;">
                   <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Used only if no file uploaded above.</div>
                 </div>
@@ -328,13 +333,21 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
             </div>
             <div class="form-group span-2">
               <label>Description *</label>
-              <textarea name="description" rows="3" placeholder="Describe the shoe..." required></textarea>
+              <textarea name="description" rows="3" placeholder="Describe the shoe..." required><?=e($_POST['description']??'')?></textarea>
             </div>
           </div>
-          <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;font-size:.875rem;color:var(--muted);">
-            <input type="checkbox" name="is_on_sale" value="1" style="width:16px;height:16px;accent-color:var(--danger);cursor:pointer;">
-            Mark as <strong style="color:var(--danger);">ON SALE</strong>
-          </label>
+          <div class="form-group" style="max-width:260px;margin-top:10px;">
+            <label>Sale Discount %
+              <span style="font-size:.72rem;color:var(--muted);font-weight:400;">(0 = no sale)</span>
+            </label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="number" name="sale_percent" min="0" max="99"
+                     value="<?=(int)($_POST['sale_percent']??0)?>"
+                     style="width:90px;text-align:center;"
+                     oninput="this.value=Math.min(99,Math.max(0,parseInt(this.value)||0))">
+              <span style="color:var(--muted);font-size:.875rem;">% off — e.g. 10 means 10% discount</span>
+            </div>
+          </div>
           <br>
           <button type="submit" name="add_product" class="btn btn-primary" style="margin-top:8px;">+ ADD PRODUCT</button>
         </form>
@@ -361,7 +374,15 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
               <td><img src="<?=$imgSrc?>" alt="" style="width:52px;height:52px;border-radius:6px;object-fit:cover;<?=$active?'':'filter:grayscale(1);'?>"></td>
               <td style="font-weight:600;color:var(--white);"><?=e($p['name'])?></td>
               <td style="color:var(--muted);"><?=e($p['category_name']??'—')?></td>
-              <td style="font-family:'Oswald',sans-serif;color:<?=$active?'var(--accent)':'var(--muted)'?>;">RM <?=number_format($p['price'],2)?></td>
+              <td style="font-family:'Oswald',sans-serif;">
+                <?php $sp=(int)($p['sale_percent']??0); if($sp>0): ?>
+                  <span style="text-decoration:line-through;color:var(--muted);font-size:.8rem;">RM <?=number_format($p['price'],2)?></span><br>
+                  <span style="color:var(--danger);">RM <?=number_format(effective_price($p['price'],$sp),2)?></span>
+                  <span style="background:var(--danger);color:#fff;font-size:.6rem;padding:1px 5px;border-radius:3px;font-weight:700;"><?=$sp?>% OFF</span>
+                <?php else: ?>
+                  <span style="color:<?=$active?'var(--accent)':'var(--muted)'?>;">RM <?=number_format($p['price'],2)?></span>
+                <?php endif; ?>
+              </td>
               <td><span style="color:<?=$p['stock']>0?'var(--white)':'var(--danger)'?>;font-weight:600;"><?=(int)$p['stock']?></span></td>
               <td>
                 <?php if($active): ?>

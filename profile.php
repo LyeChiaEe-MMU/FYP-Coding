@@ -55,7 +55,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['change_password'])){
     $ph->execute();
     $stored = $ph->get_result()->fetch_assoc()['password'];
 
-    if(!password_verify($current, $stored)){
+    if(!$current || !$new_pw || !$confirm){
+        $error = "Please fill in all password fields.";
+    } elseif(!password_verify($current, $stored)){
         $error = "Current password is incorrect.";
     } elseif(strlen($new_pw) < 8 || strlen($new_pw) > 16){
         $error = "New password must be 8–16 characters.";

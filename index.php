@@ -152,12 +152,15 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
           $img   = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
           $isNew = strtotime($p['created_at']) >= strtotime('-30 days');
       ?>
+      <?php $sp_pct = (int)($p['sale_percent'] ?? 0); ?>
       <div class="prod-card">
         <a href="product_detail.php?id=<?=(int)$p['product_id']?>">
           <div class="prod-img">
             <img src="<?=$img?>" alt="<?=e($p['name'])?>" loading="lazy">
             <span class="prod-badge"><?=e($p['category_name'])?></span>
-            <?php if($isNew): ?>
+            <?php if($sp_pct > 0): ?>
+            <span style="position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;"><?=$sp_pct?>% OFF</span>
+            <?php elseif($isNew): ?>
             <span style="position:absolute;top:10px;right:10px;background:var(--success);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;">NEW</span>
             <?php endif; ?>
           </div>
@@ -166,7 +169,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
           <div class="prod-cat"><?=e($p['category_name'])?></div>
           <div class="prod-name"><a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=e($p['name'])?></a></div>
           <div class="prod-footer">
-            <span class="prod-price">RM <?=number_format($p['price'],2)?></span>
+            <?=price_html($p['price'], $sp_pct)?>
             <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>
           </div>
         </div>
@@ -200,15 +203,18 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">
       <?php foreach ($catProducts as $p):
-        $img   = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
-        $isNew = strtotime($p['created_at']) >= strtotime('-30 days');
+        $img    = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
+        $isNew  = strtotime($p['created_at']) >= strtotime('-30 days');
+        $sp_pct = (int)($p['sale_percent'] ?? 0);
       ?>
       <div class="prod-card">
         <a href="product_detail.php?id=<?=(int)$p['product_id']?>">
           <div class="prod-img">
             <img src="<?=$img?>" alt="<?=e($p['name'])?>" loading="lazy">
             <span class="prod-badge"><?=e($p['category_name'])?></span>
-            <?php if($isNew): ?>
+            <?php if($sp_pct > 0): ?>
+            <span style="position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;"><?=$sp_pct?>% OFF</span>
+            <?php elseif($isNew): ?>
             <span style="position:absolute;top:10px;right:10px;background:var(--success);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;">NEW</span>
             <?php endif; ?>
           </div>
@@ -217,7 +223,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
           <div class="prod-cat"><?=e($p['category_name'])?></div>
           <div class="prod-name"><a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=e($p['name'])?></a></div>
           <div class="prod-footer">
-            <span class="prod-price">RM <?=number_format($p['price'],2)?></span>
+            <?=price_html($p['price'], $sp_pct)?>
             <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>
           </div>
         </div>

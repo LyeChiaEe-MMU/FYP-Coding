@@ -88,7 +88,7 @@ if(is_logged()){
 
 // ── Related products — same category first, fill with others ──────
 $related_stmt = $conn->prepare("
-    SELECT p.product_id, p.name, p.price, p.image_url, c.category_name,
+    SELECT p.product_id, p.name, p.price, p.sale_percent, p.image_url, c.category_name,
            IF(p.category_id = ?, 0, 1) AS sort_order
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
@@ -224,7 +224,12 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
   <div>
     <div class="detail-cat"><?=e($product['category_name'])?></div>
     <h1 class="detail-name"><?=e($product['name'])?></h1>
-    <div class="detail-price">RM <?=number_format($product['price'],2)?></div>
+    <?=price_html($product['price'], (int)($product['sale_percent']??0), 'detail')?>
+    <?php if(is_admin()): ?>
+    <div style="background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.8rem;color:#fbbf24;font-weight:600;letter-spacing:.5px;">
+      Admin View — purchase actions are disabled
+    </div>
+    <?php endif; ?>
 
     <!-- Inline rating summary -->
     <?php if($rev_count > 0): ?>
@@ -326,7 +331,11 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
         Total stock: <strong><?=(int)$product['stock']?> pairs</strong>
       </div>
 
-      <?php if($product['stock']>0): ?>
+      <?php if(is_admin()): ?>
+      <button class="btn btn-secondary btn-full" disabled style="margin-bottom:12px;opacity:.5;cursor:not-allowed;">
+        Admin — Purchase Disabled
+      </button>
+      <?php elseif($product['stock']>0): ?>
       <button type="submit" class="btn btn-primary btn-full" id="addCartBtn" disabled style="margin-bottom:12px;">
         SELECT A COLOUR &amp; SIZE TO ADD TO CART
       </button>
@@ -339,7 +348,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
       &#8592; Back to <?=e($product['category_name'])?>
     </a>
 
-    <?php if(is_logged()): ?>
+    <?php if(is_logged() && !is_admin()): ?>
     <button class="btn btn-full wl-toggle-btn <?=$is_wishlisted?'wl-active':''?>"
             id="wlBtn" data-pid="<?=$pid?>"
             style="margin-top:10px;background:<?=$is_wishlisted?'rgba(239,68,68,.15)':'var(--card)'?>;border:1px solid <?=$is_wishlisted?'#ef4444':'var(--border)'?>;color:<?=$is_wishlisted?'#ef4444':'var(--muted)'?>;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
@@ -474,7 +483,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
           <div class="prod-cat"><?=e($rp['category_name'])?></div>
           <div class="prod-name"><a href="product_detail.php?id=<?=(int)$rp['product_id']?>"><?=e($rp['name'])?></a></div>
           <div class="prod-footer">
-            <span class="prod-price">RM <?=number_format($rp['price'],2)?></span>
+            <?=price_html($rp['price'], (int)($rp['sale_percent']??0))?>
             <a href="product_detail.php?id=<?=(int)$rp['product_id']?>" class="btn-view">View →</a>
           </div>
         </div>

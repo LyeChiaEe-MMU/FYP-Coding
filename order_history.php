@@ -153,6 +153,7 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
   // Fetch items for this order (include product_id for review links)
   $oit = $conn->query("
       SELECT oi.order_item_id, oi.product_id, oi.size, oi.color, oi.quantity, oi.price,
+             COALESCE(oi.original_price, oi.price) AS original_price,
              p.name, p.image_url,
              (SELECT pi.image_url FROM product_images pi
               WHERE pi.product_id=oi.product_id AND pi.color_name=oi.color
@@ -211,7 +212,16 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
         <img src="<?=$img?>" style="width:44px;height:44px;border-radius:6px;object-fit:cover;flex-shrink:0;">
         <div style="flex:1;min-width:0;">
           <div style="font-size:.82rem;font-weight:600;color:var(--white);"><?=e($it['name'])?></div>
-          <div style="font-size:.72rem;color:var(--muted);">UK <?=e($it['size'])?> × <?=(int)$it['quantity']?> — RM <?=number_format($it['price'],2)?>/pc</div>
+          <div style="font-size:.72rem;color:var(--muted);">UK <?=e($it['size'])?>
+            <?php if(!empty($it['color']) && $it['color'] !== 'Default'): ?> · <?=e($it['color'])?><?php endif; ?>
+            × <?=(int)$it['quantity']?> —
+            <?php if((float)$it['original_price'] > (float)$it['price']): ?>
+            <span style="text-decoration:line-through;opacity:.6;">RM <?=number_format($it['original_price'],2)?></span>
+            <span style="color:var(--danger);font-weight:600;"> RM <?=number_format($it['price'],2)?>/pc</span>
+            <?php else: ?>
+            RM <?=number_format($it['price'],2)?>/pc
+            <?php endif; ?>
+          </div>
         </div>
         <?php if($status === 'Completed'): ?>
           <?php if($alreadyRev): ?>

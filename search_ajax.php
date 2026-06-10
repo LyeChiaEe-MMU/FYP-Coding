@@ -27,7 +27,7 @@ foreach ($keywords as $word) {
 $where = implode(' AND ', $conditions);
 
 $sql = "
-    SELECT p.product_id AS id, p.name, p.price, p.image_url AS image, c.category_name AS category
+    SELECT p.product_id AS id, p.name, p.price, p.sale_percent, p.image_url AS image, c.category_name AS category
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
     WHERE p.is_active = 1 AND $where
@@ -48,6 +48,11 @@ while ($row = $result->fetch_assoc()) {
         $base_path = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') . '/';
         $row['image'] = $protocol . '://' . $host . $base_path . ltrim($row['image'], '/');
     }
+    // Compute effective (discounted) price for display
+    $sp_pct = max(0, min(99, (int)($row['sale_percent'] ?? 0)));
+    $row['eff_price'] = $sp_pct > 0
+        ? (float)round((float)$row['price'] * (1 - $sp_pct / 100))
+        : (float)$row['price'];
     $out[] = $row;
 }
 

@@ -9,6 +9,11 @@ if (!is_logged()) {
     exit;
 }
 
+if(!empty($_SESSION['admin_id'])){
+    echo json_encode(['status'=>'error','msg'=>'Admin accounts cannot use the wishlist.']);
+    exit;
+}
+
 // Ensure tables exist
 $conn->query("CREATE TABLE IF NOT EXISTS `wishlists` (
     `wishlist_id` int(11) NOT NULL AUTO_INCREMENT,

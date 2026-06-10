@@ -7,7 +7,7 @@ $uid = (int)$_SESSION['user_id'];
 
 $stmt = $conn->prepare("
     SELECT c.cart_id, c.quantity, c.size, c.color,
-           p.product_id, p.name, p.price, p.image_url,
+           p.product_id, p.name, p.price, p.sale_percent, p.image_url,
            (SELECT pi.image_url FROM product_images pi
             WHERE pi.product_id = c.product_id AND pi.color_name = c.color
             ORDER BY pi.sort_order ASC LIMIT 1) AS color_image
@@ -21,7 +21,13 @@ $stmt->execute();
 $cart = $stmt->get_result();
 
 $rows=[]; $subtotal=0;
-while($r=$cart->fetch_assoc()){ $r['sub']=$r['price']*$r['quantity']; $subtotal+=$r['sub']; $rows[]=$r; }
+while($r=$cart->fetch_assoc()){
+    $ep = effective_price($r['price'], (int)($r['sale_percent']??0));
+    $r['eff_price'] = $ep;
+    $r['sub'] = $ep * $r['quantity'];
+    $subtotal += $r['sub'];
+    $rows[] = $r;
+}
 
 $shipping = $subtotal>=300 ? 0 : ($subtotal>0 ? 10 : 0);
 $total    = $subtotal + $shipping;
@@ -74,7 +80,16 @@ $total    = $subtotal + $shipping;
           <img src="<?=$img?>" class="ci-img" alt="">
           <div>
             <div class="ci-name"><?=e($r['name'])?></div>
-            <div class="ci-sub">RM <?=number_format($r['price'],2)?> each</div>
+            <?php $sp_pct_c = (int)($r['sale_percent']??0); ?>
+            <div class="ci-sub">
+              <?php if($sp_pct_c > 0): ?>
+              <span style="text-decoration:line-through;color:var(--muted);font-size:.75rem;">RM <?=number_format($r['price'],2)?></span>
+              <span style="color:var(--danger);font-weight:600;">RM <?=number_format($r['eff_price'],2)?></span>
+              <?php else: ?>
+              RM <?=number_format($r['price'],2)?>
+              <?php endif; ?>
+              each
+            </div>
           </div>
         </div>
         <!-- Size / Colour -->

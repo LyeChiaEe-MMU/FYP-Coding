@@ -171,7 +171,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     $description = trim($_POST['description'] ?? '');
     $category_id = (int)($_POST['category_id'] ?? 0);
     $price       = floatval($_POST['price']   ?? 0);
-    $is_on_sale  = isset($_POST['is_on_sale']) ? 1 : 0;
+    $sale_percent = max(0, min(99, (int)($_POST['sale_percent'] ?? 0)));
+    $is_on_sale   = $sale_percent > 0 ? 1 : 0;
     $image_url   = trim($_POST['image_url']   ?? $product['image_url']);
     $allowed_genders = ['Men','Women','Kids'];
     $gender      = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Men';
@@ -212,8 +213,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
             if(file_exists($old_file)) unlink($old_file);
         }
         $old_price = (float)$product['price'];
-        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,gender=?,price=?,stock=?,is_on_sale=?,image_url=? WHERE product_id=?");
-        $stmt->bind_param("ssisdiisi",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$image_url,$pid);
+        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,gender=?,price=?,stock=?,is_on_sale=?,sale_percent=?,image_url=? WHERE product_id=?");
+        $stmt->bind_param("ssisdiiisi",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$sale_percent,$image_url,$pid);
         $stmt->execute();
         $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
         $msg = "Product updated successfully.";
@@ -377,12 +378,22 @@ foreach($stock_by_color as $col => $entries)
                     <span style="color:var(--muted);font-size:.72rem;">— auto-calculated from size entries below</span>
                   </div>
                 </div>
-                <div class="form-group span-2">
-                  <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-top:4px;">
-                    <input type="checkbox" name="is_on_sale" value="1" <?=!empty($product['is_on_sale'])?'checked':''?>
-                           style="width:18px;height:18px;accent-color:var(--danger);cursor:pointer;">
-                    <span>Mark as <strong style="color:var(--danger);">ON SALE</strong> — shows a red SALE badge and appears in the Sale filter</span>
+                <div class="form-group">
+                  <label>Sale Discount %
+                    <span style="font-size:.72rem;color:var(--muted);font-weight:400;">(0 = no sale)</span>
                   </label>
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="number" name="sale_percent" min="0" max="99"
+                           value="<?=(int)($product['sale_percent']??0)?>"
+                           style="width:90px;text-align:center;"
+                           oninput="this.value=Math.min(99,Math.max(0,parseInt(this.value)||0))">
+                    <span style="color:var(--muted);font-size:.82rem;">% off — sets a SALE badge and discounted price. 0 = remove sale.</span>
+                  </div>
+                  <?php if((int)($product['sale_percent']??0) > 0): ?>
+                  <div style="margin-top:6px;font-size:.8rem;color:var(--danger);">
+                    Currently: RM <?=number_format($product['price'],2)?> → RM <?=number_format(effective_price($product['price'],$product['sale_percent']),2)?> (<?=(int)$product['sale_percent']?>% off)
+                  </div>
+                  <?php endif; ?>
                 </div>
                 <div class="form-group span-2">
                   <label>Main Product Image</label>

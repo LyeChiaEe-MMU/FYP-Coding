@@ -5,6 +5,14 @@ if(!is_logged()){ header("Location: login.php"); exit; }
 
 $uid = (int)$_SESSION['user_id'];
 
+// Fetch all notifications BEFORE marking as read so is_read reflects original state
+$notifs = $conn->query("
+    SELECT * FROM notifications
+    WHERE user_id = $uid
+    ORDER BY created_at DESC
+    LIMIT 80
+");
+
 // Count unread BEFORE marking as read (so we can show the "you have X new" message)
 $unread_before = 0;
 $ucnt = $conn->query("SELECT COUNT(*) AS c FROM notifications WHERE user_id=$uid AND is_read=0");
@@ -12,14 +20,6 @@ if($ucnt) $unread_before = (int)$ucnt->fetch_assoc()['c'];
 
 // Mark all as read
 $conn->query("UPDATE notifications SET is_read=1 WHERE user_id=$uid AND is_read=0");
-
-// Fetch all notifications newest-first
-$notifs = $conn->query("
-    SELECT * FROM notifications
-    WHERE user_id = $uid
-    ORDER BY created_at DESC
-    LIMIT 80
-");
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -115,7 +115,7 @@ $notifs = $conn->query("
       $ts = strtotime($n['created_at']);
       $age_mins = (time() - $ts) / 60;
   ?>
-  <div class="notif-card">
+  <div class="notif-card<?=(!$n['is_read'] ? ' unread' : '')?>">
     <div class="notif-icon <?=$icon_class?>">
       <i class="<?=$icon_fa?>"></i>
     </div>

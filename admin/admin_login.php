@@ -55,50 +55,54 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $password = $_POST['password'] ?? '';
     $remember_me = isset($_POST['remember_me']) ? true : false;
 
-    $stmt = $conn->prepare("SELECT admin_id, username, password FROM admins WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $admin = $stmt->get_result()->fetch_assoc();
-
-    if($admin && password_verify($password, $admin['password'])){
-        session_regenerate_id(true);
-        $_SESSION['admin_id'] = $admin['admin_id'];
-        $_SESSION['admin_username'] = $admin['username'];
-
-        if($remember_me){
-            // REMEMBER ME CHECKED - Create 30 day cookie
-            $_SESSION['login_method'] = 'remember_me';
-            $token = bin2hex(random_bytes(32));
-            $expiry = time() + (86400 * 30);
-
-            $update_stmt = $conn->prepare("UPDATE admins SET remember_token = ?, token_expiry = ? WHERE admin_id = ?");
-            $update_stmt->bind_param("sii", $token, $expiry, $admin['admin_id']);
-            $update_stmt->execute();
-            $update_stmt->close();
-
-            setcookie('admin_remember', $token, $expiry, '/', '', false, true);
-
-        } else {
-            // REMEMBER ME NOT CHECKED - Session only, no cookie
-            $_SESSION['login_method'] = 'session_only';
-
-            // Clear any existing remember me data
-            $clear_stmt = $conn->prepare("UPDATE admins SET remember_token = NULL, token_expiry = NULL WHERE admin_id = ?");
-            $clear_stmt->bind_param("i", $admin['admin_id']);
-            $clear_stmt->execute();
-            $clear_stmt->close();
-
-            if(isset($_COOKIE['admin_remember'])){
-                setcookie('admin_remember', '', time() - 3600, '/', '', false, true);
-            }
-        }
-
-        header("Location: admin_dashboard.php");
-        exit;
+    if(!$username || !$password){
+        $error = "Please enter your username and password.";
     } else {
-        $error = "Invalid username or password.";
+        $stmt = $conn->prepare("SELECT admin_id, username, password FROM admins WHERE username = ?");
+        $stmt->bind_param("s", $username);
+        $stmt->execute();
+        $admin = $stmt->get_result()->fetch_assoc();
+
+        if($admin && password_verify($password, $admin['password'])){
+            session_regenerate_id(true);
+            $_SESSION['admin_id'] = $admin['admin_id'];
+            $_SESSION['admin_username'] = $admin['username'];
+
+            if($remember_me){
+                // REMEMBER ME CHECKED - Create 30 day cookie
+                $_SESSION['login_method'] = 'remember_me';
+                $token = bin2hex(random_bytes(32));
+                $expiry = time() + (86400 * 30);
+
+                $update_stmt = $conn->prepare("UPDATE admins SET remember_token = ?, token_expiry = ? WHERE admin_id = ?");
+                $update_stmt->bind_param("sii", $token, $expiry, $admin['admin_id']);
+                $update_stmt->execute();
+                $update_stmt->close();
+
+                setcookie('admin_remember', $token, $expiry, '/', '', false, true);
+
+            } else {
+                // REMEMBER ME NOT CHECKED - Session only, no cookie
+                $_SESSION['login_method'] = 'session_only';
+
+                // Clear any existing remember me data
+                $clear_stmt = $conn->prepare("UPDATE admins SET remember_token = NULL, token_expiry = NULL WHERE admin_id = ?");
+                $clear_stmt->bind_param("i", $admin['admin_id']);
+                $clear_stmt->execute();
+                $clear_stmt->close();
+
+                if(isset($_COOKIE['admin_remember'])){
+                    setcookie('admin_remember', '', time() - 3600, '/', '', false, true);
+                }
+            }
+
+            header("Location: admin_dashboard.php");
+            exit;
+        } else {
+            $error = "Invalid username or password.";
+        }
+        $stmt->close();
     }
-    $stmt->close();
 }
 ?>
 <!DOCTYPE html>
@@ -383,7 +387,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
           <label>Username</label>
           <div class="input-icon-wrap">
             <i class="fa-solid fa-user"></i>
-            <input type="text" name="username" placeholder="Username" required autofocus>
+            <input type="text" name="username" placeholder="Username"
+                   value="<?=e($_POST['username']??'')?>" required autofocus>
           </div>
         </div>
         <div class="form-group">

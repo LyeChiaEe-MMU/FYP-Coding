@@ -8,7 +8,7 @@ $user = $conn->prepare("SELECT name,email,phone,address FROM users WHERE user_id
 $user->bind_param("i",$uid); $user->execute();
 $u = $user->get_result()->fetch_assoc();
 
-$cs = $conn->prepare("SELECT c.quantity,c.size,c.color,c.product_id,p.name,p.price,p.image_url,
+$cs = $conn->prepare("SELECT c.quantity,c.size,c.color,c.product_id,p.name,p.price,p.sale_percent,p.image_url,
     (SELECT pi.image_url FROM product_images pi WHERE pi.product_id=c.product_id AND pi.color_name=c.color ORDER BY pi.sort_order ASC LIMIT 1) AS color_image
     FROM cart_items c JOIN products p ON c.product_id=p.product_id WHERE c.user_id=?");
 $cs->bind_param("i",$uid); $cs->execute();
@@ -16,7 +16,13 @@ $cart = $cs->get_result();
 if($cart->num_rows===0){ header("Location: cart.php"); exit; }
 
 $items=[]; $subtotal=0;
-while($r=$cart->fetch_assoc()){ $r['sub']=$r['price']*$r['quantity']; $subtotal+=$r['sub']; $items[]=$r; }
+while($r=$cart->fetch_assoc()){
+    $ep = effective_price($r['price'], (int)($r['sale_percent']??0));
+    $r['eff_price'] = $ep;
+    $r['sub'] = $ep * $r['quantity'];
+    $subtotal += $r['sub'];
+    $items[] = $r;
+}
 $shipping = $subtotal>=300 ? 0 : 10;
 $total    = $subtotal+$shipping;
 
@@ -56,6 +62,9 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
 </head>
 <body>
 <?php include 'includes/navbar.php'; ?>
+<?php if(!empty($_SESSION['checkout_error'])): ?>
+<div class="wrap"><div class="flash flash-err" style="margin-top:16px;"><?=e($_SESSION['checkout_error'])?></div></div>
+<?php unset($_SESSION['checkout_error']); endif; ?>
 
 <div class="page-header" style="background:var(--navy2);">
   <div class="wrap">
@@ -200,6 +209,13 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
       <div style="flex:1;">
         <div style="font-size:.875rem;font-weight:600;color:var(--white);"><?=e($it['name'])?></div>
         <div style="font-size:.75rem;color:var(--muted);">UK <?=e($it['size'])?> · <?=e($it['color'])?> × <?=(int)$it['quantity']?></div>
+        <?php $sp_pct_co = (int)($it['sale_percent']??0); if($sp_pct_co > 0): ?>
+        <div style="font-size:.72rem;margin-top:2px;">
+          <span style="text-decoration:line-through;color:var(--muted);">RM <?=number_format($it['price'],2)?>/pc</span>
+          <span style="color:var(--danger);font-weight:600;"> RM <?=number_format($it['eff_price'],2)?>/pc</span>
+          <span style="background:var(--danger);color:#fff;font-size:.6em;padding:1px 5px;border-radius:3px;font-weight:700;vertical-align:middle;"><?=$sp_pct_co?>% OFF</span>
+        </div>
+        <?php endif; ?>
       </div>
       <div style="font-family:'Oswald',sans-serif;color:var(--accent);">RM <?=number_format($it['sub'],2)?></div>
     </div>

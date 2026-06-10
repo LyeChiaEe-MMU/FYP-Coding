@@ -14,9 +14,18 @@ $payment_detail   = trim($_POST['payment_detail']  ?? '');
 $voucher_code     = strtoupper(trim($_POST['voucher_code'] ?? ''));
 $discount_amount  = max(0, (float)($_POST['discount_amount'] ?? 0));
 
+// Server-side validation
+if(empty($shipping_address)){
+    $_SESSION['checkout_error'] = "Please enter your shipping address.";
+    header("Location: checkout.php"); exit;
+}
+
 // Allowed payment methods
 $allowed_pm = ['online_banking','credit_card','ewallet','cod'];
-if(!in_array($payment_method, $allowed_pm)) $payment_method = 'online_banking';
+if(!in_array($payment_method, $allowed_pm)){
+    $_SESSION['checkout_error'] = "Please select a valid payment method.";
+    header("Location: checkout.php"); exit;
+}
 
 // Human-readable payment method label
 $pm_labels = [
@@ -29,7 +38,7 @@ $pm_label = $pm_labels[$payment_method] ?? $payment_method;
 
 // Get cart items
 $cs = $conn->prepare("
-    SELECT c.product_id, c.quantity, c.size, c.color, p.price
+    SELECT c.product_id, c.quantity, c.size, c.color, p.price, p.sale_percent
     FROM cart_items c
     JOIN products p ON c.product_id = p.product_id
     WHERE c.user_id = ?
@@ -42,7 +51,10 @@ if ($cart->num_rows === 0) { header("Location: cart.php"); exit; }
 
 $total = 0; $items = [];
 while ($r = $cart->fetch_assoc()) {
-    $total += ($r['price'] * $r['quantity']);
+    $ep = effective_price($r['price'], (int)($r['sale_percent'] ?? 0));
+    $r['original_price'] = (float)$r['price'];
+    $r['eff_price']      = $ep;
+    $total += ($ep * $r['quantity']);
     $items[] = $r;
 }
 $shipping = $total >= 300 ? 0 : 10;
@@ -84,10 +96,12 @@ try {
     $oid = $conn->insert_id;
     if(!$oid) throw new Exception("Order insert failed.");
 
-    // 2. Insert order items
-    $ins = $conn->prepare("INSERT INTO order_items (order_id, product_id, size, color, quantity, price) VALUES (?, ?, ?, ?, ?, ?)");
+    // 2. Insert order items (price = effective/discounted, original_price = retail before discount)
+    $ins = $conn->prepare("INSERT INTO order_items (order_id, product_id, size, color, quantity, price, original_price) VALUES (?, ?, ?, ?, ?, ?, ?)");
     foreach ($items as $item) {
-        $ins->bind_param("iissid", $oid, $item['product_id'], $item['size'], $item['color'], $item['quantity'], $item['price']);
+        $ep   = $item['eff_price'];
+        $orig = $item['original_price'];
+        $ins->bind_param("iissidd", $oid, $item['product_id'], $item['size'], $item['color'], $item['quantity'], $ep, $orig);
         $ins->execute();
     }
 

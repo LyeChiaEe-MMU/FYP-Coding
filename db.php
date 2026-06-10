@@ -42,6 +42,12 @@ if($_acol && $_acol->num_rows === 0){
     $conn->query("ALTER TABLE products ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1 AFTER is_on_sale");
 }
 
+// ── One-time migration: add sale_percent column to products if missing ──
+$_spcol = $conn->query("SHOW COLUMNS FROM products LIKE 'sale_percent'");
+if($_spcol && $_spcol->num_rows === 0){
+    $conn->query("ALTER TABLE products ADD COLUMN sale_percent TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER is_on_sale");
+}
+
 // ── Create site_settings table if missing ────────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS site_settings (
     setting_key   VARCHAR(80) NOT NULL PRIMARY KEY,
@@ -148,6 +154,12 @@ if($_oicol && $_oicol->num_rows === 0){
     $conn->query("ALTER TABLE order_items ADD COLUMN color VARCHAR(80) NOT NULL DEFAULT 'Default' AFTER size");
 }
 
+// ── One-time migration: add original_price column to order_items if missing ─
+$_oiorig = $conn->query("SHOW COLUMNS FROM order_items LIKE 'original_price'");
+if($_oiorig && $_oiorig->num_rows === 0){
+    $conn->query("ALTER TABLE order_items ADD COLUMN original_price DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER price");
+}
+
 // ── One-time migration: add payment_method to orders ─────────────
 $_pmcol = $conn->query("SHOW COLUMNS FROM orders LIKE 'payment_method'");
 if($_pmcol && $_pmcol->num_rows === 0){
@@ -171,6 +183,37 @@ if($_vccol && $_vccol->num_rows === 0){
 
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
+
+// Returns the effective selling price after discount — rounded to whole ringgit
+function effective_price($price, $percent){
+    $pct = max(0, min(99, (int)$percent));
+    return $pct > 0 ? (float)round((float)$price * (1 - $pct / 100)) : (float)$price;
+}
+
+// Renders price with strikethrough original + red sale price + % badge
+// $mode: 'card' (product cards) | 'detail' (product detail page)
+function price_html($price, $percent, $mode = 'card'){
+    $pct = max(0, min(99, (int)$percent));
+    if($pct <= 0){
+        if($mode === 'detail')
+            return '<div class="detail-price">RM '.number_format((float)$price,2).'</div>';
+        return '<span class="prod-price">RM '.number_format((float)$price,2).'</span>';
+    }
+    $sp = effective_price($price, $pct);
+    $badge = '<span style="background:var(--danger);color:#fff;font-size:.6em;padding:2px 7px;border-radius:4px;font-weight:700;letter-spacing:.5px;vertical-align:middle;margin-left:4px;">'.$pct.'% OFF</span>';
+    if($mode === 'detail'){
+        return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">'
+             . '<span style="text-decoration:line-through;color:var(--muted);font-size:1.1rem;">RM '.number_format((float)$price,2).'</span>'
+             . '<span class="detail-price" style="color:var(--danger);margin-bottom:0;">RM '.number_format($sp,2).'</span>'
+             . $badge
+             . '</div>';
+    }
+    return '<span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">'
+         . '<span style="text-decoration:line-through;color:var(--muted);font-size:.78rem;">RM '.number_format((float)$price,2).'</span>'
+         . '<span class="prod-price" style="color:var(--danger);">RM '.number_format($sp,2).'</span>'
+         . $badge
+         . '</span>';
+}
 
 function add_notification($conn, $user_id, $title, $message, $type = 'info'){
     $s = $conn->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)");

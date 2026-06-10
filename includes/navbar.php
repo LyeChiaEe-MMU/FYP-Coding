@@ -369,7 +369,7 @@ $mega = [
             <div class="mega-feat">
               <?php
               $mg_safe = $conn->real_escape_string($mg);
-              $fp = $conn->query("SELECT p.product_id,p.name,p.price,p.image_url,c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE p.is_active=1 AND (p.gender='$mg_safe' OR p.gender='Unisex') ORDER BY p.created_at DESC LIMIT 2");
+              $fp = $conn->query("SELECT p.product_id,p.name,p.price,p.sale_percent,p.image_url,c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE p.is_active=1 AND (p.gender='$mg_safe' OR p.gender='Unisex') ORDER BY p.created_at DESC LIMIT 2");
               if($fp && $fp->num_rows>0): while($fr=$fp->fetch_assoc()):
                 $fimg = !empty($fr['image_url']) ? e($fr['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&q=70';
               ?>
@@ -378,7 +378,15 @@ $mega = [
                 <div class="mega-feat-body">
                   <div class="mega-feat-lbl"><?=e($fr['category_name'])?></div>
                   <div class="mega-feat-name"><?=e($fr['name'])?></div>
-                  <div class="mega-feat-price">RM <?=number_format($fr['price'],2)?></div>
+                  <?php $mf_sp = (int)($fr['sale_percent']??0); $mf_ep = effective_price($fr['price'],$mf_sp); ?>
+                  <div class="mega-feat-price">
+                    <?php if($mf_sp > 0): ?>
+                    <span style="text-decoration:line-through;font-size:.75rem;color:var(--muted);font-family:'Inter',sans-serif;">RM <?=number_format($fr['price'],2)?></span>
+                    <span style="color:var(--danger);">RM <?=number_format($mf_ep,2)?></span>
+                    <?php else: ?>
+                    RM <?=number_format($fr['price'],2)?>
+                    <?php endif; ?>
+                  </div>
                 </div>
               </a>
               <?php endwhile; endif; ?>
@@ -473,7 +481,7 @@ function apexSearch(val){
                             <div style="font-size:.88rem;font-weight:600;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name.replace(/</g,'&lt;')}</div>
                             <div style="font-size:.72rem;color:var(--muted);margin-top:2px;">${p.category}</div>
                         </div>
-                        <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--accent);flex-shrink:0;">RM ${parseFloat(p.price).toFixed(2)}</div>
+                        <div style="font-family:'Oswald',sans-serif;font-size:1rem;color:var(--accent);flex-shrink:0;">RM ${parseFloat(p.eff_price ?? p.price).toFixed(2)}${p.sale_percent>0?` <span style="font-size:.65rem;text-decoration:line-through;opacity:.6;">RM ${parseFloat(p.price).toFixed(2)}</span>`:''}</div>
                     </a>
                 `).join('')+`
                 <a href="<?=$depth?>products.php?q=${encodeURIComponent(q)}"

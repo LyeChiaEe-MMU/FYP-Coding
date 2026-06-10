@@ -47,8 +47,8 @@ $extra_select = '';
 $extra_join   = '';
 $group_by     = '';
 
-if ($sort === 'price_asc')  $order = 'p.is_active DESC, p.price ASC';
-if ($sort === 'price_desc') $order = 'p.is_active DESC, p.price DESC';
+if ($sort === 'price_asc')  $order = 'p.is_active DESC, ROUND(p.price*(1-p.sale_percent/100)) ASC, p.price ASC';
+if ($sort === 'price_desc') $order = 'p.is_active DESC, ROUND(p.price*(1-p.sale_percent/100)) DESC, p.price DESC';
 if ($sort === 'name_az')    $order = 'p.is_active DESC, p.name ASC';
 if ($sort === 'name_za')    $order = 'p.is_active DESC, p.name DESC';
 if ($sort === 'popular') {
@@ -351,7 +351,8 @@ elseif ($sort === 'newest' && !$cat && !$gender && !$q)     $page_mode = 'newarr
                   <?=$medal?> <?=(int)($p['total_sold'] ?? 0)?> sold
                 </span>
               <?php elseif(!empty($p['is_on_sale'])): ?>
-              <span style="position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;">SALE</span>
+              <?php $sp_badge=(int)($p['sale_percent']??0); ?>
+              <span style="position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;"><?=$sp_badge>0?$sp_badge.'% OFF':'SALE'?></span>
               <?php elseif(strtotime($p['created_at']) >= strtotime('-30 days')): ?>
               <span style="position:absolute;top:10px;right:10px;background:var(--success);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;">NEW</span>
               <?php endif; ?>
@@ -367,7 +368,11 @@ elseif ($sort === 'newest' && !$cat && !$gender && !$q)     $page_mode = 'newarr
               <?php endif; ?>
             </div>
             <div class="prod-footer">
-              <span class="prod-price" style="<?= $isActive ? '' : 'color:var(--muted);text-decoration:line-through;' ?>">RM <?=number_format($p['price'],2)?></span>
+              <?php if(!$isActive): ?>
+              <span class="prod-price" style="color:var(--muted);text-decoration:line-through;">RM <?=number_format($p['price'],2)?></span>
+              <?php else: ?>
+              <?=price_html($p['price'], (int)($p['sale_percent']??0))?>
+              <?php endif; ?>
               <?php if($isActive): ?>
               <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>
               <?php else: ?>
