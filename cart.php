@@ -8,11 +8,13 @@ $uid = (int)$_SESSION['user_id'];
 $stmt = $conn->prepare("
     SELECT c.cart_id, c.quantity, c.size, c.color,
            p.product_id, p.name, p.price, p.sale_percent, p.image_url,
+           COALESCE(ps.stock,0) AS avail_stock,
            (SELECT pi.image_url FROM product_images pi
             WHERE pi.product_id = c.product_id AND pi.color_name = c.color
             ORDER BY pi.sort_order ASC LIMIT 1) AS color_image
     FROM cart_items c
     JOIN products p ON c.product_id = p.product_id
+    LEFT JOIN product_stock ps ON ps.product_id=c.product_id AND ps.color_name=c.color AND ps.size=c.size
     WHERE c.user_id = ?
     ORDER BY c.cart_id DESC
 ");
@@ -53,6 +55,11 @@ $total    = $subtotal + $shipping;
 
 <section class="section" style="padding-top:40px;">
 <div class="wrap">
+<?php if(!empty($_SESSION['cart_msg'])): ?>
+<div class="flash flash-<?=e($_SESSION['cart_msg_type']??'ok')?>" style="margin-bottom:18px;">
+  <?=e($_SESSION['cart_msg'])?>
+</div>
+<?php unset($_SESSION['cart_msg'],$_SESSION['cart_msg_type']); endif; ?>
 
 <?php if(empty($rows)): ?>
 <div class="empty-cart">
@@ -100,19 +107,23 @@ $total    = $subtotal + $shipping;
           <?php endif; ?>
         </div>
         <!-- Qty -->
-        <div>
+        <div data-avail="<?=(int)$r['avail_stock']?>">
           <form action="cart_action.php" method="POST">
             <?=csrf_field()?>
             <input type="hidden" name="action" value="update">
             <input type="hidden" name="cart_id" value="<?=(int)$r['cart_id']?>">
             <div class="qty-wrap">
               <button type="submit" class="qty-btn" name="qty_action" value="dec"
-                onclick="let i=this.form.quantity;i.value=Math.max(1,+i.value-1)">−</button>
-              <input type="number" name="quantity" class="qty-val" value="<?=(int)$r['quantity']?>" min="1" onchange="this.form.submit()">
-              <button type="submit" class="qty-btn" name="qty_action" value="inc"
-                onclick="let i=this.form.quantity;i.value=+i.value+1">+</button>
+                onclick="clearStockWarn(this);let i=this.form.quantity;i.value=Math.max(1,+i.value-1)">−</button>
+              <input type="number" name="quantity" class="qty-val" value="<?=(int)$r['quantity']?>" min="1"
+                     onchange="cartQtyChange(this)">
+              <button type="button" class="qty-btn" onclick="cartQtyInc(this)">+</button>
             </div>
           </form>
+          <div class="cart-stock-warn" style="display:none;font-size:.7rem;color:#ef4444;font-weight:600;margin-top:4px;line-height:1.4;"></div>
+          <?php $avail = (int)$r['avail_stock']; if($avail <= 5 && $avail > 0): ?>
+          <div style="font-size:.68rem;color:var(--muted);margin-top:3px;">Only <?=$avail?> left in stock</div>
+          <?php endif; ?>
         </div>
         <!-- Subtotal -->
         <div class="ci-price">RM <?=number_format($r['sub'],2)?></div>
@@ -160,3 +171,50 @@ $total    = $subtotal + $shipping;
 </section>
 
 <?php include 'includes/footer.php'; ?>
+
+<script>
+function cartQtyInc(btn){
+    const outer = btn.closest('[data-avail]');
+    const form  = btn.closest('form');
+    const input = form.querySelector('input[name="quantity"]');
+    const warn  = outer ? outer.querySelector('.cart-stock-warn') : null;
+    const avail = outer ? (parseInt(outer.dataset.avail) || 0) : 9999;
+    const cur   = parseInt(input.value) || 1;
+
+    if(avail > 0 && cur >= avail){
+        if(warn){
+            warn.textContent = 'Only ' + avail + ' available in stock — cannot add more.';
+            warn.style.display = 'block';
+        }
+        return; // block increment
+    }
+    if(warn) warn.style.display = 'none';
+    input.value = cur + 1;
+    form.submit();
+}
+
+function cartQtyChange(input){
+    const outer = input.closest('[data-avail]');
+    const warn  = outer ? outer.querySelector('.cart-stock-warn') : null;
+    const avail = outer ? (parseInt(outer.dataset.avail) || 0) : 9999;
+    let   cur   = parseInt(input.value) || 1;
+
+    if(avail > 0 && cur > avail){
+        cur = avail;
+        input.value = avail;
+        if(warn){
+            warn.textContent = 'Only ' + avail + ' available in stock. Quantity adjusted.';
+            warn.style.display = 'block';
+        }
+    } else {
+        if(warn) warn.style.display = 'none';
+    }
+    input.form.submit();
+}
+
+function clearStockWarn(btn){
+    const outer = btn.closest('[data-avail]');
+    const warn  = outer ? outer.querySelector('.cart-stock-warn') : null;
+    if(warn) warn.style.display = 'none';
+}
+</script>

@@ -7,22 +7,26 @@ $hero_bg = '';
 $_hb = $conn->query("SELECT setting_value FROM site_settings WHERE setting_key='hero_image'");
 if($_hb && $_hbr = $_hb->fetch_assoc()) $hero_bg = $_hbr['setting_value'] ?? '';
 
-// New Arrivals — latest 12 active, in-stock products only
+// New Arrivals — latest 12 active, in-stock products only (with total_sold for NEW badge check)
 $featured = $conn->query("
-    SELECT p.*, c.category_name
+    SELECT p.*, c.category_name, COALESCE(SUM(oi.quantity),0) AS total_sold
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
+    LEFT JOIN order_items oi ON oi.product_id = p.product_id
     WHERE p.is_active = 1 AND p.stock > 0
+    GROUP BY p.product_id
     ORDER BY p.created_at DESC LIMIT 12
 ");
 
 // Category sections — top 4 newest per category (active only)
 $featured_by_cat = [];
 $_af = $conn->query("
-    SELECT p.*, c.category_name
+    SELECT p.*, c.category_name, COALESCE(SUM(oi.quantity),0) AS total_sold
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
+    LEFT JOIN order_items oi ON oi.product_id = p.product_id
     WHERE p.is_active = 1 AND p.stock > 0
+    GROUP BY p.product_id
     ORDER BY c.category_name ASC, p.created_at DESC
 ");
 if ($_af) {
@@ -150,7 +154,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
       <?php if($featured && $featured->num_rows > 0):
         while($p = $featured->fetch_assoc()):
           $img   = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
-          $isNew = strtotime($p['created_at']) >= strtotime('-30 days');
+          $isNew = strtotime($p['created_at']) >= strtotime('-30 days') && (int)($p['total_sold'] ?? 0) < 10;
       ?>
       <?php $sp_pct = (int)($p['sale_percent'] ?? 0); ?>
       <div class="prod-card">
@@ -204,7 +208,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">
       <?php foreach ($catProducts as $p):
         $img    = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
-        $isNew  = strtotime($p['created_at']) >= strtotime('-30 days');
+        $isNew  = strtotime($p['created_at']) >= strtotime('-30 days') && (int)($p['total_sold'] ?? 0) < 10;
         $sp_pct = (int)($p['sale_percent'] ?? 0);
       ?>
       <div class="prod-card">

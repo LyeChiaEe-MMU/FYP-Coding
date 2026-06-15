@@ -9,7 +9,7 @@ function restore_from_remember_cookie() {
     if (!empty($_SESSION['admin_id'])) return true;
     if (!isset($_COOKIE['admin_remember'])) return false;
 
-    $token = $_COOKIE['admin_remember'];
+    $token = hash('sha256', $_COOKIE['admin_remember']);
     $now   = time();
     $stmt  = $conn->prepare("SELECT admin_id, username FROM admins WHERE remember_token = ? AND token_expiry > ? LIMIT 1");
     $stmt->bind_param("si", $token, $now);

@@ -100,7 +100,6 @@ $conn->query("UPDATE notifications SET is_read=1 WHERE user_id=$uid AND is_read=
     // Re-fetch since we already counted; but notifs result is still valid
     $notifs->data_seek(0);
     while($n = $notifs->fetch_assoc()):
-      $is_new = false; // Already marked all read above; track from original unread state via created_at
       $icon_class = match($n['type']) {
           'refund'  => 'refund',
           'warning' => 'warning',
@@ -111,9 +110,7 @@ $conn->query("UPDATE notifications SET is_read=1 WHERE user_id=$uid AND is_read=
           'warning' => 'fa-solid fa-triangle-exclamation',
           default   => 'fa-solid fa-bell',
       };
-      // Highlight if it was unread (created recently — within last minute since we just marked all read)
       $ts = strtotime($n['created_at']);
-      $age_mins = (time() - $ts) / 60;
   ?>
   <div class="notif-card<?=(!$n['is_read'] ? ' unread' : '')?>">
     <div class="notif-icon <?=$icon_class?>">

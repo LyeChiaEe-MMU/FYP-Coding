@@ -2,11 +2,16 @@
 session_start();
 require 'db.php';
 
+// ── Preserve gender context so "Back to X" still works after cart redirect ──
+$_bg_allowed = ['Men','Women','Kids'];
+$_bg_raw     = trim($_POST['back_gender'] ?? '');
+$back_gender_suffix = (in_array($_bg_raw, $_bg_allowed)) ? '&gender='.urlencode($_bg_raw) : '';
+
 if(!isset($_SESSION['user_id'])){
     $_SESSION['cart_msg']      = "Please login to add items to your cart.";
     $_SESSION['cart_msg_type'] = "err";
     if(!empty($_POST['product_id']))
-        header("Location: product_detail.php?id=".(int)$_POST['product_id']);
+        header("Location: product_detail.php?id=".(int)$_POST['product_id'].$back_gender_suffix);
     else
         header("Location: login.php");
     exit;
@@ -17,7 +22,7 @@ $user_id = (int)$_SESSION['user_id'];
 if(!empty($_SESSION['admin_id'])){
     $_SESSION['cart_msg']      = "Admin accounts cannot add items to cart.";
     $_SESSION['cart_msg_type'] = "err";
-    header("Location: " . (!empty($_POST['product_id']) ? "product_detail.php?id=".(int)$_POST['product_id'] : "index.php"));
+    header("Location: " . (!empty($_POST['product_id']) ? "product_detail.php?id=".(int)$_POST['product_id'].$back_gender_suffix : "index.php"));
     exit;
 }
 
@@ -35,7 +40,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if(!$size){
             $_SESSION['cart_msg']      = "Please select a size before adding to cart.";
             $_SESSION['cart_msg_type'] = "err";
-            header("Location: product_detail.php?id=$product_id");
+            header("Location: product_detail.php?id=$product_id$back_gender_suffix");
             exit;
         }
 
@@ -57,13 +62,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 if($available < 1){
                     $_SESSION['cart_msg']      = "Sorry, UK $size in $color is out of stock.";
                     $_SESSION['cart_msg_type'] = "err";
-                    header("Location: product_detail.php?id=$product_id");
+                    header("Location: product_detail.php?id=$product_id$back_gender_suffix");
                     exit;
                 }
                 if(($already_in_cart + $quantity) > $available){
                     $_SESSION['cart_msg']      = "Only $available unit(s) available for UK $size in $color (you already have $already_in_cart in cart).";
                     $_SESSION['cart_msg_type'] = "err";
-                    header("Location: product_detail.php?id=$product_id");
+                    header("Location: product_detail.php?id=$product_id$back_gender_suffix");
                     exit;
                 }
             }
@@ -82,7 +87,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
         $_SESSION['cart_msg']      = "Added to cart! UK $size" . ($color && $color!='Default' ? " — $color" : "");
         $_SESSION['cart_msg_type'] = "ok";
-        header("Location: product_detail.php?id=$product_id");
+        header("Location: product_detail.php?id=$product_id$back_gender_suffix");
         exit;
 
     } elseif($action==='update'){

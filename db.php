@@ -224,8 +224,9 @@ function add_notification($conn, $user_id, $title, $message, $type = 'info'){
 function cart_count($conn){
     if(empty($_SESSION['user_id'])) return 0;
     $uid=(int)$_SESSION['user_id'];
-    $r=$conn->query("SELECT COALESCE(SUM(quantity),0) AS c FROM cart_items WHERE user_id=$uid");
-    return (int)$r->fetch_assoc()['c'];
+    $s=$conn->prepare("SELECT COALESCE(SUM(quantity),0) AS c FROM cart_items WHERE user_id=?");
+    $s->bind_param("i",$uid); $s->execute();
+    return (int)$s->get_result()->fetch_assoc()['c'];
 }
 
 function is_logged(){ return !empty($_SESSION['user_id']); }

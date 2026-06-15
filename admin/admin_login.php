@@ -7,15 +7,16 @@ function check_remember_me_cookie(){
     global $conn;
     
     if(isset($_COOKIE['admin_remember'])){
-        $token = $_COOKIE['admin_remember'];
+        $token_hash = hash('sha256', $_COOKIE['admin_remember']);
         $current_time = time();
-        
+
         $stmt = $conn->prepare("SELECT admin_id, username FROM admins WHERE remember_token = ? AND token_expiry > ? LIMIT 1");
-        $stmt->bind_param("si", $token, $current_time);
+        $stmt->bind_param("si", $token_hash, $current_time);
         $stmt->execute();
         $result = $stmt->get_result();
         
         if($admin = $result->fetch_assoc()){
+            unset($_SESSION['user_id'], $_SESSION['user_name']);
             $_SESSION['admin_id'] = $admin['admin_id'];
             $_SESSION['admin_username'] = $admin['username'];
             $_SESSION['login_method'] = 'remember_me';
@@ -39,7 +40,7 @@ if(check_remember_me_cookie()){
 }
 
 // Check if any admin account exists
-$check = $conn->query("SELECT * FROM admins LIMIT 1");
+$check = $conn->query("SELECT 1 FROM admins LIMIT 1");
 
 // If no admin exists, create a default admin account
 if($check->num_rows === 0){
@@ -65,6 +66,8 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
         if($admin && password_verify($password, $admin['password'])){
             session_regenerate_id(true);
+            // Clear any leftover user session so admin never inherits customer view
+            unset($_SESSION['user_id'], $_SESSION['user_name']);
             $_SESSION['admin_id'] = $admin['admin_id'];
             $_SESSION['admin_username'] = $admin['username'];
 
@@ -72,10 +75,11 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
                 // REMEMBER ME CHECKED - Create 30 day cookie
                 $_SESSION['login_method'] = 'remember_me';
                 $token = bin2hex(random_bytes(32));
+                $token_hash = hash('sha256', $token);
                 $expiry = time() + (86400 * 30);
 
                 $update_stmt = $conn->prepare("UPDATE admins SET remember_token = ?, token_expiry = ? WHERE admin_id = ?");
-                $update_stmt->bind_param("sii", $token, $expiry, $admin['admin_id']);
+                $update_stmt->bind_param("sii", $token_hash, $expiry, $admin['admin_id']);
                 $update_stmt->execute();
                 $update_stmt->close();
 

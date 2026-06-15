@@ -19,7 +19,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
 
         // Notify the customer
         $order_num = '#' . str_pad($oid, 6, '0', STR_PAD_LEFT);
-        $owner = $conn->query("SELECT user_id FROM orders WHERE order_id=$oid");
+        $owner = $conn->query("SELECT user_id, total_amount FROM orders WHERE order_id=$oid");
         if($owner && $row_o = $owner->fetch_assoc()){
             $cust_uid = (int)$row_o['user_id'];
             if($new_status === 'Delivered'){
@@ -30,11 +30,22 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
                     'delivery'
                 );
             } elseif($new_status === 'Cancelled'){
-                add_notification(
-                    $conn, $cust_uid,
-                    'Order ' . $order_num . ' Cancelled',
-                    'Your order ' . $order_num . ' has been cancelled. If you believe this is a mistake or need help, please contact our support team.',
-                    'warning'
+                // Auto-issue a full refund voucher
+                $refund_amt = (float)$row_o['total_amount'];
+                do {
+                    $vcode   = 'APEX-'.strtoupper(bin2hex(random_bytes(4)));
+                    $vcode_e = $conn->real_escape_string($vcode);
+                    $v_ck    = $conn->query("SELECT voucher_id FROM vouchers WHERE code='$vcode_e'");
+                } while($v_ck && $v_ck->num_rows > 0);
+                $expires  = date('Y-m-d', strtotime('+90 days'));
+                $v_reason = "Refund — Order ".str_pad($oid,6,'0',STR_PAD_LEFT)." cancelled";
+                $sv = $conn->prepare("INSERT INTO vouchers (user_id,code,amount,reason,expires_at) VALUES (?,?,?,?,?)");
+                $sv->bind_param("isdss", $cust_uid, $vcode, $refund_amt, $v_reason, $expires);
+                $sv->execute();
+                add_notification($conn, $cust_uid,
+                    'Order '.$order_num.' Cancelled — Refund Voucher Issued',
+                    'Your order '.$order_num.' has been cancelled. A full refund voucher of RM '.number_format($refund_amt,2).' (Code: '.$vcode.') has been added to your account. Valid for 90 days — use it at checkout.',
+                    'refund'
                 );
             }
         }

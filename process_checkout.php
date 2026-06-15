@@ -129,7 +129,10 @@ try {
         $qty = $item['quantity'];
         $deduct_sz->bind_param("iissi", $qty, $item['product_id'], $item['color'], $item['size'], $qty);
         $deduct_sz->execute();
-        // If affected_rows=0 the size ran out — still continue (stock already 0, order noted)
+        if($deduct_sz->affected_rows === 0){
+            // Stock ran out between cart-view and checkout — abort and refund the customer nothing was charged
+            throw new Exception("Sorry, UK {$item['size']} — {$item['color']} for one of your items ran out of stock just now. Please update your cart and try again.");
+        }
         $deduct_tot->bind_param("ii", $qty, $item['product_id']);
         $deduct_tot->execute();
     }

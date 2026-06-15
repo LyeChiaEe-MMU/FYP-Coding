@@ -5,6 +5,10 @@ require 'db.php';
 if(empty($_GET['id'])){ header("Location: products.php"); exit; }
 $pid = (int)$_GET['id'];
 
+// Gender context passed from the listing page — used to build correct "Back to" links
+$_allowed_genders = ['Men','Women','Kids'];
+$back_gender = (isset($_GET['gender']) && in_array($_GET['gender'], $_allowed_genders)) ? $_GET['gender'] : '';
+
 $stmt = $conn->prepare("SELECT p.*, c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE p.product_id=? AND p.is_active=1");
 $stmt->bind_param("i",$pid); $stmt->execute();
 $product = $stmt->get_result()->fetch_assoc();
@@ -189,7 +193,12 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
   <div class="wrap">
     <div class="breadcrumb">
       <a href="index.php">Home</a><span class="sep">/</span>
-      <a href="products.php?cat=<?=urlencode($product['category_name'])?>"><?=e($product['category_name'])?></a>
+      <?php if($back_gender): ?>
+        <a href="products.php?gender=<?=urlencode($back_gender)?>"><?=e($back_gender)?>'s Shoes</a><span class="sep">/</span>
+        <a href="products.php?cat=<?=urlencode($product['category_name']).'&gender='.urlencode($back_gender)?>"><?=e($product['category_name'])?></a>
+      <?php else: ?>
+        <a href="products.php?cat=<?=urlencode($product['category_name'])?>"><?=e($product['category_name'])?></a>
+      <?php endif; ?>
       <span class="sep">/</span><span><?=e($product['name'])?></span>
     </div>
   </div>
@@ -250,10 +259,11 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
 
     <form action="cart_action.php" method="POST" id="addCartForm">
       <?=csrf_field()?>
-      <input type="hidden" name="action" value="add">
-      <input type="hidden" name="product_id" value="<?=$pid?>">
-      <input type="hidden" name="size"  id="sizeInput"  value="">
-      <input type="hidden" name="color" id="colorInput" value="<?=e($first_color)?>">
+      <input type="hidden" name="action"      value="add">
+      <input type="hidden" name="product_id"  value="<?=$pid?>">
+      <input type="hidden" name="size"        id="sizeInput"  value="">
+      <input type="hidden" name="color"       id="colorInput" value="<?=e($first_color)?>">
+      <input type="hidden" name="back_gender" value="<?=e($back_gender)?>">
 
       <!-- ── COLOUR SELECTOR ── -->
       <?php $variants = array_slice($images,1); if(!empty($variants)): ?>
@@ -298,6 +308,8 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
                 $init_sizes[$sz] = 0;
             }
         }
+        // Sort by numeric value so sizes display in correct ascending order
+        uksort($init_sizes, fn($a,$b) => floatval($a) <=> floatval($b));
         if(!empty($init_sizes)):
             foreach($init_sizes as $sz => $stk):
                 $oos = $stk < 1;
@@ -337,16 +349,22 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
       </button>
       <?php elseif($product['stock']>0): ?>
       <button type="submit" class="btn btn-primary btn-full" id="addCartBtn" disabled style="margin-bottom:12px;">
-        SELECT A COLOUR &amp; SIZE TO ADD TO CART
+        SELECT A SIZE TO ADD TO CART
       </button>
       <?php else: ?>
       <button class="btn btn-secondary btn-full" disabled style="margin-bottom:12px;">OUT OF STOCK</button>
       <?php endif; ?>
     </form>
 
-    <a href="products.php?cat=<?=urlencode($product['category_name'])?>" class="btn btn-outline btn-full">
-      &#8592; Back to <?=e($product['category_name'])?>
-    </a>
+    <?php
+      // back_cat_url still used for the "View All" link in You May Also Like
+      $back_cat_url = 'products.php?cat='.urlencode($product['category_name']);
+      if($back_gender) $back_cat_url .= '&gender='.urlencode($back_gender);
+    ?>
+    <button type="button" class="btn btn-outline btn-full"
+            onclick="if(document.referrer && document.referrer !== window.location.href){ history.back(); } else { window.location='products.php'; }">
+      &#8592; Back
+    </button>
 
     <?php if(is_logged() && !is_admin()): ?>
     <button class="btn btn-full wl-toggle-btn <?=$is_wishlisted?'wl-active':''?>"
@@ -446,7 +464,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
         <p style="font-size:.68rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">From <?=e($product['category_name'])?></p>
         <h2 style="font-family:'Oswald',sans-serif;font-size:clamp(20px,2.5vw,30px);letter-spacing:2px;color:var(--white);">YOU MAY ALSO LIKE</h2>
       </div>
-      <a href="products.php?cat=<?=urlencode($product['category_name'])?>"
+      <a href="<?=$back_cat_url?>"
          style="font-size:.82rem;color:var(--muted);border-bottom:1px solid var(--border);padding-bottom:2px;transition:.2s;"
          onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'"
          onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
@@ -473,7 +491,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
         </button>
         <?php endif; ?>
 
-        <a href="product_detail.php?id=<?=(int)$rp['product_id']?>">
+        <a href="product_detail.php?id=<?=(int)$rp['product_id']?><?=$back_gender?'&gender='.urlencode($back_gender):''?>">
           <div class="prod-img">
             <img src="<?=$rimg?>" alt="<?=e($rp['name'])?>" loading="lazy">
             <span class="prod-badge"><?=e($rp['category_name'])?></span>
@@ -481,10 +499,10 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
         </a>
         <div class="prod-body">
           <div class="prod-cat"><?=e($rp['category_name'])?></div>
-          <div class="prod-name"><a href="product_detail.php?id=<?=(int)$rp['product_id']?>"><?=e($rp['name'])?></a></div>
+          <div class="prod-name"><a href="product_detail.php?id=<?=(int)$rp['product_id']?><?=$back_gender?'&gender='.urlencode($back_gender):''?>"><?=e($rp['name'])?></a></div>
           <div class="prod-footer">
             <?=price_html($rp['price'], (int)($rp['sale_percent']??0))?>
-            <a href="product_detail.php?id=<?=(int)$rp['product_id']?>" class="btn-view">View →</a>
+            <a href="product_detail.php?id=<?=(int)$rp['product_id']?><?=$back_gender?'&gender='.urlencode($back_gender):''?>" class="btn-view">View →</a>
           </div>
         </div>
       </div>
@@ -564,6 +582,8 @@ document.querySelectorAll('.card-heart-btn').forEach(btn=>{
 const imgs     = <?=json_encode(array_values($images))?>;
 // ── All stock data: { colorName: { size: stock } } ──
 const stockAll = <?=json_encode($stock_data)?>;
+// ── All unique sizes across every colour (sorted) — used to keep grid complete on colour switch ──
+const allSizes = <?=json_encode(array_values($all_sizes))?>;
 let cur         = 0;
 let activeColor = <?=json_encode($first_color)?>;
 let activeSize  = null;
@@ -624,9 +644,13 @@ function updateSizeGrid(colorName){
 
 function renderSizes(grid, stockForColor){
     grid.innerHTML='';
-    const sizes = Object.keys(stockForColor).sort((a,b)=>parseFloat(a)-parseFloat(b));
-    sizes.forEach(sz=>{
-        const stk = parseInt(stockForColor[sz]);
+    // Always show every size that exists across all colours — mark unavailable for this colour as OOS
+    const sizesToShow = allSizes.length > 0
+        ? allSizes
+        : Object.keys(stockForColor).sort((a,b)=>parseFloat(a)-parseFloat(b));
+    sizesToShow.forEach(sz=>{
+        const raw = stockForColor[sz];
+        const stk = (raw !== undefined && raw !== null) ? parseInt(raw) : 0;
         const oos = stk < 1;
         const low = stk > 0 && stk <= 3;
         const btn = document.createElement('button');
@@ -639,7 +663,7 @@ function renderSizes(grid, stockForColor){
         if(!oos) btn.onclick = ()=>{ pickSize(btn, sz); };
         grid.appendChild(btn);
     });
-    if(sizes.length===0){
+    if(sizesToShow.length===0){
         grid.innerHTML='<span style="color:var(--muted);font-size:.875rem;">No stock data for this colour.</span>';
     }
 }
@@ -680,7 +704,7 @@ function updateAddBtn(){
     } else if(hasVariants && !activeSize){
         btn.disabled=true; btn.textContent='SELECT A SIZE';
     } else {
-        btn.disabled=true; btn.textContent='SELECT A COLOUR & SIZE';
+        btn.disabled=true; btn.textContent='SELECT A SIZE';
     }
 }
 

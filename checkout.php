@@ -9,18 +9,23 @@ $user->bind_param("i",$uid); $user->execute();
 $u = $user->get_result()->fetch_assoc();
 
 $cs = $conn->prepare("SELECT c.quantity,c.size,c.color,c.product_id,p.name,p.price,p.sale_percent,p.image_url,
+    COALESCE(ps.stock,0) AS avail_stock,
     (SELECT pi.image_url FROM product_images pi WHERE pi.product_id=c.product_id AND pi.color_name=c.color ORDER BY pi.sort_order ASC LIMIT 1) AS color_image
-    FROM cart_items c JOIN products p ON c.product_id=p.product_id WHERE c.user_id=?");
+    FROM cart_items c
+    JOIN products p ON c.product_id=p.product_id
+    LEFT JOIN product_stock ps ON ps.product_id=c.product_id AND ps.color_name=c.color AND ps.size=c.size
+    WHERE c.user_id=?");
 $cs->bind_param("i",$uid); $cs->execute();
 $cart = $cs->get_result();
 if($cart->num_rows===0){ header("Location: cart.php"); exit; }
 
-$items=[]; $subtotal=0;
+$items=[]; $subtotal=0; $has_stock_issue=false;
 while($r=$cart->fetch_assoc()){
     $ep = effective_price($r['price'], (int)($r['sale_percent']??0));
     $r['eff_price'] = $ep;
     $r['sub'] = $ep * $r['quantity'];
     $subtotal += $r['sub'];
+    if((int)$r['quantity'] > (int)$r['avail_stock']) $has_stock_issue = true;
     $items[] = $r;
 }
 $shipping = $subtotal>=300 ? 0 : 10;
@@ -160,28 +165,28 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
         <div class="form-grid-2" style="gap:12px;">
           <div class="form-group span-2" style="margin:0;" id="grp_card_number">
             <label style="font-size:.72rem;letter-spacing:1px;color:var(--muted);">CARD NUMBER *</label>
-            <input type="text" id="cardNumber" name="card_number" placeholder="1234  5678  9012  3456" maxlength="19" autocomplete="cc-number"
+            <input type="text" id="cardNumber" placeholder="1234  5678  9012  3456" maxlength="19" autocomplete="cc-number"
                    oninput="this.value=this.value.replace(/[^0-9]/g,'').replace(/(.{4})/g,'$1 ').trim().substr(0,19)"
                    style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);width:100%;font-size:.9rem;letter-spacing:2px;box-sizing:border-box;">
             <span class="val-err" id="cardNumberErr">Please enter a valid 16-digit card number.</span>
           </div>
           <div class="form-group" style="margin:0;" id="grp_card_expiry">
             <label style="font-size:.72rem;letter-spacing:1px;color:var(--muted);">EXPIRY DATE *</label>
-            <input type="text" id="cardExpiry" name="card_expiry" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp"
+            <input type="text" id="cardExpiry" placeholder="MM / YY" maxlength="7" autocomplete="cc-exp"
                    oninput="fmtExpiry(this)"
                    style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);width:100%;font-size:.9rem;box-sizing:border-box;">
             <span class="val-err" id="cardExpiryErr">Please enter a valid expiry date (MM / YY).</span>
           </div>
           <div class="form-group" style="margin:0;" id="grp_card_cvv">
             <label style="font-size:.72rem;letter-spacing:1px;color:var(--muted);">CVV *</label>
-            <input type="password" id="cardCvv" name="card_cvv" placeholder="•••" maxlength="3" autocomplete="cc-csc"
+            <input type="password" id="cardCvv" placeholder="•••" maxlength="3" autocomplete="cc-csc"
                    oninput="this.value=this.value.replace(/[^0-9]/g,'')"
                    style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);width:100%;font-size:.9rem;box-sizing:border-box;">
             <span class="val-err" id="cardCvvErr">CVV must be 3 digits.</span>
           </div>
           <div class="form-group span-2" style="margin:0;" id="grp_card_name">
             <label style="font-size:.72rem;letter-spacing:1px;color:var(--muted);">CARDHOLDER NAME *</label>
-            <input type="text" id="cardName" name="card_name" placeholder="Name as on card" autocomplete="cc-name"
+            <input type="text" id="cardName" placeholder="Name as on card" autocomplete="cc-name"
                    style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);width:100%;font-size:.9rem;box-sizing:border-box;">
             <span class="val-err" id="cardNameErr">Please enter the cardholder name.</span>
           </div>
@@ -202,13 +207,28 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
   <!-- Right: Order Summary -->
   <div class="card cart-summary-box" style="position:sticky;top:90px;align-self:start;">
     <div class="cs-title">ORDER SUMMARY</div>
-    <?php foreach($items as $it): ?>
-    <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+
+    <?php if($has_stock_issue): ?>
+    <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:12px 14px;margin-bottom:12px;font-size:.8rem;color:#ef4444;line-height:1.5;">
+      <strong>Stock Warning</strong> — one or more items exceeds available stock. Please
+      <a href="cart.php" style="color:#ef4444;font-weight:600;text-decoration:underline;">update your cart</a> before placing the order.
+    </div>
+    <?php endif; ?>
+
+    <?php foreach($items as $it):
+        $over_stock = (int)$it['quantity'] > (int)$it['avail_stock'];
+    ?>
+    <div style="display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);<?=$over_stock?'border-left:3px solid #ef4444;padding-left:8px;margin-left:-8px;':''?>">
       <?php $cimg = !empty($it['color_image']) ? e($it['color_image']) : (!empty($it['image_url']) ? e($it['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=80&q=60'); ?>
-      <img src="<?=$cimg?>" style="width:52px;height:52px;border-radius:6px;object-fit:cover;flex-shrink:0;">
+      <img src="<?=$cimg?>" style="width:52px;height:52px;border-radius:6px;object-fit:cover;flex-shrink:0;<?=$over_stock?'opacity:.6;':''?>">
       <div style="flex:1;">
         <div style="font-size:.875rem;font-weight:600;color:var(--white);"><?=e($it['name'])?></div>
         <div style="font-size:.75rem;color:var(--muted);">UK <?=e($it['size'])?> · <?=e($it['color'])?> × <?=(int)$it['quantity']?></div>
+        <?php if($over_stock): ?>
+        <div style="font-size:.7rem;color:#ef4444;font-weight:600;margin-top:2px;">
+          Only <?=(int)$it['avail_stock']?> in stock — qty too high
+        </div>
+        <?php endif; ?>
         <?php $sp_pct_co = (int)($it['sale_percent']??0); if($sp_pct_co > 0): ?>
         <div style="font-size:.72rem;margin-top:2px;">
           <span style="text-decoration:line-through;color:var(--muted);">RM <?=number_format($it['price'],2)?>/pc</span>
@@ -264,8 +284,13 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
       <span style="color:var(--accent);" id="grandTotalDisplay">RM <?=number_format($total,2)?></span>
     </div>
     <input type="hidden" name="grand_total_display" id="grandTotalHidden" value="<?=number_format($total,2)?>">
-    <button type="submit" class="btn btn-primary btn-full" id="placeOrderBtn">PLACE ORDER →</button>
+    <button type="submit" class="btn btn-primary btn-full" id="placeOrderBtn"
+      <?=$has_stock_issue?'disabled title="Update your cart quantity to match available stock before ordering"':''?>>PLACE ORDER →</button>
+    <?php if($has_stock_issue): ?>
+    <a href="cart.php" class="btn btn-danger btn-full" style="margin-top:10px;">Update Cart to Fix Stock →</a>
+    <?php else: ?>
     <a href="cart.php" class="btn btn-outline btn-full" style="margin-top:10px;">← Back to Cart</a>
+    <?php endif; ?>
   </div>
 
 </div>

@@ -26,12 +26,7 @@ $conn->query("CREATE TABLE IF NOT EXISTS `wishlist_notifications` (
     KEY `user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-// Mark all wishlist notifications as read
-$mark = $conn->prepare("UPDATE wishlist_notifications SET is_read=1 WHERE user_id=?");
-$mark->bind_param("i", $uid);
-$mark->execute();
-
-// Fetch unread notifications (before marking read, captured first)
+// Fetch notifications FIRST so is_read reflects original state (unread = shows badge)
 $notifs_stmt = $conn->prepare("
     SELECT wn.*, p.name AS product_name, p.image_url
     FROM wishlist_notifications wn
@@ -43,6 +38,11 @@ $notifs_stmt = $conn->prepare("
 $notifs_stmt->bind_param("i", $uid);
 $notifs_stmt->execute();
 $notifs = $notifs_stmt->get_result();
+
+// Mark all read AFTER fetching so the unread highlight renders correctly this visit
+$mark = $conn->prepare("UPDATE wishlist_notifications SET is_read=1 WHERE user_id=?");
+$mark->bind_param("i", $uid);
+$mark->execute();
 
 // Fetch wishlist items
 $wl_stmt = $conn->prepare("

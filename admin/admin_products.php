@@ -178,7 +178,40 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
 $msg   = $msg   ?: ($_GET['msg']   ?? '');
 $mtype = $mtype ?: ($_GET['mtype'] ?? 'ok');
 
-$products   = $conn->query("SELECT p.*, c.category_name FROM products p LEFT JOIN categories c ON p.category_id=c.category_id ORDER BY p.is_active DESC, p.created_at DESC");
+// Product list filters
+$pf_q     = trim($_GET['q'] ?? '');
+$pf_stock = $_GET['stock_filter'] ?? '';
+if(!in_array($pf_stock, ['nostock','lowstock'])) $pf_stock = '';
+$_pf_parts = [];
+if($pf_q !== ''){ $_pf_e = $conn->real_escape_string($pf_q); $_pf_parts[] = "p.name LIKE '%$_pf_e%'"; }
+// Filter by per-size stock in product_stock, not the overall total
+if($pf_stock === 'nostock')  $_pf_parts[] = "EXISTS (SELECT 1 FROM product_stock ps WHERE ps.product_id=p.product_id AND ps.stock=0)";
+if($pf_stock === 'lowstock') $_pf_parts[] = "EXISTS (SELECT 1 FROM product_stock ps WHERE ps.product_id=p.product_id AND ps.stock BETWEEN 1 AND 5)";
+$_pf_where = $_pf_parts ? 'WHERE '.implode(' AND ',$_pf_parts) : '';
+
+$products = $conn->query("
+    SELECT p.*, c.category_name,
+        (SELECT GROUP_CONCAT(
+            IF(ps_oos.color_name='Default' OR ps_oos.color_name='',
+               CONCAT('UK ',ps_oos.size),
+               CONCAT(ps_oos.color_name,' UK',ps_oos.size))
+            ORDER BY ps_oos.color_name, CAST(ps_oos.size AS DECIMAL(5,2)) SEPARATOR ',  ')
+         FROM product_stock ps_oos
+         WHERE ps_oos.product_id=p.product_id AND ps_oos.stock=0
+        ) AS oos_sizes,
+        (SELECT GROUP_CONCAT(
+            IF(ps_low.color_name='Default' OR ps_low.color_name='',
+               CONCAT('UK ',ps_low.size,' (',ps_low.stock,')'),
+               CONCAT(ps_low.color_name,' UK',ps_low.size,' (',ps_low.stock,')'))
+            ORDER BY ps_low.color_name, CAST(ps_low.size AS DECIMAL(5,2)) SEPARATOR ',  ')
+         FROM product_stock ps_low
+         WHERE ps_low.product_id=p.product_id AND ps_low.stock BETWEEN 1 AND 5
+        ) AS low_sizes
+    FROM products p
+    LEFT JOIN categories c ON p.category_id=c.category_id
+    $_pf_where
+    ORDER BY p.is_active DESC, p.created_at DESC
+");
 $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 ?>
 <!DOCTYPE html>
@@ -353,10 +386,27 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
         </form>
       </div>
 
+      <!-- Product Filter -->
+      <form method="GET" id="pfForm" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px;">
+        <input type="text" name="q" value="<?=e($pf_q)?>" placeholder="Search by shoe name..."
+               style="flex:1;min-width:200px;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 14px;color:var(--text);font-size:.875rem;outline:none;transition:border-color .2s;"
+               onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        <select name="stock_filter" onchange="document.getElementById('pfForm').submit()"
+                style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 14px;color:var(--text);font-size:.875rem;cursor:pointer;">
+          <option value=""         <?=$pf_stock===''         ?'selected':''?>>All Stock Levels</option>
+          <option value="nostock"  <?=$pf_stock==='nostock'  ?'selected':''?>>Has OOS Size (stock = 0)</option>
+          <option value="lowstock" <?=$pf_stock==='lowstock' ?'selected':''?>>Has Low Size (stock 1–5)</option>
+        </select>
+        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+        <?php if($pf_q||$pf_stock): ?>
+        <a href="admin_products.php" class="btn btn-sm" style="background:transparent;border:1px solid var(--border);color:var(--muted);">Clear ×</a>
+        <?php endif; ?>
+      </form>
+
       <!-- Products Table -->
       <div class="admin-table-wrap">
         <div class="admin-table-head">
-          <h3>ALL PRODUCTS</h3>
+          <h3>ALL PRODUCTS<?=($pf_q||$pf_stock)?' <span style="font-size:.72rem;font-weight:400;color:var(--muted);">(filtered)</span>':''?></h3>
           <span style="font-size:.75rem;color:var(--muted);">Active products show in the shop. Inactive ones are hidden from customers.</span>
         </div>
         <table class="admin-table">
@@ -383,7 +433,21 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
                   <span style="color:<?=$active?'var(--accent)':'var(--muted)'?>;">RM <?=number_format($p['price'],2)?></span>
                 <?php endif; ?>
               </td>
-              <td><span style="color:<?=$p['stock']>0?'var(--white)':'var(--danger)'?>;font-weight:600;"><?=(int)$p['stock']?></span></td>
+              <td style="min-width:130px;">
+                <span style="color:<?=$p['stock']>0?'var(--white)':'var(--danger)'?>;font-weight:600;"><?=(int)$p['stock']?></span>
+                <?php if(!empty($p['oos_sizes'])): ?>
+                <div title="Out of stock: <?=e($p['oos_sizes'])?>"
+                     style="font-size:.62rem;color:#ef4444;font-weight:600;margin-top:4px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;">
+                  OOS: <?=e($p['oos_sizes'])?>
+                </div>
+                <?php endif; ?>
+                <?php if(!empty($p['low_sizes'])): ?>
+                <div title="Low stock: <?=e($p['low_sizes'])?>"
+                     style="font-size:.62rem;color:#f59e0b;font-weight:600;margin-top:2px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;">
+                  Low: <?=e($p['low_sizes'])?>
+                </div>
+                <?php endif; ?>
+              </td>
               <td>
                 <?php if($active): ?>
                   <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(42,155,90,.12);border:1px solid rgba(42,155,90,.3);border-radius:100px;font-size:.7rem;font-weight:700;letter-spacing:1px;color:var(--success);">● ACTIVE</span>

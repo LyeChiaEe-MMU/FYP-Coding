@@ -26,6 +26,9 @@ $pg = basename($_SERVER['PHP_SELF']);
   <a href="admin_requests.php" class="sidebar-link <?=$pg==='admin_requests.php'?'active':''?>">
     Design Requests
   </a>
+  <a href="admin_sales_report.php" class="sidebar-link <?=$pg==='admin_sales_report.php'?'active':''?>">
+    Sales Report
+  </a>
   <?php
   $sb_unread_msgs = 0;
   $sb_tbl = $conn->query("SHOW TABLES LIKE 'contact_messages'");

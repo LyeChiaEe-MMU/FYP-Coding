@@ -2,14 +2,19 @@
 session_start();
 require 'db.php';
 
-$cat    = $_GET['cat']    ?? '';
-$sort   = $_GET['sort']   ?? 'newest';
-$q      = trim($_GET['q'] ?? '');
-$gender = $_GET['gender'] ?? '';
-$sale   = isset($_GET['sale']) ? 1 : 0;   // sale filter flag
+$cat          = $_GET['cat']    ?? '';
+$sort         = $_GET['sort']   ?? 'newest';
+$sort_explicit = isset($_GET['sort']); // was sort manually chosen by user?
+$q            = trim($_GET['q'] ?? '');
+$gender       = $_GET['gender'] ?? '';
+$sale         = isset($_GET['sale']) ? 1 : 0;   // sale filter flag
+
+// Shop All mode = no filters at all (SHOP ALL nav link)
+$is_shopall = !$sort_explicit && !$cat && !$q && !$gender && !$sale;
 
 // ── Build WHERE ──────────────────────────────────────────────
-$conditions = ['p.is_active = 1']; // only show active products
+// Shop All shows every product (including unavailable); other views filter to active only
+$conditions = $is_shopall ? [] : ['p.is_active = 1'];
 
 // Category filter
 if ($cat) {
@@ -43,21 +48,19 @@ $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 
 // ── Sort ─────────────────────────────────────────────────────
 $order        = 'p.is_active DESC, p.created_at DESC';
-$extra_select = '';
-$extra_join   = '';
-$group_by     = '';
+// Always fetch total_sold — needed for NEW badge (hide when >= 10 sold) on every page
+$extra_select = ', COALESCE(SUM(oi.quantity), 0) AS total_sold';
+$extra_join   = 'LEFT JOIN order_items oi ON oi.product_id = p.product_id';
+$group_by     = 'GROUP BY p.product_id';
 
 if ($sort === 'price_asc')  $order = 'p.is_active DESC, ROUND(p.price*(1-p.sale_percent/100)) ASC, p.price ASC';
 if ($sort === 'price_desc') $order = 'p.is_active DESC, ROUND(p.price*(1-p.sale_percent/100)) DESC, p.price DESC';
 if ($sort === 'name_az')    $order = 'p.is_active DESC, p.name ASC';
 if ($sort === 'name_za')    $order = 'p.is_active DESC, p.name DESC';
 if ($sort === 'popular') {
-    $extra_select = ', COALESCE(SUM(oi.quantity), 0) AS total_sold';
-    $extra_join   = 'LEFT JOIN order_items oi ON oi.product_id = p.product_id';
-    // HAVING >= 50: only products with at least 50 units sold qualify
-    $group_by     = 'GROUP BY p.product_id HAVING total_sold >= 50';
-    // order by category first so the PHP top-5-per-category cut works correctly
-    $order        = 'c.category_name ASC, total_sold DESC';
+    // Qualify at 20+ units sold; order top-sellers first (overall, not per-category)
+    $group_by = 'GROUP BY p.product_id HAVING total_sold >= 20';
+    $order    = 'total_sold DESC';
 }
 
 $products   = $conn->query("
@@ -79,28 +82,19 @@ if ($products) {
     }
 }
 
-// ── Best Sellers: keep only top 5 per category ───────────────
+// ── Best Sellers: keep only top 8 overall (sorted by total_sold DESC) ───────────────
 if ($sort === 'popular') {
-    $cat_counts   = [];
-    $filtered     = [];
-    foreach ($product_rows as $row) {
-        $row_cat = $row['category_name'];
-        $cat_counts[$row_cat] = $cat_counts[$row_cat] ?? 0;
-        if ($cat_counts[$row_cat] < 5) {
-            $filtered[] = $row;
-            $cat_counts[$row_cat]++;
-        }
-    }
-    $product_rows = $filtered;
+    $product_rows = array_slice($product_rows, 0, 8);
 }
 
 $total = count($product_rows);
 
 // ── Page label helpers ────────────────────────────────────────
 $page_mode = 'shop'; // default
-if ($sale)                                                   $page_mode = 'sale';
-elseif ($sort === 'popular')                                 $page_mode = 'bestsellers';
-elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newarrivals';
+if ($is_shopall)                                                          $page_mode = 'shopall';
+elseif ($sale)                                                            $page_mode = 'sale';
+elseif ($sort === 'popular')                                              $page_mode = 'bestsellers';
+elseif ($sort === 'newest' && $sort_explicit && !$cat && !$q)             $page_mode = 'newarrivals';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -110,6 +104,9 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title><?= $q ? 'Search: '.e($q) : ($cat ? e($cat) : 'Shop All') ?> | Apex</title>
 <link rel="stylesheet" href="css/style.css?v=10">
+<?php if($page_mode === 'bestsellers'): ?>
+<meta http-equiv="refresh" content="300"><!-- auto-refresh every 5 min so rankings stay current -->
+<?php endif; ?>
 </head>
 <body>
 <?php include 'includes/navbar.php'; ?>
@@ -124,7 +121,9 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
     ?>
     <div class="breadcrumb">
       <a href="index.php">Home</a><span class="sep">/</span>
-      <?php if ($q): ?>
+      <?php if ($page_mode === 'shopall'): ?>
+        <span>All Shoes</span>
+      <?php elseif ($q): ?>
         <a href="products.php">Shop</a><span class="sep">/</span><span>Search</span>
       <?php elseif ($page_mode === 'newarrivals' && $gender): ?>
         <a href="products.php">Shop</a><span class="sep">/</span>
@@ -145,7 +144,13 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
       <?php endif; ?>
     </div>
 
-    <?php if ($q): ?>
+    <?php if ($page_mode === 'shopall'): ?>
+      <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
+        ALL <span style="color:var(--accent)">SHOES</span>
+      </h1>
+      <p style="color:var(--muted);margin-top:6px;font-size:.875rem;">Every style we carry — <?=$total?> shoe<?=$total!=1?'s':''?> in stock.</p>
+
+    <?php elseif ($q): ?>
       <h1 style="font-family:'Oswald',sans-serif;font-size:clamp(24px,4vw,44px);letter-spacing:2px;color:var(--white);">
         RESULTS FOR <span style="color:var(--accent)">"<?=strtoupper(e($q))?>"</span>
       </h1>
@@ -280,7 +285,7 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
         </h3>
         <p style="color:var(--muted);margin-bottom:8px;">
           <?php if ($page_mode === 'bestsellers'): ?>
-            A shoe needs at least <strong style="color:var(--white);">50 units sold</strong> to appear here. Keep selling!
+            A shoe needs at least <strong style="color:var(--white);">20 units sold</strong> to appear here. Keep selling!
           <?php elseif ($page_mode === 'sale'): ?>
             Check back soon — new deals are added regularly.
           <?php elseif ($q): ?>
@@ -316,14 +321,12 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
 
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">
         <?php
-        $bs_cat_rank = []; // track per-category rank for bestsellers medal badge
+        $bs_overall_rank = 0; // overall rank counter for bestsellers medal badge
         foreach ($product_rows as $p):
           $img = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
 
-          // Per-category rank counter (bestsellers only)
-          $cat_key = $p['category_name'];
-          $bs_cat_rank[$cat_key] = ($bs_cat_rank[$cat_key] ?? 0) + 1;
-          $cat_rank = $bs_cat_rank[$cat_key];
+          // Overall rank counter (bestsellers only)
+          $bs_overall_rank++;
 
           // Highlight matching keywords in product name
           $display_name = e($p['name']);
@@ -342,7 +345,7 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
         <?php $isActive = (int)($p['is_active'] ?? 1); ?>
         <div class="prod-card<?= $isActive ? '' : ' prod-unavailable' ?>">
           <?php if($isActive): ?>
-          <a href="product_detail.php?id=<?=(int)$p['product_id']?>">
+          <a href="product_detail.php?id=<?=(int)$p['product_id']?><?=$gender?'&gender='.urlencode($gender):''?>">
           <?php else: ?>
           <div>
           <?php endif; ?>
@@ -352,14 +355,14 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
               <?php if(!$isActive): ?>
               <span class="badge-unavailable">Unavailable</span>
               <?php elseif($page_mode === 'bestsellers'): ?>
-                <?php $medal = ['#1','#2','#3','#4','#5'][$cat_rank-1] ?? ''; ?>
+                <?php $medal = ['#1','#2','#3','#4','#5','#6','#7','#8'][$bs_overall_rank-1] ?? ''; ?>
                 <span style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.55);color:#fff;font-size:.65rem;font-weight:700;letter-spacing:1px;padding:3px 8px;border-radius:4px;">
                   <?=$medal?> <?=(int)($p['total_sold'] ?? 0)?> sold
                 </span>
               <?php elseif(!empty($p['is_on_sale'])): ?>
               <?php $sp_badge=(int)($p['sale_percent']??0); ?>
               <span style="position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;"><?=$sp_badge>0?$sp_badge.'% OFF':'SALE'?></span>
-              <?php elseif(strtotime($p['created_at']) >= strtotime('-30 days')): ?>
+              <?php elseif($page_mode !== 'newarrivals' && strtotime($p['created_at']) >= strtotime('-30 days') && (int)($p['total_sold'] ?? 0) < 10): ?>
               <span style="position:absolute;top:10px;right:10px;background:var(--success);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;">NEW</span>
               <?php endif; ?>
             </div>
@@ -368,7 +371,7 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
             <div class="prod-cat"><?=e($p['category_name'])?></div>
             <div class="prod-name">
               <?php if($isActive): ?>
-              <a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=$display_name?></a>
+              <a href="product_detail.php?id=<?=(int)$p['product_id']?><?=$gender?'&gender='.urlencode($gender):''?>"><?=$display_name?></a>
               <?php else: ?>
               <span style="color:var(--muted);"><?=$display_name?></span>
               <?php endif; ?>
@@ -380,7 +383,7 @@ elseif ($sort === 'newest' && !$cat && !$q)                  $page_mode = 'newar
               <?=price_html($p['price'], (int)($p['sale_percent']??0))?>
               <?php endif; ?>
               <?php if($isActive): ?>
-              <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>
+              <a href="product_detail.php?id=<?=(int)$p['product_id']?><?=$gender?'&gender='.urlencode($gender):''?>" class="btn-view">View →</a>
               <?php else: ?>
               <span style="font-size:.72rem;letter-spacing:1.5px;text-transform:uppercase;color:#888;font-weight:600;">Unavailable</span>
               <?php endif; ?>

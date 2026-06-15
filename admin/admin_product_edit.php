@@ -18,6 +18,8 @@ $conn->query("CREATE TABLE IF NOT EXISTS `product_images` (
 
 // ── Handle delete variant image ──────────────────
 if(isset($_GET['del_img'])){
+    if(empty($_GET['_csrf']) || !hash_equals(csrf_token(), $_GET['_csrf']))
+        die('Invalid request. Please go back and try again.');
     $iid = (int)$_GET['del_img'];
     $row = $conn->query("SELECT image_url FROM product_images WHERE image_id=$iid AND product_id=$pid")->fetch_assoc();
     if($row && !str_starts_with($row['image_url'],'http')){
@@ -30,6 +32,8 @@ if(isset($_GET['del_img'])){
 
 // ── Handle delete size ───────────────────────────
 if(isset($_GET['del_size'])){
+    if(empty($_GET['_csrf']) || !hash_equals(csrf_token(), $_GET['_csrf']))
+        die('Invalid request. Please go back and try again.');
     $sid = (int)$_GET['del_size'];
     $conn->query("DELETE FROM product_size WHERE size_id=$sid AND product_id=$pid");
     header("Location: admin_product_edit.php?id=$pid&msg=Size+removed."); exit;
@@ -74,6 +78,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_size'])){
 
 // ── Handle delete stock entry ─────────────────────
 if(isset($_GET['del_stock'])){
+    if(empty($_GET['_csrf']) || !hash_equals(csrf_token(), $_GET['_csrf']))
+        die('Invalid request. Please go back and try again.');
     $sid = (int)$_GET['del_stock'];
     $conn->query("DELETE FROM product_stock WHERE stock_id=$sid AND product_id=$pid");
     $tot = (int)$conn->query("SELECT COALESCE(SUM(stock),0) AS t FROM product_stock WHERE product_id=$pid")->fetch_assoc()['t'];
@@ -489,7 +495,7 @@ foreach($stock_by_color as $col => $entries)
                 <div style="font-size:.68rem;color:var(--muted);margin-top:5px;max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                   <?=e($vi['color_name'] ?: 'No name')?>
                 </div>
-                <a href="admin_product_edit.php?id=<?=$pid?>&del_img=<?=(int)$vi['image_id']?>"
+                <a href="admin_product_edit.php?id=<?=$pid?>&del_img=<?=(int)$vi['image_id']?>&_csrf=<?=urlencode(csrf_token())?>"
                    onclick="return confirm('Remove this variant?')"
                    style="position:absolute;top:-7px;right:-7px;background:var(--danger);color:#fff;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;text-decoration:none;">&times;</a>
               </div>

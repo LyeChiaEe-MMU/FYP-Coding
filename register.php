@@ -1,9 +1,23 @@
 ﻿<?php
 session_start();
 require 'db.php';
+require_once 'admin/Mailer.php';
+
 if(is_logged()){ header("Location: index.php"); exit; }
 
+// On GET: clear any stale pending verification so user can start fresh
+if($_SERVER['REQUEST_METHOD'] === 'GET'){
+    unset($_SESSION['reg_pending'], $_SESSION['reg_otp'], $_SESSION['reg_otp_expires'],
+          $_SESSION['reg_otp_attempts'], $_SESSION['reg_otp_sent_at']);
+}
+
 $error = ''; $success = '';
+
+// Show error passed back from verify_email.php (too many wrong attempts)
+if(isset($_GET['err']) && $_GET['err'] === 'toomany'){
+    $error = "Too many incorrect attempts. Please register again.";
+}
+
 if($_SERVER['REQUEST_METHOD']==='POST'){
     csrf_check();
     $name    = trim($_POST['name']    ?? '');
@@ -60,22 +74,39 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $error = "This phone number is already registered to another account.";
             }
         }
-        // Check duplicate name
         if(!$error){
-            $chk_n = $conn->prepare("SELECT user_id FROM users WHERE name=?");
-            $chk_n->bind_param("s",$name); $chk_n->execute();
-            if($chk_n->get_result()->num_rows > 0){
-                $error = "This name is already taken. Please use a different name.";
-            }
-        }
-        if(!$error){
+            // Generate OTP and store pending registration — account only created after verification
             $hashed = password_hash($pass, PASSWORD_DEFAULT);
-            $ins = $conn->prepare("INSERT INTO users (name,email,password,phone,address,shopping_preference,date_of_birth) VALUES (?,?,?,?,?,?,?)");
-            $ins->bind_param("sssssss",$name,$email,$hashed,$phone,$address,$pref,$dob);
-            if($ins->execute()){
-                $success = "Account created! You can now login.";
+            $otp    = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+            $_SESSION['reg_pending'] = compact('name','email','hashed','phone','address','pref','dob');
+            $_SESSION['reg_otp']          = $otp;
+            $_SESSION['reg_otp_expires']  = time() + 600; // 10 minutes
+            $_SESSION['reg_otp_attempts'] = 0;
+            $_SESSION['reg_otp_sent_at']  = time();
+
+            $otp_html = "<div style=\"font-family:monospace;font-size:34px;font-weight:700;"
+                      . "letter-spacing:10px;color:#C8543C;text-align:center;"
+                      . "background:#fff8f6;border:2px dashed #C8543C;border-radius:8px;"
+                      . "padding:22px;margin:20px 0;\">$otp</div>";
+
+            $body = apex_mail_html(
+                "Hello ".htmlspecialchars($name, ENT_QUOTES).",\n\n"
+                . "Thank you for joining Apex Store! To complete your registration, enter this verification code:\n\n"
+                . $otp_html
+                . "\nThis code is valid for <strong>10 minutes</strong>. Do not share it with anyone.\n\n"
+                . "If you did not request this, you can safely ignore this email."
+            );
+
+            $result = apex_send_mail($email, $name, 'Your Apex Verification Code', $body);
+
+            if($result['ok']){
+                header("Location: verify_email.php");
+                exit;
             } else {
-                $error = "Something went wrong. Please try again.";
+                unset($_SESSION['reg_pending'], $_SESSION['reg_otp'], $_SESSION['reg_otp_expires'],
+                      $_SESSION['reg_otp_attempts'], $_SESSION['reg_otp_sent_at']);
+                $error = "Could not send verification email. Please ensure your Gmail is configured in admin/mail_config.php, or contact the administrator.";
             }
         }
     }

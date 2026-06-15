@@ -1,17 +1,42 @@
 ﻿<?php
 require_once 'auth_check.php';
+require_once __DIR__ . '/Mailer.php';
 
 $msg = ''; $mtype = 'ok';
+
+// ── SEND EMAIL TO CUSTOMER ─────────────────────────────────────────
+if(isset($_POST['send_email'])){
+    csrf_check();
+    $to_email = trim($_POST['to_email']      ?? '');
+    $to_name  = trim($_POST['to_name']       ?? '');
+    $subject  = trim($_POST['email_subject'] ?? '');
+    $body     = trim($_POST['email_body']    ?? '');
+    if($to_email && filter_var($to_email, FILTER_VALIDATE_EMAIL) && $subject && $body){
+        $result = apex_send_mail($to_email, $to_name, $subject, apex_mail_html($body));
+        if($result['ok']){
+            header("Location: admin_customers.php?msg=".urlencode("Email sent to $to_name ($to_email).")."&mtype=ok"); exit;
+        } else {
+            header("Location: admin_customers.php?msg=".urlencode("Email failed: ".$result['error'])."&mtype=err"); exit;
+        }
+    }
+    header("Location: admin_customers.php?msg=Please+fill+in+all+email+fields.&mtype=err"); exit;
+}
 
 // ── BAN / UNBAN USER ──────────────────────────────────────────────
 if(isset($_POST['toggle_ban'])){
     csrf_check();
-    $uid     = (int)$_POST['user_id'];
-    $current = (int)$_POST['current_ban'];
-    $new     = $current ? 0 : 1;
-    $conn->query("UPDATE users SET is_banned=$new WHERE user_id=$uid");
-    $label = $new ? 'banned' : 'unbanned';
-    header("Location: admin_customers.php?msg=Customer+$label+successfully.&mtype=ok"); exit;
+    $uid = (int)$_POST['user_id'];
+    // Read the real current state from DB — never trust the client-supplied value
+    $cur_row = $conn->query("SELECT is_banned FROM users WHERE user_id=$uid")->fetch_assoc();
+    if($cur_row){
+        $new   = $cur_row['is_banned'] ? 0 : 1;
+        $stmt  = $conn->prepare("UPDATE users SET is_banned=? WHERE user_id=?");
+        $stmt->bind_param("ii", $new, $uid);
+        $stmt->execute();
+        $label = $new ? 'banned' : 'unbanned';
+        header("Location: admin_customers.php?msg=Customer+$label+successfully.&mtype=ok"); exit;
+    }
+    header("Location: admin_customers.php?msg=User+not+found.&mtype=err"); exit;
 }
 
 $msg   = $msg   ?: ($_GET['msg']   ?? '');
@@ -95,11 +120,18 @@ $customers = $conn->query("
               <td style="font-weight:600;color:var(--white);">RM <?=number_format($c['total_spent'],2)?></td>
               <td style="color:var(--muted);font-size:.8rem;"><?=date('d M Y',strtotime($c['created_at']??'now'))?></td>
               <td>
-                <button type="button"
-                        class="btn btn-sm <?=$banned?'btn-secondary':'btn-danger'?>"
-                        onclick="openBanModal(<?=(int)$c['user_id']?>, '<?=e(addslashes($c['name']))?>', <?=$banned?1:0?>)">
-                  <?=$banned?'Unban':'Ban'?>
-                </button>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button type="button"
+                          class="btn btn-sm btn-primary"
+                          onclick="openEmailModal('<?=e(addslashes($c['email']))?>', '<?=e(addslashes($c['name']))?>')">
+                    Email
+                  </button>
+                  <button type="button"
+                          class="btn btn-sm <?=$banned?'btn-secondary':'btn-danger'?>"
+                          onclick="openBanModal(<?=(int)$c['user_id']?>, '<?=e(addslashes($c['name']))?>', <?=$banned?1:0?>)">
+                    <?=$banned?'Unban':'Ban'?>
+                  </button>
+                </div>
               </td>
             </tr>
             <?php endwhile; ?>
@@ -129,6 +161,58 @@ $customers = $conn->query("
     </form>
   </div>
 </div>
+
+<!-- ── Email Compose Modal ── -->
+<div class="ban-modal-bg" id="emailModal">
+  <div class="ban-modal" style="max-width:520px;">
+    <div style="font-size:1rem;font-weight:700;margin-bottom:12px;letter-spacing:1px;color:var(--accent);">SEND EMAIL</div>
+    <h3 id="emailModalTitle">EMAIL CUSTOMER</h3>
+    <p style="margin-bottom:14px;">Composing to: <strong id="emailModalTo" style="color:var(--white);"></strong></p>
+    <form method="POST" id="emailForm">
+      <?=csrf_field()?>
+      <input type="hidden" name="send_email" value="1">
+      <input type="hidden" name="to_email" id="emailToInput">
+      <input type="hidden" name="to_name"  id="emailToName">
+      <div style="margin-bottom:12px;">
+        <label style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px;">Subject *</label>
+        <input type="text" name="email_subject" id="emailSubject" required maxlength="200"
+               placeholder="e.g. Your order update from Apex Store"
+               style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--white);font-size:.875rem;outline:none;box-sizing:border-box;transition:border-color .2s;"
+               onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px;">Message *</label>
+        <textarea name="email_body" id="emailBody" required rows="6" maxlength="3000"
+                  placeholder="Type your message here..."
+                  style="width:100%;background:var(--navy);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--white);font-size:.875rem;resize:vertical;outline:none;box-sizing:border-box;transition:border-color .2s;"
+                  onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:4px;">Plain text only. The email will be sent using a branded template.</div>
+      </div>
+      <div class="ban-modal-btns">
+        <button type="submit" class="btn btn-primary">SEND EMAIL</button>
+        <button type="button" class="btn btn-secondary" onclick="closeEmailModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEmailModal(email, name){
+    document.getElementById('emailToInput').value = email;
+    document.getElementById('emailToName').value  = name;
+    document.getElementById('emailModalTo').textContent = name + ' <' + email + '>';
+    document.getElementById('emailSubject').value = '';
+    document.getElementById('emailBody').value    = '';
+    document.getElementById('emailModal').classList.add('open');
+    setTimeout(()=>document.getElementById('emailSubject').focus(), 100);
+}
+function closeEmailModal(){
+    document.getElementById('emailModal').classList.remove('open');
+}
+document.getElementById('emailModal').addEventListener('click', function(e){
+    if(e.target === this) closeEmailModal();
+});
+</script>
 
 <script>
 function openBanModal(id, name, isBanned){

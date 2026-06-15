@@ -22,6 +22,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $error = "Your account has been suspended. Please contact support.";
             } else {
                 session_regenerate_id(true);
+                // Clear any leftover admin session so customer never inherits admin view
+                unset($_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['login_method']);
                 $_SESSION['user_id']   = $user['user_id'];
                 $_SESSION['user_name'] = $user['name'];
                 header("Location: index.php"); exit;
