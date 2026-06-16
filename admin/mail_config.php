@@ -24,7 +24,7 @@
  * ═══════════════════════════════════════════════════════
  */
 return [
-    'from' => 'yourgmail@gmail.com',    // ← replace with your Gmail address
-    'user' => 'yourgmail@gmail.com',    // ← same Gmail address
-    'pass' => 'xxxx xxxx xxxx xxxx',    // ← 16-char App Password (spaces are fine)
+    'from' => 'darren060621@gmail.com',
+    'user' => 'darren060621@gmail.com',
+    'pass' => 'eylk zodd uqim uppo',  // ← your actual app password
 ];

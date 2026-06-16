@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 21, 2026 at 03:16 AM
+-- Generation Time: Jun 16, 2026 at 11:27 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -54,6 +54,7 @@ CREATE TABLE `cart_items` (
   `user_id` int(11) DEFAULT NULL,
   `product_id` int(11) DEFAULT NULL,
   `size` varchar(10) DEFAULT NULL,
+  `color` varchar(80) NOT NULL DEFAULT 'Default',
   `quantity` int(11) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -65,18 +66,35 @@ CREATE TABLE `cart_items` (
 
 CREATE TABLE `categories` (
   `category_id` int(11) NOT NULL,
-  `category_name` varchar(50) NOT NULL
+  `category_name` varchar(50) NOT NULL,
+  `banner_image` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `categories`
 --
 
-INSERT INTO `categories` (`category_id`, `category_name`) VALUES
-(2, 'Basketball'),
-(3, 'Lifestyle'),
-(1, 'Running'),
-(4, 'Training');
+INSERT INTO `categories` (`category_id`, `category_name`, `banner_image`) VALUES
+(1, 'Running', NULL),
+(2, 'Basketball', NULL),
+(3, 'Lifestyle', NULL),
+(4, 'Training', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `contact_messages`
+--
+
+CREATE TABLE `contact_messages` (
+  `message_id` int(11) NOT NULL,
+  `name` varchar(120) NOT NULL,
+  `email` varchar(180) NOT NULL,
+  `subject` varchar(120) NOT NULL,
+  `message` text NOT NULL,
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -102,6 +120,22 @@ CREATE TABLE `design_requests` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `notif_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `type` varchar(50) NOT NULL DEFAULT 'info',
+  `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `orders`
 --
 
@@ -109,9 +143,13 @@ CREATE TABLE `orders` (
   `order_id` int(11) NOT NULL,
   `user_id` int(11) DEFAULT NULL,
   `total_amount` decimal(10,2) NOT NULL,
+  `discount_amount` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `voucher_code` varchar(20) DEFAULT NULL,
   `promo_id` int(11) DEFAULT NULL,
   `status` varchar(30) DEFAULT 'Processing',
   `shipping_address` text DEFAULT NULL,
+  `payment_method` varchar(50) DEFAULT 'Online Banking',
+  `payment_detail` varchar(100) DEFAULT NULL,
   `order_date` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -126,8 +164,10 @@ CREATE TABLE `order_items` (
   `order_id` int(11) DEFAULT NULL,
   `product_id` int(11) DEFAULT NULL,
   `size` varchar(10) DEFAULT NULL,
+  `color` varchar(80) NOT NULL DEFAULT 'Default',
   `quantity` int(11) NOT NULL,
-  `price` decimal(10,2) NOT NULL
+  `price` decimal(10,2) NOT NULL,
+  `original_price` decimal(10,2) NOT NULL DEFAULT 0.00
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -154,8 +194,12 @@ CREATE TABLE `products` (
   `name` varchar(100) NOT NULL,
   `description` text NOT NULL,
   `category_id` int(11) DEFAULT NULL,
+  `gender` varchar(20) NOT NULL DEFAULT 'Unisex',
   `price` decimal(10,2) NOT NULL,
   `stock` int(11) NOT NULL DEFAULT 0,
+  `is_on_sale` tinyint(1) NOT NULL DEFAULT 0,
+  `sale_percent` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `image_url` varchar(255) NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -164,8 +208,16 @@ CREATE TABLE `products` (
 -- Dumping data for table `products`
 --
 
-INSERT INTO `products` (`product_id`, `name`, `description`, `category_id`, `price`, `stock`, `image_url`, `created_at`) VALUES
-(4, 'Apex Court Titan', 'Bounce', 2, 459.00, 260, 'uploads/product_1779325834_Gemini_Generated_Image_z129yz129yz129yz.png', '2026-05-21 01:10:34');
+INSERT INTO `products` (`product_id`, `name`, `description`, `category_id`, `gender`, `price`, `stock`, `is_on_sale`, `sale_percent`, `is_active`, `image_url`, `created_at`) VALUES
+(4, 'Apex Court', 'Run', 1, 'Women', 459.00, 260, 0, 0, 0, 'uploads/product_1781532838_Gemini_Generated_Image_gvdhuhgvdhuhgvdh.png', '2026-05-21 01:10:34'),
+(5, 'AP Velocity', 'The AP Velocity is designed for athletes who demand precision and speed, blending professional performance with a refined aesthetic. Featuring our signature Midnight Carbon / Cloud White colorway, the shoe utilizes a high-traction outsole pattern that ensures superior grip on varied surfaces. The upper is constructed from an advanced breathable mesh, specifically engineered to provide a lightweight, secure fit that conforms to the foot during intense training sessions.\r\n\r\nAt the core of the shoe’s performance is a high-response cushioned midsole, meticulously balanced to maximize energy return while minimizing impact stress on the joints. The seamless integration of the AP branding across the quarter panel and heel provides a modern, professional look that adheres to a clean and minimalist design language. By removing unnecessary embellishments, the silhouette remains streamlined, focusing entirely on structural integrity and aerodynamic efficiency.\r\n\r\nPerfect for both marathon pacing and daily training, the AP Velocity represents the intersection of technical capability and modern athletic style. The structural layout—from the reinforced heel counter to the responsive forefoot—is built to sustain performance over long distances. This combination of comfort, durability, and a clean visual profile makes it an essential component for any serious runner’s gear collection.', 1, 'Men', 599.00, 616, 0, 0, 0, 'uploads/product_1781532445_product_1780763578_dreamina-2026-06-07-6600-make_me_a_running_shoe_with_AP_Logo__can....png', '2026-06-15 14:07:25'),
+(6, 'AP Pulse', 'The AP Pulse is built for high-visibility performance and bold style. Featuring a muted charcoal mesh upper that contrasts sharply with a vibrant, high-energy fuchsia midsole, this shoe is engineered for runners who want to stand out during evening training sessions. The construction balances a secure lockdown fit with a plush, responsive foam base designed to absorb impact while providing a springy feel.', 1, 'Men', 459.00, 322, 0, 0, 1, 'uploads/product_1781533420_product_1780931220_Gemini_Generated_Image_8qt6pl8qt6pl8qt6.png', '2026-06-15 14:23:40'),
+(7, 'AP Endurance', 'The AP Endurance is engineered for high-mileage training, prioritizing comfort and structural stability for the dedicated runner. The upper features a high-density, multi-layered mesh that provides exceptional breathability and foot-locking support, while the vibrant crimson accents highlight the shoe\'s aggressive, performance-focused silhouette. Designed with a focus on long-distance durability, the exterior maintains a crisp, professional appearance that stands out on both the track and the road.\r\n\r\nBuilt upon a high-performance, segmented outsole, this model delivers superior shock absorption and consistent traction across various terrains. The midsole utilizes advanced cushioning technology to ensure a smooth transition from heel-strike to toe-off, effectively reducing fatigue during extended runs. By combining a clean, technical aesthetic with rugged construction, the AP Endurance offers a reliable and stylish solution for athletes who refuse to compromise on performance.', 1, 'Men', 449.00, 156, 0, 0, 0, 'uploads/product_1781534363_product_1780939229_Gemini_Generated_Image_r2ieszr2ieszr2ie.png', '2026-06-15 14:39:23'),
+(8, 'AP Ignite', 'The AP Ignite is engineered to deliver high-energy performance with a striking visual profile. The shoe features an innovative gradient mesh upper that transitions smoothly from deep onyx at the collar to a fiery orange and radiant yellow silhouette toward the forefoot. This seamless construction provides exceptional breathability and lightweight containment, ensuring the foot stays cool and secure through intensive speed workouts or fast-paced road races.\r\n\r\nThe performance-driven sole unit is built with a dual-density cushioned midsole that optimizes shock absorption and maximizes forward propulsion. Its bold neon accents along the midsole and structured heel counter accentuate the shoe\'s sleek, aerodynamic design. Completed with a durable rubber outsole pattern optimized for multi-surface grip, the AP Ignite brings a clean yet fiercely energetic aesthetic to the track, offering serious runners the perfect balance of responsiveness, stability, and bold modern style.', 1, 'Men', 349.00, 299, 0, 0, 1, 'uploads/product_1781535137_product_1780980089_Gemini_Generated_Image_uv65xguv65xguv65.png', '2026-06-15 14:52:17'),
+(9, 'AP Terra', 'The AP Terra is designed for the modern explorer, blending rugged trail functionality with a versatile lifestyle aesthetic. Crafted with a premium suede upper in a rich desert ochre, the shoe features reinforced deep navy overlays that provide structural integrity and a distinctive color-blocked look. Its trail-ready architecture includes a high-traction, lugged outsole designed to handle varied terrain, making it the perfect companion for both off-road adventures and casual urban settings.\r\n\r\nBeyond its durable exterior, the AP Terra prioritizes all-day comfort with an ergonomic fit and responsive cushioning that absorbs impact on uneven surfaces. The vibrant orange laces and matching branding add a touch of high-energy flair to the earthy tones, ensuring a stylish presence whether on the trails or the street. By marrying technical outdoor performance with a clean, contemporary design, the AP Terra delivers a robust and reliable option for those who demand both versatility and resilience in their everyday footwear.', 3, 'Men', 669.00, 150, 0, 0, 1, 'uploads/product_1781535496_product_1780981586_Gemini_Generated_Image_nuth5bnuth5bnuth.png', '2026-06-15 14:58:16'),
+(10, 'AP Terra W', 'The AP Terra W is a refined, adventure-ready lifestyle shoe tailored specifically for women, offering the perfect blend of outdoor durability and everyday comfort. Featuring a sophisticated tonal palette of clay dust suede and sandstone accents, this model maintains the signature trail-capable rugged outsole while presenting a softer, more versatile aesthetic suitable for both hiking trails and city commutes.\r\n\r\nDesigned with ergonomics in mind, the shoe provides a secure, lightweight fit that supports natural movement on uneven terrain. The monochromatic color approach, paired with premium materials, creates a polished look that transitions easily from active outings to casual wear. By balancing technical grip and structural resilience with an elegant, earthy design, the AP Terra W offers a versatile and stylish choice for the active, modern woman.', 3, 'Women', 669.00, 110, 0, 0, 1, 'uploads/product_1781535569_product_1780981692_Gemini_Generated_Image_6d4fir6d4fir6d4f.png', '2026-06-15 14:59:29'),
+(11, 'AP Court', 'The AP Court is a high-performance basketball sneaker designed to provide elite-level support and explosive responsiveness on the hardwood. Featuring a mid-top silhouette, it offers superior ankle stabilization without sacrificing the agility required for quick cuts and fast breaks. The lightweight, breathable mesh upper is reinforced with durable synthetic overlays, ensuring a secure lockdown fit that withstands the high-intensity demands of competitive play.\r\n\r\nEngineered for optimal court feel and energy return, the midsole utilizes a high-rebound cushioning system that effectively absorbs impact during landings and transitions. The specialized rubber outsole features a multidirectional herringbone tread pattern, delivering exceptional grip for precise pivoting and explosive starts. By combining a modern, sharp aesthetic with technical functionality, the AP Court empowers players to maintain peak performance and style throughout the game.', 2, 'Men', 559.00, 315, 1, 20, 1, 'uploads/product_1781536033_product_1780982762_Gemini_Generated_Image_o7q3uwo7q3uwo7q3.png', '2026-06-15 15:07:13'),
+(12, 'AP Apex', 'The AP Apex is a premium training shoe engineered specifically to meet the rigorous demands of high-intensity gym sessions, functional fitness, and weight training. The upper is constructed from a high-tensile, abrasion-resistant woven mesh that offers maximum durability while maintaining exceptional breathability. A low-profile, flat-sole architecture ensures close-to-the-ground contact, providing a rock-solid foundation for lifting and explosive lateral movements.\r\n\r\nFeaturing a dual-density midsole, this model provides firm stability in the heel for heavy lifts alongside a flexible, responsive forefoot that adapts to short sprints and box jumps. The sleek dark charcoal aesthetic is paired with dynamic neon green support bands wrap around the midfoot, ensuring superior lockdown and lateral stability during fast cuts. Completed with a full-coverage, high-traction rubber outsole, the AP Apex delivers the perfect combination of unyielding support, agility, and aggressive modern styling.', 4, 'Men', 229.00, 157, 0, 0, 1, 'uploads/product_1781536282_product_1781113107_Gemini_Generated_Image_xo69cbxo69cbxo69.png', '2026-06-15 15:11:22');
 
 -- --------------------------------------------------------
 
@@ -186,7 +238,12 @@ CREATE TABLE `product_images` (
 --
 
 INSERT INTO `product_images` (`image_id`, `product_id`, `image_url`, `color_name`, `sort_order`) VALUES
-(2, 4, 'uploads/variant_4_1779325925.png', 'Red/Black', 1);
+(3, 5, 'uploads/variant_5_1781532568.png', 'Carbon Volt', 1),
+(4, 5, 'uploads/variant_5_1781532582.png', 'Arctic Ghost', 2),
+(5, 5, 'uploads/variant_5_1781532595.png', 'Navy Velocity', 3),
+(6, 6, 'uploads/variant_6_1781533784.png', 'Sky Gold', 1),
+(7, 8, 'uploads/variant_8_1781535248.png', 'Carbon Cobalt', 1),
+(8, 11, 'uploads/variant_11_1781536099.png', 'Deep Navy', 1);
 
 -- --------------------------------------------------------
 
@@ -245,7 +302,200 @@ INSERT INTO `product_stock` (`stock_id`, `product_id`, `color_name`, `size`, `st
 (23, 4, 'Red/Black', '10.5', 10),
 (24, 4, 'Red/Black', '11', 10),
 (25, 4, 'Red/Black', '11.5', 10),
-(26, 4, 'Red/Black', '12', 10);
+(26, 4, 'Red/Black', '12', 10),
+(27, 5, 'Midnight Carbon', '6', 7),
+(28, 5, 'Midnight Carbon', '6.5', 8),
+(29, 5, 'Midnight Carbon', '7', 9),
+(30, 5, 'Midnight Carbon', '7.5', 10),
+(31, 5, 'Midnight Carbon', '8', 11),
+(32, 5, 'Midnight Carbon', '8.5', 12),
+(33, 5, 'Midnight Carbon', '9', 13),
+(34, 5, 'Midnight Carbon', '9.5', 14),
+(35, 5, 'Midnight Carbon', '10', 15),
+(36, 5, 'Midnight Carbon', '10.5', 12),
+(37, 5, 'Midnight Carbon', '11', 11),
+(38, 5, 'Midnight Carbon', '11.5', 10),
+(39, 5, 'Midnight Carbon', '12', 9),
+(40, 5, 'Midnight Carbon', '13', 8),
+(41, 5, 'Carbon Volt', '6', 7),
+(42, 5, 'Carbon Volt', '6.5', 8),
+(43, 5, 'Carbon Volt', '7', 9),
+(44, 5, 'Carbon Volt', '7.5', 10),
+(45, 5, 'Carbon Volt', '8', 11),
+(46, 5, 'Carbon Volt', '8.5', 12),
+(47, 5, 'Carbon Volt', '9', 13),
+(48, 5, 'Carbon Volt', '9.5', 14),
+(49, 5, 'Carbon Volt', '10', 15),
+(50, 5, 'Carbon Volt', '10.5', 16),
+(51, 5, 'Carbon Volt', '11', 11),
+(52, 5, 'Carbon Volt', '11.5', 12),
+(53, 5, 'Carbon Volt', '12', 13),
+(54, 5, 'Carbon Volt', '13', 9),
+(55, 5, 'Arctic Ghost', '6', 7),
+(56, 5, 'Arctic Ghost', '6.5', 9),
+(57, 5, 'Arctic Ghost', '7', 7),
+(58, 5, 'Arctic Ghost', '7.5', 12),
+(59, 5, 'Arctic Ghost', '8', 10),
+(60, 5, 'Arctic Ghost', '8.5', 10),
+(61, 5, 'Arctic Ghost', '9', 13),
+(62, 5, 'Arctic Ghost', '9.5', 14),
+(63, 5, 'Arctic Ghost', '10', 15),
+(64, 5, 'Arctic Ghost', '10.5', 11),
+(65, 5, 'Arctic Ghost', '11', 12),
+(66, 5, 'Arctic Ghost', '11.5', 13),
+(67, 5, 'Arctic Ghost', '12', 11),
+(68, 5, 'Arctic Ghost', '13', 10),
+(69, 5, 'Navy Velocity', '6', 10),
+(70, 5, 'Navy Velocity', '6.5', 14),
+(71, 5, 'Navy Velocity', '7', 12),
+(72, 5, 'Navy Velocity', '7.5', 15),
+(73, 5, 'Navy Velocity', '8', 10),
+(74, 5, 'Navy Velocity', '8.5', 12),
+(75, 5, 'Navy Velocity', '9', 11),
+(76, 5, 'Navy Velocity', '9.5', 8),
+(77, 5, 'Navy Velocity', '10', 9),
+(78, 5, 'Navy Velocity', '10.5', 10),
+(79, 5, 'Navy Velocity', '11', 9),
+(80, 5, 'Navy Velocity', '11.5', 10),
+(81, 5, 'Navy Velocity', '12', 10),
+(82, 5, 'Navy Velocity', '13', 13),
+(83, 6, 'Charcoal Neon', '6', 7),
+(84, 6, 'Charcoal Neon', '6.5', 8),
+(85, 6, 'Charcoal Neon', '7', 9),
+(86, 6, 'Charcoal Neon', '7.5', 10),
+(87, 6, 'Charcoal Neon', '8', 11),
+(88, 6, 'Charcoal Neon', '8.5', 13),
+(89, 6, 'Charcoal Neon', '9', 14),
+(90, 6, 'Charcoal Neon', '9.5', 15),
+(91, 6, 'Charcoal Neon', '10', 11),
+(92, 6, 'Charcoal Neon', '10.5', 12),
+(93, 6, 'Charcoal Neon', '11', 21),
+(94, 6, 'Charcoal Neon', '11.5', 12),
+(95, 6, 'Charcoal Neon', '12', 14),
+(96, 6, 'Charcoal Neon', '13', 11),
+(97, 6, 'Sky Gold', '6', 7),
+(98, 6, 'Sky Gold', '6.5', 8),
+(99, 6, 'Sky Gold', '7', 9),
+(100, 6, 'Sky Gold', '7.5', 11),
+(101, 6, 'Sky Gold', '8', 13),
+(102, 6, 'Sky Gold', '8.5', 10),
+(103, 6, 'Sky Gold', '9', 14),
+(104, 6, 'Sky Gold', '9.5', 15),
+(105, 6, 'Sky Gold', '10', 13),
+(106, 6, 'Sky Gold', '10.5', 12),
+(107, 6, 'Sky Gold', '11', 13),
+(108, 6, 'Sky Gold', '11.5', 12),
+(109, 6, 'Sky Gold', '12', 8),
+(110, 6, 'Sky Gold', '13', 9),
+(111, 7, 'Alpine White', '6', 7),
+(112, 7, 'Alpine White', '6.5', 8),
+(113, 7, 'Alpine White', '7', 9),
+(114, 7, 'Alpine White', '7.5', 11),
+(115, 7, 'Alpine White', '8', 12),
+(116, 7, 'Alpine White', '8.5', 13),
+(117, 7, 'Alpine White', '9', 14),
+(118, 7, 'Alpine White', '9.5', 15),
+(119, 7, 'Alpine White', '10', 11),
+(120, 7, 'Alpine White', '10.5', 12),
+(121, 7, 'Alpine White', '11', 14),
+(122, 7, 'Alpine White', '11.5', 10),
+(123, 7, 'Alpine White', '12', 11),
+(124, 7, 'Alpine White', '13', 9),
+(125, 8, 'Sunset Blaze', '6', 6),
+(126, 8, 'Sunset Blaze', '6.5', 7),
+(127, 8, 'Sunset Blaze', '7', 8),
+(128, 8, 'Sunset Blaze', '7.5', 9),
+(129, 8, 'Sunset Blaze', '8', 10),
+(130, 8, 'Sunset Blaze', '8.5', 11),
+(131, 8, 'Sunset Blaze', '9', 13),
+(132, 8, 'Sunset Blaze', '9.5', 14),
+(133, 8, 'Sunset Blaze', '10', 12),
+(134, 8, 'Sunset Blaze', '10.5', 14),
+(135, 8, 'Sunset Blaze', '11', 15),
+(136, 8, 'Sunset Blaze', '11.5', 12),
+(137, 8, 'Sunset Blaze', '12', 11),
+(138, 8, 'Sunset Blaze', '13', 8),
+(139, 8, 'Carbon Cobalt', '6', 6),
+(140, 8, 'Carbon Cobalt', '6.5', 7),
+(141, 8, 'Carbon Cobalt', '7', 8),
+(142, 8, 'Carbon Cobalt', '7.5', 9),
+(143, 8, 'Carbon Cobalt', '8', 10),
+(144, 8, 'Carbon Cobalt', '8.5', 11),
+(145, 8, 'Carbon Cobalt', '9', 14),
+(146, 8, 'Carbon Cobalt', '9.5', 15),
+(147, 8, 'Carbon Cobalt', '10', 11),
+(148, 8, 'Carbon Cobalt', '10.5', 12),
+(149, 8, 'Carbon Cobalt', '11', 13),
+(150, 8, 'Carbon Cobalt', '11.5', 14),
+(151, 8, 'Carbon Cobalt', '12', 11),
+(152, 8, 'Carbon Cobalt', '13', 8),
+(153, 9, 'Desert Ochre', '6', 6),
+(154, 9, 'Desert Ochre', '6.5', 7),
+(155, 9, 'Desert Ochre', '7', 8),
+(156, 9, 'Desert Ochre', '7.5', 9),
+(157, 9, 'Desert Ochre', '8', 11),
+(158, 9, 'Desert Ochre', '8.5', 13),
+(159, 9, 'Desert Ochre', '9', 14),
+(160, 9, 'Desert Ochre', '9.5', 12),
+(161, 9, 'Desert Ochre', '10', 11),
+(162, 9, 'Desert Ochre', '10.5', 14),
+(163, 9, 'Desert Ochre', '11', 11),
+(164, 9, 'Desert Ochre', '11.5', 15),
+(165, 9, 'Desert Ochre', '12', 11),
+(166, 9, 'Desert Ochre', '13', 8),
+(167, 10, 'Clay Dust', '3', 6),
+(168, 10, 'Clay Dust', '3.5', 7),
+(169, 10, 'Clay Dust', '4', 8),
+(170, 10, 'Clay Dust', '4.5', 9),
+(171, 10, 'Clay Dust', '5', 10),
+(172, 10, 'Clay Dust', '5.5', 11),
+(173, 10, 'Clay Dust', '6', 12),
+(174, 10, 'Clay Dust', '6.5', 13),
+(175, 10, 'Clay Dust', '7', 14),
+(176, 10, 'Clay Dust', '7.5', 11),
+(177, 10, 'Clay Dust', '8', 9),
+(178, 11, 'Charcoal Graphite', '6', 8),
+(179, 11, 'Charcoal Graphite', '6.5', 9),
+(180, 11, 'Charcoal Graphite', '7', 10),
+(181, 11, 'Charcoal Graphite', '7.5', 11),
+(182, 11, 'Charcoal Graphite', '8', 12),
+(183, 11, 'Charcoal Graphite', '8.5', 13),
+(184, 11, 'Charcoal Graphite', '9', 14),
+(185, 11, 'Charcoal Graphite', '9.5', 11),
+(186, 11, 'Charcoal Graphite', '10', 12),
+(187, 11, 'Charcoal Graphite', '10.5', 14),
+(188, 11, 'Charcoal Graphite', '11', 15),
+(189, 11, 'Charcoal Graphite', '11.5', 11),
+(190, 11, 'Charcoal Graphite', '12', 10),
+(191, 11, 'Charcoal Graphite', '13', 8),
+(192, 11, 'Deep Navy', '6', 8),
+(193, 11, 'Deep Navy', '6.5', 9),
+(194, 11, 'Deep Navy', '7', 10),
+(195, 11, 'Deep Navy', '7.5', 11),
+(196, 11, 'Deep Navy', '8', 12),
+(197, 11, 'Deep Navy', '8.5', 13),
+(198, 11, 'Deep Navy', '9', 14),
+(199, 11, 'Deep Navy', '9.5', 11),
+(200, 11, 'Deep Navy', '10', 12),
+(201, 11, 'Deep Navy', '10.5', 14),
+(202, 11, 'Deep Navy', '11', 11),
+(203, 11, 'Deep Navy', '11.5', 15),
+(204, 11, 'Deep Navy', '12', 10),
+(205, 11, 'Deep Navy', '13', 7),
+(206, 12, 'Candy Peach', '6', 6),
+(207, 12, 'Candy Peach', '6.5', 7),
+(208, 12, 'Candy Peach', '7', 8),
+(209, 12, 'Candy Peach', '7.5', 9),
+(210, 12, 'Candy Peach', '8', 11),
+(211, 12, 'Candy Peach', '8.5', 13),
+(212, 12, 'Candy Peach', '9', 14),
+(213, 12, 'Candy Peach', '9.5', 15),
+(214, 12, 'Candy Peach', '10', 11),
+(215, 12, 'Candy Peach', '10.5', 12),
+(216, 12, 'Candy Peach', '11', 13),
+(217, 12, 'Candy Peach', '11.5', 18),
+(218, 12, 'Candy Peach', '12', 11),
+(219, 12, 'Candy Peach', '13', 9);
 
 -- --------------------------------------------------------
 
@@ -278,11 +528,31 @@ INSERT INTO `promo_codes` (`promo_id`, `code`, `discount_percentage`, `expiry_da
 CREATE TABLE `reviews` (
   `review_id` int(11) NOT NULL,
   `product_id` int(11) DEFAULT NULL,
+  `order_id` int(11) NOT NULL DEFAULT 0,
   `user_id` int(11) DEFAULT NULL,
   `rating` int(11) DEFAULT NULL CHECK (`rating` >= 1 and `rating` <= 5),
   `comment` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `site_settings`
+--
+
+CREATE TABLE `site_settings` (
+  `setting_key` varchar(80) NOT NULL,
+  `setting_value` text DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `site_settings`
+--
+
+INSERT INTO `site_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
+('hero_image', 'uploads/banners/hero_1781535921.png', '2026-06-15 15:05:21');
 
 -- --------------------------------------------------------
 
@@ -299,19 +569,38 @@ CREATE TABLE `users` (
   `shopping_preference` enum('men','women','kids') DEFAULT NULL,
   `date_of_birth` date DEFAULT NULL,
   `address` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `is_banned` tinyint(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `vouchers`
+--
+
+CREATE TABLE `vouchers` (
+  `voucher_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `code` varchar(20) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `is_used` tinyint(1) NOT NULL DEFAULT 0,
+  `reason` varchar(255) NOT NULL DEFAULT '',
+  `expires_at` date DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `wishlist`
+-- Table structure for table `wishlists`
 --
 
-CREATE TABLE `wishlist` (
+CREATE TABLE `wishlists` (
   `wishlist_id` int(11) NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `product_id` int(11) DEFAULT NULL
+  `user_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `added_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -341,11 +630,25 @@ ALTER TABLE `categories`
   ADD UNIQUE KEY `category_name` (`category_name`);
 
 --
+-- Indexes for table `contact_messages`
+--
+ALTER TABLE `contact_messages`
+  ADD PRIMARY KEY (`message_id`),
+  ADD KEY `idx_cm_read` (`is_read`);
+
+--
 -- Indexes for table `design_requests`
 --
 ALTER TABLE `design_requests`
   ADD PRIMARY KEY (`request_id`),
   ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`notif_id`),
+  ADD KEY `idx_notif_uid_read` (`user_id`,`is_read`);
 
 --
 -- Indexes for table `orders`
@@ -410,8 +713,15 @@ ALTER TABLE `promo_codes`
 --
 ALTER TABLE `reviews`
   ADD PRIMARY KEY (`review_id`),
+  ADD UNIQUE KEY `uq_review` (`user_id`,`product_id`,`order_id`),
   ADD KEY `product_id` (`product_id`),
   ADD KEY `user_id` (`user_id`);
+
+--
+-- Indexes for table `site_settings`
+--
+ALTER TABLE `site_settings`
+  ADD PRIMARY KEY (`setting_key`);
 
 --
 -- Indexes for table `users`
@@ -421,12 +731,19 @@ ALTER TABLE `users`
   ADD UNIQUE KEY `email` (`email`);
 
 --
--- Indexes for table `wishlist`
+-- Indexes for table `vouchers`
 --
-ALTER TABLE `wishlist`
+ALTER TABLE `vouchers`
+  ADD PRIMARY KEY (`voucher_id`),
+  ADD UNIQUE KEY `code` (`code`),
+  ADD KEY `idx_voucher_uid` (`user_id`);
+
+--
+-- Indexes for table `wishlists`
+--
+ALTER TABLE `wishlists`
   ADD PRIMARY KEY (`wishlist_id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `product_id` (`product_id`);
+  ADD UNIQUE KEY `uq_up` (`user_id`,`product_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -451,10 +768,22 @@ ALTER TABLE `categories`
   MODIFY `category_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
+-- AUTO_INCREMENT for table `contact_messages`
+--
+ALTER TABLE `contact_messages`
+  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `design_requests`
 --
 ALTER TABLE `design_requests`
   MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `notif_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `orders`
@@ -478,13 +807,13 @@ ALTER TABLE `order_status_history`
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `product_images`
 --
 ALTER TABLE `product_images`
-  MODIFY `image_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `image_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `product_size`
@@ -496,7 +825,7 @@ ALTER TABLE `product_size`
 -- AUTO_INCREMENT for table `product_stock`
 --
 ALTER TABLE `product_stock`
-  MODIFY `stock_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `stock_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=220;
 
 --
 -- AUTO_INCREMENT for table `promo_codes`
@@ -517,9 +846,15 @@ ALTER TABLE `users`
   MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `wishlist`
+-- AUTO_INCREMENT for table `vouchers`
 --
-ALTER TABLE `wishlist`
+ALTER TABLE `vouchers`
+  MODIFY `voucher_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `wishlists`
+--
+ALTER TABLE `wishlists`
   MODIFY `wishlist_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
@@ -589,13 +924,6 @@ ALTER TABLE `product_stock`
 ALTER TABLE `reviews`
   ADD CONSTRAINT `reviews_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `reviews_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `wishlist`
---
-ALTER TABLE `wishlist`
-  ADD CONSTRAINT `wishlist_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `wishlist_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
