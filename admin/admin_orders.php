@@ -30,6 +30,17 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
                     'delivery'
                 );
             } elseif($new_status === 'Cancelled'){
+                // Restore stock for every item in the cancelled order
+                $si = $conn->prepare("SELECT product_id, size, color, quantity FROM order_items WHERE order_id=?");
+                $si->bind_param("i", $oid);
+                $si->execute();
+                $si_res = $si->get_result();
+                $sr = $conn->prepare("UPDATE product_stock SET stock = stock + ? WHERE product_id=? AND size=? AND color_name=?");
+                while($si_row = $si_res->fetch_assoc()){
+                    $sr->bind_param("iiss", $si_row['quantity'], $si_row['product_id'], $si_row['size'], $si_row['color']);
+                    $sr->execute();
+                }
+
                 // Auto-issue a full refund voucher
                 $refund_amt = (float)$row_o['total_amount'];
                 do {

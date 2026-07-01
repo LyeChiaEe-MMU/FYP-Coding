@@ -46,12 +46,13 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
                       . "background:#fff8f6;border:2px dashed #C8543C;border-radius:8px;"
                       . "padding:22px;margin:20px 0;\">$otp</div>";
 
-            $body = apex_mail_html(
-                "Hello ".htmlspecialchars($pending['name'], ENT_QUOTES).",\n\n"
-                . "Here is your new Apex Store verification code:\n\n"
+            $name_safe = htmlspecialchars($pending['name'], ENT_QUOTES, 'UTF-8');
+            $body = apex_mail_html_body(
+                "<p>Hello {$name_safe},</p>"
+                . "<p>Here is your new Apex Store verification code:</p>"
                 . $otp_html
-                . "\nThis code is valid for <strong>10 minutes</strong>.\n\n"
-                . "If you did not request this, please ignore this email."
+                . "<p>This code is valid for <strong>10 minutes</strong>.</p>"
+                . "<p>If you did not request this, please ignore this email.</p>"
             );
 
             $result = apex_send_mail($email, $pending['name'], 'Your Apex Verification Code (Resent)', $body);

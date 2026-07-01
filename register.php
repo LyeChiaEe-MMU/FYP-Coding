@@ -5,9 +5,13 @@ require_once 'admin/Mailer.php';
 
 if(is_logged()){ header("Location: index.php"); exit; }
 
-// On GET: clear any stale pending verification so user can start fresh
+// On GET: if already mid-verification, send back to the verify page instead of wiping it
 if($_SERVER['REQUEST_METHOD'] === 'GET'){
-    unset($_SESSION['reg_pending'], $_SESSION['reg_otp'], $_SESSION['reg_otp_expires'],
+    if(!empty($_SESSION['reg_pending'])){
+        header("Location: verify_email.php"); exit;
+    }
+    // No active verification — clear any leftover OTP keys from an expired/failed session
+    unset($_SESSION['reg_otp'], $_SESSION['reg_otp_expires'],
           $_SESSION['reg_otp_attempts'], $_SESSION['reg_otp_sent_at']);
 }
 
@@ -90,12 +94,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                       . "background:#fff8f6;border:2px dashed #C8543C;border-radius:8px;"
                       . "padding:22px;margin:20px 0;\">$otp</div>";
 
-            $body = apex_mail_html(
-                "Hello ".htmlspecialchars($name, ENT_QUOTES).",\n\n"
-                . "Thank you for joining Apex Store! To complete your registration, enter this verification code:\n\n"
+            $name_safe = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+            $body = apex_mail_html_body(
+                "<p>Hello {$name_safe},</p>"
+                . "<p>Thank you for joining Apex Store! To complete your registration, enter this verification code:</p>"
                 . $otp_html
-                . "\nThis code is valid for <strong>10 minutes</strong>. Do not share it with anyone.\n\n"
-                . "If you did not request this, you can safely ignore this email."
+                . "<p>This code is valid for <strong>10 minutes</strong>. Do not share it with anyone.</p>"
+                . "<p>If you did not request this, you can safely ignore this email.</p>"
             );
 
             $result = apex_send_mail($email, $name, 'Your Apex Verification Code', $body);

@@ -181,6 +181,9 @@ if($_vccol && $_vccol->num_rows === 0){
     $conn->query("ALTER TABLE orders ADD COLUMN voucher_code VARCHAR(20) DEFAULT NULL AFTER discount_amount");
 }
 
+// ── Mailer (used by add_notification to send Gmail copies) ───────
+require_once __DIR__ . '/admin/Mailer.php';
+
 // ── Helpers ─────────────────────────────────────────────────────
 function e($v){ return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
 
@@ -219,6 +222,34 @@ function add_notification($conn, $user_id, $title, $message, $type = 'info'){
     $s = $conn->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)");
     $s->bind_param("isss", $user_id, $title, $message, $type);
     $s->execute();
+
+    // Mirror notification to user's Gmail
+    $us = $conn->prepare("SELECT email, name FROM users WHERE user_id=? LIMIT 1");
+    $us->bind_param("i", $user_id);
+    $us->execute();
+    $usr = $us->get_result()->fetch_assoc();
+    if($usr){
+        $icon_color = match($type){
+            'refund'  => '#2a9b5a',
+            'warning' => '#ca8a04',
+            default   => '#C8543C',
+        };
+        $name_safe  = htmlspecialchars($usr['name'],  ENT_QUOTES, 'UTF-8');
+        $title_safe = htmlspecialchars($title,         ENT_QUOTES, 'UTF-8');
+        $msg_safe   = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+        $html = apex_mail_html_body(
+            "<p>Hello {$name_safe},</p>"
+            . "<p>You have a new notification from Apex Store:</p>"
+            . "<div style=\"background:#fff8f6;border-left:4px solid {$icon_color};"
+            .    "border-radius:6px;padding:18px 22px;margin:20px 0;\">"
+            . "<div style=\"font-family:'Georgia',serif;font-size:1rem;font-weight:700;"
+            .    "letter-spacing:.5px;color:{$icon_color};margin-bottom:8px;\">{$title_safe}</div>"
+            . "<div style=\"font-size:.95rem;color:#2d2d2d;line-height:1.7;\">{$msg_safe}</div>"
+            . "</div>"
+            . "<p style=\"color:#888;font-size:.85rem;\">Log in to your Apex Store account to view all notifications.</p>"
+        );
+        apex_send_mail($usr['email'], $usr['name'], $title, $html);
+    }
 }
 
 function cart_count($conn){

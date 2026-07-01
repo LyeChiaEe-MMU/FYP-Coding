@@ -15,6 +15,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_request'])) {
         $stmt = $conn->prepare("UPDATE design_requests SET status=?, admin_note=? WHERE request_id=?");
         $stmt->bind_param("ssi", $status, $note, $rid);
         $stmt->execute();
+
+        // Notify the user about the status change
+        $dq = $conn->prepare("SELECT user_id, shoe_name FROM design_requests WHERE request_id=? LIMIT 1");
+        $dq->bind_param("i", $rid);
+        $dq->execute();
+        $dr = $dq->get_result()->fetch_assoc();
+        if($dr){
+            $status_line = match($status){
+                'In Review' => 'Your design request is now being reviewed by our team.',
+                'Approved'  => 'Great news! Your design request has been approved.',
+                'Rejected'  => 'Your design request has not been accepted at this time.',
+                default     => 'Your design request status has been updated.',
+            };
+            $notif_msg = $status_line;
+            if($note !== '') $notif_msg .= "\n\nMessage from Apex: $note";
+            add_notification(
+                $conn,
+                $dr['user_id'],
+                'Design Request Update — ' . $dr['shoe_name'],
+                $notif_msg,
+                'info'
+            );
+        }
+
         $_SESSION['admin_flash'] = "Request #$rid updated to $status.";
     }
     header("Location: admin_requests.php"); exit;

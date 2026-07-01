@@ -65,6 +65,7 @@ function apex_send_mail(string $to_email, string $to_name, string $subject, stri
     // Encode subject so non-ASCII / special chars survive email clients
     $encoded_subject = '=?UTF-8?B?'.base64_encode($subject).'?=';
 
+    $to_name = str_replace(["\r", "\n"], ' ', trim($to_name));
     $body  = "From: $from_name <$from>\r\n";
     $body .= "To: $to_name <$to_email>\r\n";
     $body .= "Subject: $encoded_subject\r\n";
@@ -87,9 +88,17 @@ function apex_send_mail(string $to_email, string $to_name, string $subject, stri
 
 /**
  * Wrap plain-text message body in a branded HTML email template.
+ * Text is HTML-escaped and newlines converted to <br>.
  */
 function apex_mail_html(string $body_text): string {
     $body_html = nl2br(htmlspecialchars($body_text, ENT_QUOTES, 'UTF-8'));
+    return apex_mail_html_body($body_html);
+}
+
+/**
+ * Wrap a pre-built HTML body in the branded email template (no escaping).
+ */
+function apex_mail_html_body(string $body_html): string {
     return <<<HTML
 <!DOCTYPE html>
 <html>
