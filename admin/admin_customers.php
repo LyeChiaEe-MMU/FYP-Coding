@@ -39,8 +39,9 @@ if(isset($_POST['toggle_ban'])){
     header("Location: admin_customers.php?msg=User+not+found.&mtype=err"); exit;
 }
 
-$msg   = $msg   ?: ($_GET['msg']   ?? '');
-$mtype = $mtype ?: ($_GET['mtype'] ?? 'ok');
+$msg = $msg ?: ($_GET['msg'] ?? '');
+// Whitelist — GET may override the 'ok' default, but only to 'err'
+if($mtype !== 'err') $mtype = (($_GET['mtype'] ?? '') === 'err') ? 'err' : 'ok';
 
 $customers = $conn->query("
     SELECT u.*,

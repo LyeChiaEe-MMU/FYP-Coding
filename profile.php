@@ -14,30 +14,84 @@ $stmt->execute();
 $user = $stmt->get_result()->fetch_assoc();
 
 // ── Handle Profile Update ──────────────────────────────────────
+$unchanged_fields = []; // for the "same as previous" popup
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_profile'])){
     csrf_check();
     $name    = trim($_POST['name']    ?? '');
-    $phone   = trim($_POST['phone']   ?? '');
+    $email   = trim($_POST['email']   ?? '');
+    $phone   = preg_replace('/[\s\-]+/', '', trim($_POST['phone'] ?? '')); // normalise: strip spaces/dashes
     $pref    = $_POST['shopping_preference'] ?? '';
     $address = trim($_POST['address'] ?? '');
 
-    if(!$name || !$phone){
-        $error = "Name and phone number are required.";
+    // Compare against current values (phone normalised on both sides)
+    $cur_phone  = preg_replace('/[\s\-]+/', '', (string)($user['phone'] ?? ''));
+    $name_same  = ($name  === $user['name']);
+    $email_same = (strcasecmp($email, $user['email']) === 0);
+    $phone_same = ($phone === $cur_phone);
+    $pref_same  = ($pref  === ($user['shopping_preference'] ?? ''));
+    $addr_same  = ($address === trim((string)($user['address'] ?? '')));
+
+    if($name_same)  $unchanged_fields[] = 'Name';
+    if($email_same) $unchanged_fields[] = 'Email';
+    if($phone_same) $unchanged_fields[] = 'Phone Number';
+
+    // ── Field validation ──
+    if(!$name || !$email || !$phone){
+        $error = "Name, email and phone number are required.";
+    } elseif(mb_strlen($name) < 2 || mb_strlen($name) > 100){
+        $error = "Name must be between 2 and 100 characters.";
+    } elseif(!preg_match('/^[\p{L}][\p{L}\s.\'\-]*$/u', $name)){
+        $error = "Name can only contain letters, spaces, dots, hyphens and apostrophes.";
+    } elseif(!filter_var($email, FILTER_VALIDATE_EMAIL)){
+        $error = "Please enter a valid email address.";
+    } elseif(mb_strlen($email) > 180){
+        $error = "Email address is too long.";
+    } elseif(!preg_match('/^01[0-9]{8,9}$/', $phone)){
+        $error = "Phone number must be a valid Malaysian mobile number starting with 01 (10–11 digits, e.g. 0123456789).";
     } elseif(!in_array($pref, ['men','women','kids'])){
         $error = "Please select a valid shopping preference.";
+    } elseif($address !== '' && mb_strlen($address) < 10){
+        $error = "Delivery address is too short — please enter a complete address.";
+    } elseif(mb_strlen($address) > 500){
+        $error = "Delivery address is too long (max 500 characters).";
+
+    // ── Nothing changed at all → block with popup ──
+    } elseif($name_same && $email_same && $phone_same && $pref_same && $addr_same){
+        $error = "no_changes";
+
     } else {
-        $upd = $conn->prepare("UPDATE users SET name=?, phone=?, shopping_preference=?, address=? WHERE user_id=?");
-        $upd->bind_param("ssssi", $name, $phone, $pref, $address, $uid);
-        if($upd->execute()){
-            $_SESSION['user_name'] = $name;
-            $success = "profile";
-            // Re-fetch updated data
-            $stmt2 = $conn->prepare("SELECT name, email, phone, shopping_preference, date_of_birth, address FROM users WHERE user_id=?");
-            $stmt2->bind_param("i", $uid);
-            $stmt2->execute();
-            $user = $stmt2->get_result()->fetch_assoc();
-        } else {
-            $error = "Something went wrong. Please try again.";
+        // ── Uniqueness: new email/phone must not clash with ANOTHER account ──
+        if(!$email_same){
+            $chk = $conn->prepare("SELECT user_id FROM users WHERE email=? AND user_id<>?");
+            $chk->bind_param("si", $email, $uid);
+            $chk->execute();
+            if($chk->get_result()->num_rows > 0){
+                $error = "This email address is already registered to another account.";
+            }
+        }
+        if(!$error && !$phone_same){
+            $chk2 = $conn->prepare("SELECT user_id FROM users WHERE REPLACE(REPLACE(phone,'-',''),' ','')=? AND user_id<>?");
+            $chk2->bind_param("si", $phone, $uid);
+            $chk2->execute();
+            if($chk2->get_result()->num_rows > 0){
+                $error = "This phone number is already registered to another account.";
+            }
+        }
+
+        if(!$error){
+            $upd = $conn->prepare("UPDATE users SET name=?, email=?, phone=?, shopping_preference=?, address=? WHERE user_id=?");
+            $upd->bind_param("sssssi", $name, $email, $phone, $pref, $address, $uid);
+            if($upd->execute()){
+                $_SESSION['user_name'] = $name;
+                $success = "profile";
+                // Re-fetch updated data
+                $stmt2 = $conn->prepare("SELECT name, email, phone, shopping_preference, date_of_birth, address FROM users WHERE user_id=?");
+                $stmt2->bind_param("i", $uid);
+                $stmt2->execute();
+                $user = $stmt2->get_result()->fetch_assoc();
+            } else {
+                $error = "Something went wrong. Please try again.";
+            }
         }
     }
 }
@@ -218,6 +272,45 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
 .vs-used     { background:rgba(150,150,150,.1); color:#888; border:1px solid rgba(150,150,150,.2); }
 .vs-expired  { background:rgba(214,64,64,.08); color:var(--danger); border:1px solid rgba(214,64,64,.2); }
 
+/* ── Inline field errors ── */
+.field-err {
+    display:none; font-size:.75rem; color:#ef4444;
+    margin-top:6px; align-items:center; gap:6px;
+}
+.field-err.show { display:flex; }
+.prof-input.invalid { border-color:#ef4444 !important; }
+
+/* ── Popup message box ── */
+.apx-modal-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.55);
+    display:none; align-items:center; justify-content:center;
+    z-index:9999; padding:20px;
+}
+.apx-modal-overlay.show { display:flex; }
+.apx-modal {
+    background:var(--card, #fff); border:1px solid var(--border);
+    border-radius:14px; max-width:420px; width:100%;
+    padding:28px; text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,.35);
+    animation:apxModalIn .25s cubic-bezier(.22,1,.36,1);
+}
+@keyframes apxModalIn {
+    from { opacity:0; transform:translateY(16px) scale(.97); }
+    to   { opacity:1; transform:translateY(0) scale(1); }
+}
+.apx-modal-icon {
+    width:60px; height:60px; border-radius:50%; margin:0 auto 16px;
+    background:rgba(202,138,4,.12); border:1.5px solid rgba(202,138,4,.3);
+    display:flex; align-items:center; justify-content:center;
+    color:#ca8a04; font-size:1.5rem;
+}
+.apx-modal-title {
+    font-family:'Oswald',sans-serif; font-size:1.05rem; letter-spacing:2px;
+    text-transform:uppercase; color:var(--white); margin-bottom:10px;
+}
+.apx-modal-text { font-size:.875rem; color:var(--muted); line-height:1.7; margin-bottom:20px; }
+.apx-modal-text strong { color:var(--accent); }
+
 /* ── Pref pills (compact) ── */
 .pref-pills { display:flex; gap:10px; flex-wrap:wrap; }
 .pref-pill { cursor:pointer; }
@@ -258,7 +351,7 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
   <div class="flash flash-ok" style="margin-bottom:20px;">
     <i class="fa-solid fa-circle-check"></i> Password changed successfully.
   </div>
-  <?php elseif($error): ?>
+  <?php elseif($error && $error !== 'no_changes'): ?>
   <div class="flash flash-err" style="margin-bottom:20px;">
     <i class="fa-solid fa-circle-exclamation"></i> <?=e($error)?>
   </div>
@@ -385,31 +478,43 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
       <!-- Right: Edit Card -->
       <div class="card" style="padding:22px 24px;">
         <div class="sec-head"><i class="fa-solid fa-pen-to-square"></i> Edit Details</div>
-        <form method="POST" novalidate>
+        <form method="POST" novalidate id="profileForm">
           <?=csrf_field()?>
 
           <div class="form-group">
             <label>Full Name</label>
             <div class="prof-input-icon">
               <i class="fa-solid fa-user"></i>
-              <input type="text" name="name" class="prof-input"
-                     value="<?=e($user['name'])?>" placeholder="Your full name" required>
+              <input type="text" name="name" id="editName" class="prof-input"
+                     value="<?=e(isset($_POST['update_profile']) ? ($_POST['name'] ?? '') : $user['name'])?>" placeholder="Your full name" required>
             </div>
+            <div class="field-err" id="err-name"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Email Address</label>
+            <div class="prof-input-icon">
+              <i class="fa-solid fa-envelope"></i>
+              <input type="email" name="email" id="editEmail" class="prof-input"
+                     value="<?=e(isset($_POST['update_profile']) ? ($_POST['email'] ?? '') : $user['email'])?>" placeholder="you@email.com" required>
+            </div>
+            <div class="field-err" id="err-email"></div>
           </div>
 
           <div class="form-group">
             <label>Phone Number</label>
             <div class="prof-input-icon">
               <i class="fa-solid fa-phone"></i>
-              <input type="tel" name="phone" class="prof-input"
-                     value="<?=e($user['phone']??'')?>" placeholder="01xxxxxxxx" required>
+              <input type="tel" name="phone" id="editPhone" class="prof-input"
+                     value="<?=e(isset($_POST['update_profile']) ? ($_POST['phone'] ?? '') : ($user['phone']??''))?>" placeholder="01xxxxxxxx" required>
             </div>
+            <div class="field-err" id="err-phone"></div>
           </div>
 
           <div class="form-group">
             <label>Shopping Preference</label>
             <div class="pref-pills">
-              <?php $curPref = $user['shopping_preference'] ?? ''; ?>
+              <?php $curPref = isset($_POST['update_profile']) ? ($_POST['shopping_preference'] ?? '') : ($user['shopping_preference'] ?? ''); ?>
               <label class="pref-pill">
                 <input type="radio" name="shopping_preference" value="men" <?=$curPref==='men'?'checked':''?>>
                 <div class="pref-pill-inner"><i class="fa-solid fa-person"></i> Men</div>
@@ -427,9 +532,10 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
 
           <div class="form-group">
             <label>Delivery Address</label>
-            <textarea name="address" class="prof-input" rows="3"
+            <textarea name="address" id="editAddress" class="prof-input" rows="3"
                       placeholder="Your delivery address..."
-                      style="resize:vertical;"><?=e($user['address']??'')?></textarea>
+                      style="resize:vertical;"><?=e(isset($_POST['update_profile']) ? ($_POST['address'] ?? '') : ($user['address']??''))?></textarea>
+            <div class="field-err" id="err-address"></div>
           </div>
 
           <button type="submit" name="update_profile" class="btn btn-primary btn-full" style="margin-top:6px;">
@@ -592,6 +698,20 @@ $pref_display = $pref_labels[$user['shopping_preference']] ?? ucfirst($user['sho
 
 <?php include 'includes/footer.php'; ?>
 
+<!-- ── Popup message box: no changes detected ── -->
+<div class="apx-modal-overlay" id="noChangeModal">
+  <div class="apx-modal">
+    <div class="apx-modal-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <div class="apx-modal-title">No Changes Detected</div>
+    <div class="apx-modal-text" id="noChangeText">
+      Your details are the same as the previous ones. Please change at least one field before saving.
+    </div>
+    <button type="button" class="btn btn-primary" onclick="closeNoChangeModal()" style="min-width:120px;">
+      OK, Got It
+    </button>
+  </div>
+</div>
+
 <script>
 // ── Tab switching ──────────────────────────────────────
 function switchTab(name, btn){
@@ -623,6 +743,115 @@ function togglePw(fieldId, iconId){
     if(f.type==='password'){ f.type='text'; i.className='fa-solid fa-eye-slash'; }
     else { f.type='password'; i.className='fa-solid fa-eye'; }
 }
+
+// ── Profile edit: validation + "same as previous" check ─
+const originalProfile = {
+    name:    <?=json_encode($user['name'])?>,
+    email:   <?=json_encode($user['email'])?>,
+    phone:   <?=json_encode(preg_replace('/[\s\-]+/', '', (string)($user['phone'] ?? '')))?>,
+    pref:    <?=json_encode($user['shopping_preference'] ?? '')?>,
+    address: <?=json_encode(trim((string)($user['address'] ?? '')))?>
+};
+
+function setFieldErr(id, inputEl, msg){
+    const box = document.getElementById(id);
+    if(msg){
+        box.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> ' + msg;
+        box.classList.add('show');
+        inputEl.classList.add('invalid');
+    } else {
+        box.classList.remove('show');
+        inputEl.classList.remove('invalid');
+    }
+    return !msg;
+}
+
+function validateProfileForm(){
+    const nameEl  = document.getElementById('editName');
+    const emailEl = document.getElementById('editEmail');
+    const phoneEl = document.getElementById('editPhone');
+    const addrEl  = document.getElementById('editAddress');
+
+    const name  = nameEl.value.trim();
+    const email = emailEl.value.trim();
+    const phone = phoneEl.value.trim().replace(/[\s\-]+/g, '');
+    const addr  = addrEl.value.trim();
+    let ok = true;
+
+    // Name
+    if(!name)                                   ok = setFieldErr('err-name', nameEl, 'Full name is required.') && ok;
+    else if(name.length < 2 || name.length > 100) ok = setFieldErr('err-name', nameEl, 'Name must be 2–100 characters.') && ok;
+    else if(!/^[\p{L}][\p{L}\s.'\-]*$/u.test(name)) ok = setFieldErr('err-name', nameEl, 'Name can only contain letters, spaces, dots, hyphens and apostrophes.') && ok;
+    else setFieldErr('err-name', nameEl, '');
+
+    // Email
+    if(!email)                                  ok = setFieldErr('err-email', emailEl, 'Email address is required.') && ok;
+    else if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) ok = setFieldErr('err-email', emailEl, 'Please enter a valid email address.') && ok;
+    else setFieldErr('err-email', emailEl, '');
+
+    // Phone
+    if(!phone)                                  ok = setFieldErr('err-phone', phoneEl, 'Phone number is required.') && ok;
+    else if(!/^01[0-9]{8,9}$/.test(phone))      ok = setFieldErr('err-phone', phoneEl, 'Must be a valid Malaysian number starting with 01 (10–11 digits).') && ok;
+    else setFieldErr('err-phone', phoneEl, '');
+
+    // Address (optional, but must be complete if given)
+    if(addr !== '' && addr.length < 10)         ok = setFieldErr('err-address', addrEl, 'Address is too short — enter a complete address.') && ok;
+    else if(addr.length > 500)                  ok = setFieldErr('err-address', addrEl, 'Address is too long (max 500 characters).') && ok;
+    else setFieldErr('err-address', addrEl, '');
+
+    return ok;
+}
+
+document.getElementById('profileForm').addEventListener('submit', function(e){
+    if(!validateProfileForm()){
+        e.preventDefault();
+        return;
+    }
+
+    // "Same as previous" check — block if NOTHING changed
+    const name  = document.getElementById('editName').value.trim();
+    const email = document.getElementById('editEmail').value.trim();
+    const phone = document.getElementById('editPhone').value.trim().replace(/[\s\-]+/g, '');
+    const addr  = document.getElementById('editAddress').value.trim();
+    const pref  = (document.querySelector('input[name="shopping_preference"]:checked') || {}).value || '';
+
+    const same = [];
+    if(name === originalProfile.name)                        same.push('Name');
+    if(email.toLowerCase() === originalProfile.email.toLowerCase()) same.push('Email');
+    if(phone === originalProfile.phone)                      same.push('Phone Number');
+    const prefSame = pref === originalProfile.pref;
+    const addrSame = addr === originalProfile.address;
+
+    if(same.length === 3 && prefSame && addrSame){
+        e.preventDefault();
+        showNoChangeModal(same);
+    }
+});
+
+function showNoChangeModal(sameFields){
+    const text = document.getElementById('noChangeText');
+    text.innerHTML = 'Cannot proceed — your <strong>' + sameFields.join('</strong>, <strong>') +
+                     '</strong> and all other details are the same as the previous ones.<br>' +
+                     'Please change at least one field before saving.';
+    document.getElementById('noChangeModal').classList.add('show');
+}
+function closeNoChangeModal(){
+    document.getElementById('noChangeModal').classList.remove('show');
+}
+// Close on overlay click / Escape key
+document.getElementById('noChangeModal').addEventListener('click', function(e){
+    if(e.target === this) closeNoChangeModal();
+});
+document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeNoChangeModal();
+});
+
+<?php if($error === 'no_changes'): ?>
+// Server-side detected no changes (JS was bypassed) — show the popup on load
+document.addEventListener('DOMContentLoaded', function(){
+    showNoChangeModal(<?=json_encode($unchanged_fields)?>);
+});
+<?php endif; ?>
 
 // ── Live password rules ────────────────────────────────
 function checkPwRules(v){

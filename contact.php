@@ -12,10 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $subject = trim($_POST['subject'] ?? '');
     $message = trim($_POST['message'] ?? '');
 
+    $allowed_subjects = ['Order Enquiry','Return / Exchange','Size Help','Product Question','Shipping Issue','Feedback','Other'];
+
     if (!$name)                                     $errors[] = "Name is required.";
+    elseif (mb_strlen($name) > 120)                 $errors[] = "Name is too long (max 120 characters).";
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = "Please enter a valid email address.";
-    if (!$subject)                                  $errors[] = "Please select a subject.";
+    if (!in_array($subject, $allowed_subjects))     $errors[] = "Please select a subject.";
     if (strlen($message) < 10)                      $errors[] = "Message must be at least 10 characters.";
+    elseif (mb_strlen($message) > 5000)             $errors[] = "Message is too long (max 5000 characters).";
 
     if (empty($errors)) {
         $stmt = $conn->prepare("INSERT INTO contact_messages (name, email, subject, message) VALUES (?,?,?,?)");

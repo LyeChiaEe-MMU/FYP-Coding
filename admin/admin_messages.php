@@ -3,6 +3,57 @@ require_once 'auth_check.php';
 
 $msg = ''; $mtype = 'ok';
 
+// ── SEND REPLY (email the customer directly from the website) ───
+if(isset($_POST['send_reply'])){
+    csrf_check();
+    $mid        = (int)$_POST['message_id'];
+    $reply_text = trim($_POST['reply_text'] ?? '');
+
+    $stmt = $conn->prepare("SELECT * FROM contact_messages WHERE message_id=?");
+    $stmt->bind_param("i", $mid);
+    $stmt->execute();
+    $original = $stmt->get_result()->fetch_assoc();
+
+    if(!$original){
+        header("Location: admin_messages.php?msg=Message+not+found.&mtype=err"); exit;
+    }
+    if($reply_text === ''){
+        header("Location: admin_messages.php?msg=Reply+cannot+be+empty.&mtype=err#msg-$mid"); exit;
+    }
+
+    // Build branded reply email quoting the customer's original message
+    $name_safe  = htmlspecialchars($original['name'],    ENT_QUOTES, 'UTF-8');
+    $subj_safe  = htmlspecialchars($original['subject'], ENT_QUOTES, 'UTF-8');
+    $orig_safe  = nl2br(htmlspecialchars($original['message'], ENT_QUOTES, 'UTF-8'));
+    $reply_safe = nl2br(htmlspecialchars($reply_text,          ENT_QUOTES, 'UTF-8'));
+
+    $html = apex_mail_html_body(
+        "<p>Hello {$name_safe},</p>"
+        . "<p>Thank you for contacting Apex Store. Here is our reply to your message:</p>"
+        . "<div style=\"background:#fff8f6;border-left:4px solid #C8543C;border-radius:6px;"
+        .    "padding:18px 22px;margin:20px 0;font-size:.95rem;color:#2d2d2d;line-height:1.7;\">"
+        . $reply_safe
+        . "</div>"
+        . "<div style=\"margin-top:24px;padding-top:16px;border-top:1px solid #eee;\">"
+        . "<div style=\"font-size:.75rem;color:#888;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;\">Your original message</div>"
+        . "<div style=\"font-size:.85rem;color:#666;line-height:1.6;\">"
+        . "<strong>Subject:</strong> {$subj_safe}<br><br>{$orig_safe}"
+        . "</div>"
+        . "</div>"
+    );
+
+    $result = apex_send_mail($original['email'], $original['name'], 'Re: '.$original['subject'].' — Apex Store', $html);
+
+    if($result['ok']){
+        $upd = $conn->prepare("UPDATE contact_messages SET admin_reply=?, replied_at=NOW(), is_read=1 WHERE message_id=?");
+        $upd->bind_param("si", $reply_text, $mid);
+        $upd->execute();
+        header("Location: admin_messages.php?msg=Reply+sent+to+".urlencode($original['email'])."&mtype=ok#msg-$mid"); exit;
+    } else {
+        header("Location: admin_messages.php?msg=".urlencode('Failed to send: '.$result['error'])."&mtype=err#msg-$mid"); exit;
+    }
+}
+
 // ── DELETE message ──────────────────────────────────────────────
 if(isset($_POST['delete_msg'])){
     csrf_check();
@@ -24,8 +75,9 @@ if(isset($_GET['read'])){
     header("Location: admin_messages.php#msg-$mid"); exit;
 }
 
-$msg   = $msg   ?: ($_GET['msg']   ?? '');
-$mtype = $mtype ?: ($_GET['mtype'] ?? 'ok');
+$msg   = $msg ?: ($_GET['msg'] ?? '');
+// Whitelist mtype — only 'ok' or 'err' may reach the class attribute
+$mtype = (($_GET['mtype'] ?? $mtype) === 'err') ? 'err' : 'ok';
 
 // Fetch all messages newest-first
 $messages = $conn->query("SELECT * FROM contact_messages ORDER BY created_at DESC");
@@ -73,6 +125,20 @@ $unread   = $conn->query("SELECT COUNT(*) AS c FROM contact_messages WHERE is_re
     background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);
     padding:14px 16px;font-size:.875rem;color:var(--text);line-height:1.8;
     margin:14px 0;white-space:pre-wrap;
+}
+.reply-box {
+    width:100%;background:var(--navy2);border:1px solid var(--border);
+    border-radius:var(--radius);padding:12px 14px;
+    font-size:.875rem;color:var(--text);line-height:1.7;
+    font-family:inherit;resize:vertical;outline:none;
+    transition:border-color .18s;
+}
+.reply-box:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(200,84,60,.15); }
+.badge-replied {
+    display:inline-flex;align-items:center;gap:4px;
+    font-size:.58rem;background:rgba(42,155,90,.15);color:#2a9b5a;
+    border:1px solid rgba(42,155,90,.3);border-radius:100px;
+    padding:1px 8px;font-weight:700;letter-spacing:.5px;
 }
 .badge-unread {
     display:inline-flex;align-items:center;justify-content:center;
@@ -138,6 +204,9 @@ $unread   = $conn->query("SELECT COUNT(*) AS c FROM contact_messages WHERE is_re
               <?php if($is_unread): ?>
               <span style="font-size:.58rem;background:var(--accent);color:#fff;border-radius:100px;padding:1px 6px;font-weight:700;letter-spacing:.5px;">NEW</span>
               <?php endif; ?>
+              <?php if(!empty($m['admin_reply'])): ?>
+              <span class="badge-replied">✓ REPLIED</span>
+              <?php endif; ?>
             </div>
             <div class="msg-email"><?=e($m['email'])?></div>
             <div style="margin-top:4px;">
@@ -173,10 +242,38 @@ $unread   = $conn->query("SELECT COUNT(*) AS c FROM contact_messages WHERE is_re
           <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:14px;margin-bottom:4px;">Message</div>
           <div class="msg-text"><?=e($m['message'])?></div>
 
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <a href="mailto:<?=e($m['email'])?>" class="btn btn-primary btn-sm">
-              <i class="fa-solid fa-reply"></i> Reply via Email
-            </a>
+<?php if(!empty($m['admin_reply'])): ?>
+          <!-- Previously sent reply -->
+          <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:#2a9b5a;margin-top:14px;margin-bottom:4px;">
+            ✓ Your Reply — sent <?=date('d M Y, h:i A', strtotime($m['replied_at']))?>
+          </div>
+          <div class="msg-text" style="border-left:3px solid #2a9b5a;"><?=e($m['admin_reply'])?></div>
+<?php endif; ?>
+
+          <!-- Reply form: type here, sends to customer's email -->
+          <form method="POST" class="reply-form" id="reply-form-<?=(int)$m['message_id']?>" style="display:none;margin:14px 0 0;">
+            <?=csrf_field()?>
+            <input type="hidden" name="send_reply" value="1">
+            <input type="hidden" name="message_id" value="<?=(int)$m['message_id']?>">
+            <div style="font-size:.68rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">
+              Reply to <?=e($m['email'])?>
+            </div>
+            <textarea name="reply_text" class="reply-box" rows="5" required
+                      placeholder="Type your reply here... it will be emailed to <?=e($m['email'])?>"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+              <button type="submit" class="btn btn-primary btn-sm" onclick="this.innerHTML='Sending...';this.style.opacity='.7';">
+                <i class="fa-solid fa-paper-plane"></i> Send Reply
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="toggleReply(<?=(int)$m['message_id']?>)">
+                Cancel
+              </button>
+            </div>
+          </form>
+
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;" id="reply-actions-<?=(int)$m['message_id']?>">
+            <button type="button" class="btn btn-primary btn-sm" onclick="toggleReply(<?=(int)$m['message_id']?>)">
+              <i class="fa-solid fa-reply"></i> <?=!empty($m['admin_reply'])?'Reply Again':'Reply'?>
+            </button>
             <form method="POST" style="margin:0;" onsubmit="return confirm('Delete this message? This cannot be undone.')">
               <?=csrf_field()?>
               <input type="hidden" name="delete_msg" value="1">
@@ -196,6 +293,24 @@ $unread   = $conn->query("SELECT COUNT(*) AS c FROM contact_messages WHERE is_re
 </div>
 
 <script>
+// Auto-expand the message linked in the URL hash (e.g. after sending a reply)
+window.addEventListener('DOMContentLoaded', () => {
+    const match = location.hash.match(/^#msg-(\d+)$/);
+    if(match){
+        const header = document.querySelector('#msg-' + match[1] + ' .msg-header');
+        if(header) toggleMsg(parseInt(match[1]), header);
+    }
+});
+
+function toggleReply(id){
+    const form    = document.getElementById('reply-form-' + id);
+    const actions = document.getElementById('reply-actions-' + id);
+    const isOpen  = form.style.display !== 'none';
+    form.style.display    = isOpen ? 'none' : 'block';
+    actions.style.display = isOpen ? 'flex' : 'none';
+    if(!isOpen) form.querySelector('textarea').focus();
+}
+
 function toggleMsg(id, headerEl){
     const body  = document.getElementById('body-' + id);
     const arrow = document.getElementById('arrow-' + id);

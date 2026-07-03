@@ -68,8 +68,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['remove_hero'])){
 
 // ── Load current data ─────────────────────────────────────────────
 if(!$msg){
-    $msg   = $_GET['msg']   ?? '';
-    $mtype = $_GET['mtype'] ?? 'ok';
+    $msg   = $_GET['msg'] ?? '';
+    // Whitelist — only 'ok' or 'err' may reach the class attribute
+    $mtype = (($_GET['mtype'] ?? '') === 'err') ? 'err' : 'ok';
 }
 
 $hero_img = '';

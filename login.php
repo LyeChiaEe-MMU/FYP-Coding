@@ -12,7 +12,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(!$email || !$password){
         $error = "Please enter your email and password.";
     } else {
-        $stmt = $conn->prepare("SELECT user_id, name, password, is_banned FROM users WHERE email=?");
+        $stmt = $conn->prepare("SELECT user_id, name, password, is_banned, date_of_birth FROM users WHERE email=?");
         $stmt->bind_param("s",$email);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -26,6 +26,24 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 unset($_SESSION['admin_id'], $_SESSION['admin_username'], $_SESSION['login_method']);
                 $_SESSION['user_id']   = $user['user_id'];
                 $_SESSION['user_name'] = $user['name'];
+
+                // ── Birthday-month voucher: RM 10, once per calendar year ──
+                $dob = $user['date_of_birth'] ?? '';
+                if($dob && $dob !== '0000-00-00' && date('m', strtotime($dob)) === date('m')){
+                    $b_uid = (int)$user['user_id'];
+                    $bchk  = $conn->prepare("SELECT voucher_id FROM vouchers
+                                             WHERE user_id=? AND reason LIKE 'Happy Birthday%' AND YEAR(created_at)=YEAR(NOW())");
+                    $bchk->bind_param("i", $b_uid);
+                    $bchk->execute();
+                    if($bchk->get_result()->num_rows === 0){
+                        grant_voucher(
+                            $conn, $b_uid, 10.00,
+                            'Happy Birthday from all of us at Apex! 🎂 Treat yourself to something special this month.',
+                            30, 'Happy Birthday — RM 10.00 Voucher'
+                        );
+                    }
+                }
+
                 header("Location: index.php"); exit;
             }
         } else {
@@ -181,7 +199,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
           </div>
         </div>
         <div class="form-group">
-          <label>Password</label>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <label>Password</label>
+            <a href="forgot_password.php" style="font-size:.78rem;color:var(--accent);text-decoration:none;font-weight:600;">Forgot password?</a>
+          </div>
           <div class="input-icon-wrap">
             <i class="fa-solid fa-lock"></i>
             <input type="password" name="password" id="loginPw" placeholder="Your password" required>

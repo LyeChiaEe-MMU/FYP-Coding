@@ -48,6 +48,29 @@ if($_spcol && $_spcol->num_rows === 0){
     $conn->query("ALTER TABLE products ADD COLUMN sale_percent TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER is_on_sale");
 }
 
+// ── One-time migration: add sale_ends_at column to products if missing ──
+$_secol = $conn->query("SHOW COLUMNS FROM products LIKE 'sale_ends_at'");
+if($_secol && $_secol->num_rows === 0){
+    $conn->query("ALTER TABLE products ADD COLUMN sale_ends_at DATETIME DEFAULT NULL AFTER sale_percent");
+}
+
+// ── Auto-expire sales whose end time has passed (lazy sweep on every load) ──
+$conn->query("UPDATE products SET is_on_sale=0, sale_percent=0, sale_ends_at=NULL
+              WHERE sale_ends_at IS NOT NULL AND sale_ends_at <= NOW()");
+
+// ── One-time migration: design request statuses → Received / Accepted / Rejected ──
+$_drt = $conn->query("SHOW TABLES LIKE 'design_requests'");
+if($_drt && $_drt->num_rows > 0){
+    // status was an ENUM without the new values — writes of 'Received' became '' —
+    // convert to VARCHAR first so the new statuses can actually be stored
+    $_drs = $conn->query("SHOW COLUMNS FROM design_requests LIKE 'status'");
+    if($_drs && ($_drsr = $_drs->fetch_assoc()) && stripos($_drsr['Type'], 'enum') !== false){
+        $conn->query("ALTER TABLE design_requests MODIFY status VARCHAR(20) NOT NULL DEFAULT 'Received'");
+    }
+    $conn->query("UPDATE design_requests SET status='Received' WHERE status='' OR status IS NULL OR status IN ('Pending','In Review')");
+    $conn->query("UPDATE design_requests SET status='Accepted' WHERE status='Approved'");
+}
+
 // ── Create site_settings table if missing ────────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS site_settings (
     setting_key   VARCHAR(80) NOT NULL PRIMARY KEY,
@@ -81,6 +104,13 @@ $conn->query("CREATE TABLE IF NOT EXISTS contact_messages (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_cm_read (is_read)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+// ── One-time migration: add admin reply columns to contact_messages ─
+$_cmreply = $conn->query("SHOW COLUMNS FROM contact_messages LIKE 'admin_reply'");
+if($_cmreply && $_cmreply->num_rows === 0){
+    $conn->query("ALTER TABLE contact_messages ADD COLUMN admin_reply TEXT DEFAULT NULL AFTER is_read");
+    $conn->query("ALTER TABLE contact_messages ADD COLUMN replied_at TIMESTAMP NULL DEFAULT NULL AFTER admin_reply");
+}
 
 // ── Create notifications table if missing ──────────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS notifications (
@@ -118,6 +148,16 @@ $_ubancol = $conn->query("SHOW COLUMNS FROM users LIKE 'is_banned'");
 if($_ubancol && $_ubancol->num_rows === 0){
     $conn->query("ALTER TABLE users ADD COLUMN is_banned TINYINT(1) NOT NULL DEFAULT 0");
 }
+
+// ── Create stock_alerts table if missing (back-in-stock notify) ──
+$conn->query("CREATE TABLE IF NOT EXISTS stock_alerts (
+    alert_id   INT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT NOT NULL,
+    product_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_sa_user_product (user_id, product_id),
+    INDEX idx_sa_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
 // ── Create reviews table if missing ──────────────────────────────
 $conn->query("CREATE TABLE IF NOT EXISTS reviews (
@@ -218,10 +258,14 @@ function price_html($price, $percent, $mode = 'card'){
          . '</span>';
 }
 
-function add_notification($conn, $user_id, $title, $message, $type = 'info'){
+// $send_email=false lets callers skip the Gmail mirror (e.g. when a dedicated
+// email like the order receipt is sent instead, to avoid double-emailing)
+function add_notification($conn, $user_id, $title, $message, $type = 'info', $send_email = true){
     $s = $conn->prepare("INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)");
     $s->bind_param("isss", $user_id, $title, $message, $type);
     $s->execute();
+
+    if(!$send_email) return;
 
     // Mirror notification to user's Gmail
     $us = $conn->prepare("SELECT email, name FROM users WHERE user_id=? LIMIT 1");
@@ -250,6 +294,72 @@ function add_notification($conn, $user_id, $title, $message, $type = 'info'){
         );
         apex_send_mail($usr['email'], $usr['name'], $title, $html);
     }
+}
+
+// Notify everyone waiting on a restock of this product (in-site + Gmail),
+// then clear their alerts. Returns how many customers were notified.
+function notify_stock_alerts($conn, $product_id){
+    $product_id = (int)$product_id;
+    $pr = $conn->query("SELECT name, stock FROM products WHERE product_id=$product_id");
+    $p  = $pr ? $pr->fetch_assoc() : null;
+    if(!$p || (int)$p['stock'] <= 0) return 0;
+
+    $res = $conn->query("SELECT alert_id, user_id FROM stock_alerts WHERE product_id=$product_id");
+    if(!$res || $res->num_rows === 0) return 0;
+
+    $count = 0;
+    while($a = $res->fetch_assoc()){
+        add_notification(
+            $conn, (int)$a['user_id'],
+            'Back in Stock — ' . $p['name'],
+            '"' . $p['name'] . '" is back in stock! Sizes are limited — grab yours before it sells out again.',
+            'info'
+        );
+        $conn->query("DELETE FROM stock_alerts WHERE alert_id=" . (int)$a['alert_id']);
+        $count++;
+    }
+    return $count;
+}
+
+// Create a reward voucher for a user and notify them (in-site + Gmail).
+// Code format matches the existing refund vouchers (APEX-XXXXXXXX). Returns the code.
+function grant_voucher($conn, $user_id, $amount, $reason, $days_valid = 30, $title = 'You Earned a Voucher!'){
+    do {
+        $code   = 'APEX-' . strtoupper(bin2hex(random_bytes(4)));
+        $code_e = $conn->real_escape_string($code);
+        $ck     = $conn->query("SELECT voucher_id FROM vouchers WHERE code='$code_e'");
+    } while($ck && $ck->num_rows > 0);
+
+    $expires = date('Y-m-d', strtotime("+{$days_valid} days"));
+    $ins = $conn->prepare("INSERT INTO vouchers (user_id, code, amount, reason, expires_at) VALUES (?,?,?,?,?)");
+    $ins->bind_param("isdss", $user_id, $code, $amount, $reason, $expires);
+    $ins->execute();
+
+    add_notification(
+        $conn, $user_id, $title,
+        $reason . "\n\nVoucher code: {$code}\nValue: RM " . number_format($amount, 2)
+        . "\nValid until: " . date('d M Y', strtotime($expires))
+        . "\n\nEnter the code at checkout to redeem it. View all your vouchers in My Profile → My Vouchers.",
+        'refund'
+    );
+    return $code;
+}
+
+// Small star row for product cards — returns '' when the product has no reviews
+function star_rating_html($avg, $count){
+    $count = (int)$count;
+    if($count <= 0) return '';
+    $avg  = (float)$avg;
+    $full = (int)round($avg);
+    $out  = '<div style="display:flex;align-items:center;gap:5px;margin:2px 0 6px;line-height:1;">';
+    $out .= '<span style="font-size:.72rem;letter-spacing:1px;">';
+    for($s = 1; $s <= 5; $s++){
+        $out .= '<span style="color:' . ($s <= $full ? '#f59e0b' : 'var(--border)') . ';">★</span>';
+    }
+    $out .= '</span>';
+    $out .= '<span style="font-size:.7rem;color:var(--muted);">' . number_format($avg, 1) . ' (' . $count . ')</span>';
+    $out .= '</div>';
+    return $out;
 }
 
 function cart_count($conn){

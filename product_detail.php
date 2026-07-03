@@ -14,6 +14,35 @@ $stmt->bind_param("i",$pid); $stmt->execute();
 $product = $stmt->get_result()->fetch_assoc();
 if(!$product){ header("Location: products.php"); exit; }
 
+// ── Back-in-stock alert: subscribe / unsubscribe ─────────────────
+if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['stock_alert']) && is_logged() && !is_admin()){
+    csrf_check();
+    $sa_uid = (int)$_SESSION['user_id'];
+    if($_POST['stock_alert'] === 'off'){
+        $sa_del = $conn->prepare("DELETE FROM stock_alerts WHERE user_id=? AND product_id=?");
+        $sa_del->bind_param("ii", $sa_uid, $pid);
+        $sa_del->execute();
+        $_SESSION['cart_msg'] = "Restock alert removed.";
+    } else {
+        $sa_ins = $conn->prepare("INSERT IGNORE INTO stock_alerts (user_id, product_id) VALUES (?,?)");
+        $sa_ins->bind_param("ii", $sa_uid, $pid);
+        $sa_ins->execute();
+        $_SESSION['cart_msg'] = "Got it! We'll email you as soon as this shoe is back in stock.";
+    }
+    $_SESSION['cart_msg_type'] = 'ok';
+    header("Location: product_detail.php?id=$pid" . ($back_gender ? '&gender='.urlencode($back_gender) : '')); exit;
+}
+
+// Is this user already waiting for a restock?
+$has_stock_alert = false;
+if(is_logged()){
+    $sa_uid_c = (int)$_SESSION['user_id'];
+    $sa_chk = $conn->prepare("SELECT alert_id FROM stock_alerts WHERE user_id=? AND product_id=?");
+    $sa_chk->bind_param("ii", $sa_uid_c, $pid);
+    $sa_chk->execute();
+    $has_stock_alert = $sa_chk->get_result()->num_rows > 0;
+}
+
 // Ensure product_stock table exists
 $conn->query("CREATE TABLE IF NOT EXISTS `product_stock` (
     `stock_id` int(11) NOT NULL AUTO_INCREMENT,
@@ -234,6 +263,44 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
     <div class="detail-cat"><?=e($product['category_name'])?></div>
     <h1 class="detail-name"><?=e($product['name'])?></h1>
     <?=price_html($product['price'], (int)($product['sale_percent']??0), 'detail')?>
+
+    <?php
+    // Sale countdown — only when a sale is active with a future end time
+    $sale_left = 0;
+    if(!empty($product['is_on_sale']) && (int)($product['sale_percent']??0) > 0 && !empty($product['sale_ends_at'])){
+        $sale_left = strtotime($product['sale_ends_at']) - time();
+    }
+    if($sale_left > 0): ?>
+    <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 18px;background:rgba(214,64,64,.08);border:1.5px solid rgba(214,64,64,.35);border-radius:10px;">
+      <span style="font-size:1.1rem;">⏰</span>
+      <div>
+        <div style="font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--danger);font-weight:700;">Sale ends in</div>
+        <div id="saleCountdown" style="font-family:'Oswald',sans-serif;font-size:1.25rem;letter-spacing:2px;color:var(--danger);line-height:1.2;">--:--:--</div>
+      </div>
+    </div>
+    <script>
+    (function(){
+        let left = <?=(int)$sale_left?>;
+        const el = document.getElementById('saleCountdown');
+        function pad(n){ return String(n).padStart(2,'0'); }
+        function tick(){
+            if(left <= 0){
+                el.parentElement.parentElement.innerHTML =
+                    '<span style="color:var(--danger);font-size:.85rem;font-weight:700;">SALE ENDED — refresh to see the normal price</span>';
+                return;
+            }
+            const d = Math.floor(left/86400),
+                  h = Math.floor((left%86400)/3600),
+                  m = Math.floor((left%3600)/60),
+                  s = left%60;
+            el.textContent = (d > 0 ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
+            left--;
+            setTimeout(tick, 1000);
+        }
+        tick();
+    })();
+    </script>
+    <?php endif; ?>
     <?php if(is_admin()): ?>
     <div style="background:rgba(255,200,0,.1);border:1px solid rgba(255,200,0,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.8rem;color:#fbbf24;font-weight:600;letter-spacing:.5px;">
       Admin View — purchase actions are disabled
@@ -355,6 +422,34 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
       <button class="btn btn-secondary btn-full" disabled style="margin-bottom:12px;">OUT OF STOCK</button>
       <?php endif; ?>
     </form>
+
+    <?php if($product['stock'] <= 0 && !is_admin()): ?>
+    <!-- ── Back-in-stock alert ── -->
+    <?php if(is_logged()): ?>
+      <?php if($has_stock_alert): ?>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;padding:12px 16px;border-radius:var(--radius);background:rgba(42,155,90,.08);border:1px solid rgba(42,155,90,.3);">
+        <span style="font-size:.85rem;color:#2a9b5a;font-weight:600;">✓ You'll be emailed when this shoe is restocked.</span>
+        <form method="POST" style="margin:0;">
+          <?=csrf_field()?>
+          <input type="hidden" name="stock_alert" value="off">
+          <button type="submit" style="background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;text-decoration:underline;padding:0;">Cancel</button>
+        </form>
+      </div>
+      <?php else: ?>
+      <form method="POST" style="margin:0 0 12px;">
+        <?=csrf_field()?>
+        <input type="hidden" name="stock_alert" value="on">
+        <button type="submit" class="btn btn-primary btn-full">
+          &#128276; NOTIFY ME WHEN BACK IN STOCK
+        </button>
+      </form>
+      <?php endif; ?>
+    <?php else: ?>
+    <a href="login.php" class="btn btn-primary btn-full" style="margin-bottom:12px;">
+      &#128276; LOGIN TO GET RESTOCK ALERTS
+    </a>
+    <?php endif; ?>
+    <?php endif; ?>
 
     <?php
       // back_cat_url still used for the "View All" link in You May Also Like

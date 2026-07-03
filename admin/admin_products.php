@@ -111,6 +111,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     $price            = floatval($_POST['price']   ?? 0);
     $sale_percent     = max(0, min(99, (int)($_POST['sale_percent'] ?? 0)));
     $is_on_sale       = $sale_percent > 0 ? 1 : 0;
+    $sale_ends_raw    = trim($_POST['sale_ends_at'] ?? '');
+    $sale_ends_at     = $sale_ends_raw !== '' ? str_replace('T', ' ', $sale_ends_raw) . (strlen($sale_ends_raw) === 16 ? ':00' : '') : null;
     $image_url        = trim($_POST['image_url']   ?? '');
     $allowed_genders  = ['Men','Women','Kids'];
     $gender           = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Men';
@@ -142,7 +144,10 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     if(!$msg){
         if(!$name || !$description || !$category_id || $price <= 0){
             $msg = "Name, description, category and price are required."; $mtype='err';
+        } elseif($sale_percent > 0 && (!$sale_ends_at || strtotime($sale_ends_at) === false || strtotime($sale_ends_at) <= time())){
+            $msg = "Please set a sale end date/time in the future — customers will see a countdown until then."; $mtype='err';
         } else {
+            if($sale_percent === 0) $sale_ends_at = null; // no sale = no end date
             // Check for duplicate product name
             $dup = $conn->prepare("SELECT product_id FROM products WHERE name=?");
             $dup->bind_param("s",$name); $dup->execute();
@@ -151,8 +156,8 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
             }
         }
         if(!$msg){
-            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,is_on_sale,sale_percent,image_url) VALUES (?,?,?,?,?,?,?,?,?)");
-            $stmt->bind_param("ssisdiiis",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$sale_percent,$image_url);
+            $stmt = $conn->prepare("INSERT INTO products (name,description,category_id,gender,price,stock,is_on_sale,sale_percent,sale_ends_at,image_url) VALUES (?,?,?,?,?,?,?,?,?,?)");
+            $stmt->bind_param("ssisdiiiss",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$sale_percent,$sale_ends_at,$image_url);
             $stmt->execute();
             $new_pid = (int)$conn->insert_id;
 
@@ -175,8 +180,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_product'])){
     }
 }
 
-$msg   = $msg   ?: ($_GET['msg']   ?? '');
-$mtype = $mtype ?: ($_GET['mtype'] ?? 'ok');
+$msg = $msg ?: ($_GET['msg'] ?? '');
+// Whitelist — GET may override the 'ok' default, but only to 'err'
+if($mtype !== 'err') $mtype = (($_GET['mtype'] ?? '') === 'err') ? 'err' : 'ok';
 
 // Product list filters
 $pf_q     = trim($_GET['q'] ?? '');
@@ -369,16 +375,25 @@ $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
               <textarea name="description" rows="3" placeholder="Describe the shoe..." required><?=e($_POST['description']??'')?></textarea>
             </div>
           </div>
-          <div class="form-group" style="max-width:260px;margin-top:10px;">
+          <div class="form-group" style="margin-top:10px;">
             <label>Sale Discount %
               <span style="font-size:.72rem;color:var(--muted);font-weight:400;">(0 = no sale)</span>
             </label>
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <input type="number" name="sale_percent" min="0" max="99"
                      value="<?=(int)($_POST['sale_percent']??0)?>"
                      style="width:90px;text-align:center;"
                      oninput="this.value=Math.min(99,Math.max(0,parseInt(this.value)||0))">
-              <span style="color:var(--muted);font-size:.875rem;">% off — e.g. 10 means 10% discount</span>
+              <span style="color:var(--muted);font-size:.875rem;">% off</span>
+              <label style="font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:0;">Sale ends</label>
+              <input type="datetime-local" name="sale_ends_at"
+                     value="<?=e($_POST['sale_ends_at']??'')?>"
+                     min="<?=date('Y-m-d\TH:i')?>"
+                     style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;color:var(--text);font-size:.82rem;">
+            </div>
+            <div style="margin-top:6px;font-size:.75rem;color:var(--muted);">
+              A discount requires an end date — customers see a live countdown, the sale ends automatically,
+              and the price/discount are locked until then.
             </div>
           </div>
           <br>

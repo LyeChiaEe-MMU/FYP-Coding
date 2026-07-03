@@ -38,7 +38,7 @@ $pm_label = $pm_labels[$payment_method] ?? $payment_method;
 
 // Get cart items
 $cs = $conn->prepare("
-    SELECT c.product_id, c.quantity, c.size, c.color, p.price, p.sale_percent
+    SELECT c.product_id, c.quantity, c.size, c.color, p.price, p.sale_percent, p.name
     FROM cart_items c
     JOIN products p ON c.product_id = p.product_id
     WHERE c.user_id = ?
@@ -161,15 +161,75 @@ try {
     header("Location: checkout.php"); exit;
 }
 
-// 7. Notification — order placed
+// 7. Notification — order placed (in-site only; the receipt email below replaces the generic email)
 $order_num  = '#' . str_pad($oid, 6, '0', STR_PAD_LEFT);
 $pay_short  = $pm_label . ($payment_detail ? ' — ' . $payment_detail : '');
 add_notification(
     $conn, $uid,
     'Order Placed — ' . $order_num,
     'Your order ' . $order_num . ' has been placed successfully via ' . $pay_short . '. Total paid: RM ' . number_format($grand, 2) . '. We will process it shortly.',
-    'order'
+    'order',
+    false
 );
+
+// 7b. Email — invoice-style receipt
+$ur = $conn->prepare("SELECT name, email FROM users WHERE user_id=?");
+$ur->bind_param("i", $uid);
+$ur->execute();
+$buyer = $ur->get_result()->fetch_assoc();
+
+if($buyer){
+    $rows_html = '';
+    foreach($items as $it){
+        $line_total = $it['eff_price'] * $it['quantity'];
+        $variant    = 'UK ' . htmlspecialchars($it['size'], ENT_QUOTES, 'UTF-8')
+                    . (!empty($it['color']) && $it['color'] !== 'Default'
+                        ? ' · ' . htmlspecialchars($it['color'], ENT_QUOTES, 'UTF-8') : '');
+        $rows_html .= '<tr>'
+            . '<td style="padding:10px 12px;border-bottom:1px solid #eee;">'
+            .   '<div style="font-weight:600;color:#2d2d2d;">' . htmlspecialchars($it['name'], ENT_QUOTES, 'UTF-8') . '</div>'
+            .   '<div style="font-size:.8rem;color:#888;">' . $variant . '</div>'
+            . '</td>'
+            . '<td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">' . (int)$it['quantity'] . '</td>'
+            . '<td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">RM ' . number_format($it['eff_price'], 2) . '</td>'
+            . '<td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">RM ' . number_format($line_total, 2) . '</td>'
+            . '</tr>';
+    }
+
+    $totals_html = '<tr><td colspan="3" style="padding:8px 12px;text-align:right;color:#888;">Subtotal</td>'
+        . '<td style="padding:8px 12px;text-align:right;">RM ' . number_format($total, 2) . '</td></tr>'
+        . '<tr><td colspan="3" style="padding:8px 12px;text-align:right;color:#888;">Shipping</td>'
+        . '<td style="padding:8px 12px;text-align:right;">' . ($shipping > 0 ? 'RM ' . number_format($shipping, 2) : 'FREE') . '</td></tr>';
+    if($discount_amount > 0){
+        $totals_html .= '<tr><td colspan="3" style="padding:8px 12px;text-align:right;color:#888;">Voucher (' . htmlspecialchars($voucher_code, ENT_QUOTES, 'UTF-8') . ')</td>'
+            . '<td style="padding:8px 12px;text-align:right;color:#2a9b5a;">− RM ' . number_format($discount_amount, 2) . '</td></tr>';
+    }
+    $totals_html .= '<tr><td colspan="3" style="padding:12px;text-align:right;font-weight:700;color:#2d2d2d;border-top:2px solid #C8543C;">TOTAL PAID</td>'
+        . '<td style="padding:12px;text-align:right;font-weight:700;font-size:1.1rem;color:#C8543C;border-top:2px solid #C8543C;">RM ' . number_format($grand, 2) . '</td></tr>';
+
+    $buyer_name_safe = htmlspecialchars($buyer['name'], ENT_QUOTES, 'UTF-8');
+    $addr_safe       = nl2br(htmlspecialchars($shipping_address, ENT_QUOTES, 'UTF-8'));
+    $pay_safe        = htmlspecialchars($pay_short, ENT_QUOTES, 'UTF-8');
+
+    $receipt = apex_mail_html_body(
+        "<p>Hello {$buyer_name_safe},</p>"
+        . "<p>Thank you for your order! Here is your receipt for order <strong>{$order_num}</strong> placed on <strong>" . date('d M Y, h:i A') . "</strong>.</p>"
+        . '<table style="width:100%;border-collapse:collapse;margin:18px 0;font-size:.9rem;">'
+        . '<thead><tr style="background:#fff8f6;">'
+        . '<th style="padding:10px 12px;text-align:left;color:#C8543C;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;">Item</th>'
+        . '<th style="padding:10px 12px;text-align:center;color:#C8543C;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;">Qty</th>'
+        . '<th style="padding:10px 12px;text-align:right;color:#C8543C;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;">Price</th>'
+        . '<th style="padding:10px 12px;text-align:right;color:#C8543C;font-size:.75rem;letter-spacing:1px;text-transform:uppercase;">Total</th>'
+        . '</tr></thead>'
+        . '<tbody>' . $rows_html . $totals_html . '</tbody></table>'
+        . '<div style="background:#f9f7f4;border-radius:8px;padding:14px 18px;margin:16px 0;font-size:.85rem;color:#555;line-height:1.7;">'
+        . '<strong style="color:#2d2d2d;">Payment:</strong> ' . $pay_safe . '<br>'
+        . '<strong style="color:#2d2d2d;">Ship to:</strong> ' . $addr_safe
+        . '</div>'
+        . '<p style="color:#888;font-size:.85rem;">You can track this order anytime under <strong>My Orders</strong> in your Apex account.</p>'
+    );
+    apex_send_mail($buyer['email'], $buyer['name'], 'Order Receipt ' . $order_num . ' — Apex Store', $receipt);
+}
 
 // 8. Notification — voucher redeemed (if used)
 if($discount_amount > 0 && $voucher_code !== ''){

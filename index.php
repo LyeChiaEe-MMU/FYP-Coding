@@ -9,7 +9,9 @@ if($_hb && $_hbr = $_hb->fetch_assoc()) $hero_bg = $_hbr['setting_value'] ?? '';
 
 // New Arrivals — latest 12 active, in-stock products only (with total_sold for NEW badge check)
 $featured = $conn->query("
-    SELECT p.*, c.category_name, COALESCE(SUM(oi.quantity),0) AS total_sold
+    SELECT p.*, c.category_name, COALESCE(SUM(oi.quantity),0) AS total_sold,
+           (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.product_id = p.product_id) AS avg_rating,
+           (SELECT COUNT(*) FROM reviews r2 WHERE r2.product_id = p.product_id) AS review_count
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
     LEFT JOIN order_items oi ON oi.product_id = p.product_id
@@ -21,7 +23,9 @@ $featured = $conn->query("
 // Category sections — top 4 newest per category (active only)
 $featured_by_cat = [];
 $_af = $conn->query("
-    SELECT p.*, c.category_name, COALESCE(SUM(oi.quantity),0) AS total_sold
+    SELECT p.*, c.category_name, COALESCE(SUM(oi.quantity),0) AS total_sold,
+           (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.product_id = p.product_id) AS avg_rating,
+           (SELECT COUNT(*) FROM reviews r2 WHERE r2.product_id = p.product_id) AS review_count
     FROM products p
     JOIN categories c ON p.category_id = c.category_id
     LEFT JOIN order_items oi ON oi.product_id = p.product_id
@@ -154,7 +158,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
       <?php if($featured && $featured->num_rows > 0):
         while($p = $featured->fetch_assoc()):
           $img   = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
-          $isNew = strtotime($p['created_at']) >= strtotime('-30 days') && (int)($p['total_sold'] ?? 0) < 10;
+          $isNew = date('Y-m', strtotime($p['created_at'])) === date('Y-m'); // NEW only during upload month
       ?>
       <?php $sp_pct = (int)($p['sale_percent'] ?? 0); ?>
       <div class="prod-card">
@@ -172,6 +176,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
         <div class="prod-body">
           <div class="prod-cat"><?=e($p['category_name'])?></div>
           <div class="prod-name"><a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=e($p['name'])?></a></div>
+          <?=star_rating_html($p['avg_rating'] ?? 0, $p['review_count'] ?? 0)?>
           <div class="prod-footer">
             <?=price_html($p['price'], $sp_pct)?>
             <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>
@@ -208,7 +213,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;">
       <?php foreach ($catProducts as $p):
         $img    = !empty($p['image_url']) ? e($p['image_url']) : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=70';
-        $isNew  = strtotime($p['created_at']) >= strtotime('-30 days') && (int)($p['total_sold'] ?? 0) < 10;
+        $isNew  = date('Y-m', strtotime($p['created_at'])) === date('Y-m'); // NEW only during upload month
         $sp_pct = (int)($p['sale_percent'] ?? 0);
       ?>
       <div class="prod-card">
@@ -226,6 +231,7 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
         <div class="prod-body">
           <div class="prod-cat"><?=e($p['category_name'])?></div>
           <div class="prod-name"><a href="product_detail.php?id=<?=(int)$p['product_id']?>"><?=e($p['name'])?></a></div>
+          <?=star_rating_html($p['avg_rating'] ?? 0, $p['review_count'] ?? 0)?>
           <div class="prod-footer">
             <?=price_html($p['price'], $sp_pct)?>
             <a href="product_detail.php?id=<?=(int)$p['product_id']?>" class="btn-view">View →</a>

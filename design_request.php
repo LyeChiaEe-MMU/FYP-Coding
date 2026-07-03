@@ -50,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (empty($errors)) {
-        $stmt = $conn->prepare("INSERT INTO design_requests (user_id, shoe_name, category, color_pref, description, specifications, ref_image) VALUES (?,?,?,?,?,?,?)");
+        $stmt = $conn->prepare("INSERT INTO design_requests (user_id, shoe_name, category, color_pref, description, specifications, ref_image, status) VALUES (?,?,?,?,?,?,?,'Received')");
         $stmt->bind_param("issssss", $uid, $shoe_name, $category, $color_pref, $description, $specs, $ref_image);
         $stmt->execute();
         $success = true;
@@ -109,8 +109,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <ol style="color:var(--muted);font-size:.85rem;line-height:2;padding-left:18px;">
         <li>Fill in your shoe design idea below</li>
         <li>Our team reviews your submission (3–5 business days)</li>
-        <li>You'll be notified with Approved / In Review / Rejected status</li>
-        <li>Approved designs may be developed into real Apex products!</li>
+        <li>You'll be notified when your request is Accepted or Rejected</li>
+        <li>Accepted designs earn a <strong style="color:var(--accent);">RM 15 voucher</strong> and may be developed into real Apex products!</li>
       </ol>
     </div>
   </div>

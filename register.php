@@ -21,13 +21,16 @@ $error = ''; $success = '';
 if(isset($_GET['err']) && $_GET['err'] === 'toomany'){
     $error = "Too many incorrect attempts. Please register again.";
 }
+if(isset($_GET['err']) && $_GET['err'] === 'exists'){
+    $error = "This email or phone number was just registered by another account. Please use a different one.";
+}
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
     csrf_check();
     $name    = trim($_POST['name']    ?? '');
     $email   = trim($_POST['email']   ?? '');
     $pass    = $_POST['password']     ?? '';
-    $phone   = trim($_POST['phone']   ?? '');
+    $phone   = preg_replace('/[\s\-]+/', '', trim($_POST['phone'] ?? '')); // normalise: strip spaces/dashes
     $street   = trim($_POST['street']   ?? '');
     $city     = trim($_POST['city']     ?? '');
     $state    = trim($_POST['state']    ?? '');
@@ -51,6 +54,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $error = "All fields are required.";
     } elseif(!$error && !filter_var($email,FILTER_VALIDATE_EMAIL)){
         $error = "Please enter a valid email address.";
+    } elseif(!$error && !preg_match('/^01[0-9]{8,9}$/', $phone)){
+        $error = "Phone number must be a valid Malaysian mobile number starting with 01 (10-11 digits, e.g. 0123456789).";
     } elseif(!$error && (strlen($pass)<8 || strlen($pass)>16)){
         $error = "Password must be 8-16 characters.";
     } elseif(!$error && !preg_match('/[A-Z]/',$pass)){
@@ -70,9 +75,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if($chk_e->get_result()->num_rows > 0){
             $error = "An account with this email address already exists.";
         }
-        // Check duplicate phone
+        // Check duplicate phone (normalised comparison so 012-345 6789 matches 0123456789)
         if(!$error){
-            $chk_p = $conn->prepare("SELECT user_id FROM users WHERE phone=?");
+            $chk_p = $conn->prepare("SELECT user_id FROM users WHERE REPLACE(REPLACE(phone,'-',''),' ','')=?");
             $chk_p->bind_param("s",$phone); $chk_p->execute();
             if($chk_p->get_result()->num_rows > 0){
                 $error = "This phone number is already registered to another account.";

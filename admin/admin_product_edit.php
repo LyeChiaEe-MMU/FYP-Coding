@@ -73,7 +73,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['add_size'])){
     }
     $tot = (int)$conn->query("SELECT COALESCE(SUM(stock),0) AS t FROM product_stock WHERE product_id=$pid")->fetch_assoc()['t'];
     $conn->query("UPDATE products SET stock=$tot WHERE product_id=$pid");
-    header("Location: admin_product_edit.php?id=$pid&msg=Stock+saved."); exit;
+    $notified = notify_stock_alerts($conn, $pid);
+    $m = 'Stock+saved.' . ($notified ? "+{$notified}+waiting+customer(s)+emailed+about+the+restock." : '');
+    header("Location: admin_product_edit.php?id=$pid&msg=$m"); exit;
 }
 
 // ── Handle delete stock entry ─────────────────────
@@ -112,7 +114,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['bulk_stock_update'])){
     }
     $tot = (int)$conn->query("SELECT COALESCE(SUM(stock),0) AS t FROM product_stock WHERE product_id=$pid")->fetch_assoc()['t'];
     $conn->query("UPDATE products SET stock=$tot WHERE product_id=$pid");
-    header("Location: admin_product_edit.php?id=$pid&msg=Stock+updated+successfully."); exit;
+    $notified = notify_stock_alerts($conn, $pid);
+    $m = 'Stock+updated+successfully.' . ($notified ? "+{$notified}+waiting+customer(s)+emailed+about+the+restock." : '');
+    header("Location: admin_product_edit.php?id=$pid&msg=$m"); exit;
 }
 
 // ── Handle add size (legacy - keep for compat) ────
@@ -179,6 +183,22 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     $price       = floatval($_POST['price']   ?? 0);
     $sale_percent = max(0, min(99, (int)($_POST['sale_percent'] ?? 0)));
     $is_on_sale   = $sale_percent > 0 ? 1 : 0;
+
+    // Sale end date/time (from datetime-local input, e.g. 2026-07-10T18:00)
+    $sale_ends_raw = trim($_POST['sale_ends_at'] ?? '');
+    $sale_ends_at  = $sale_ends_raw !== '' ? str_replace('T', ' ', $sale_ends_raw) . (strlen($sale_ends_raw) === 16 ? ':00' : '') : null;
+
+    // ── SALE LOCK: while a sale is active and within its duration, price and
+    //    sale settings CANNOT be changed — force the current values
+    $sale_locked = !empty($product['is_on_sale'])
+                && !empty($product['sale_ends_at'])
+                && strtotime($product['sale_ends_at']) > time();
+    if($sale_locked){
+        $price        = (float)$product['price'];
+        $sale_percent = (int)$product['sale_percent'];
+        $is_on_sale   = 1;
+        $sale_ends_at = $product['sale_ends_at'];
+    }
     $image_url   = trim($_POST['image_url']   ?? $product['image_url']);
     $allowed_genders = ['Men','Women','Kids'];
     $gender      = in_array($_POST['gender'] ?? '', $allowed_genders) ? $_POST['gender'] : 'Men';
@@ -204,7 +224,10 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
 
     if(!$name || $price<=0){
         $msg = "Name and price are required."; $mtype='err';
+    } elseif(!$sale_locked && $sale_percent > 0 && (!$sale_ends_at || strtotime($sale_ends_at) === false || strtotime($sale_ends_at) <= time())){
+        $msg = "Please set a sale end date/time in the future — customers will see a countdown until then."; $mtype='err';
     } else {
+        if($sale_percent === 0) $sale_ends_at = null; // no sale = no end date
         // Check duplicate product name (exclude current product)
         $dup = $conn->prepare("SELECT product_id FROM products WHERE name=? AND product_id != ?");
         $dup->bind_param("si",$name,$pid); $dup->execute();
@@ -219,14 +242,21 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
             if(file_exists($old_file)) unlink($old_file);
         }
         $old_price = (float)$product['price'];
-        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,gender=?,price=?,stock=?,is_on_sale=?,sale_percent=?,image_url=? WHERE product_id=?");
-        $stmt->bind_param("ssisdiiisi",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$sale_percent,$image_url,$pid);
+        $old_pct   = (int)($product['sale_percent'] ?? 0);
+        $stmt = $conn->prepare("UPDATE products SET name=?,description=?,category_id=?,gender=?,price=?,stock=?,is_on_sale=?,sale_percent=?,sale_ends_at=?,image_url=? WHERE product_id=?");
+        $stmt->bind_param("ssisdiiissi",$name,$description,$category_id,$gender,$price,$stock,$is_on_sale,$sale_percent,$sale_ends_at,$image_url,$pid);
         $stmt->execute();
         $product = $conn->query("SELECT * FROM products WHERE product_id=$pid")->fetch_assoc();
-        $msg = "Product updated successfully.";
+        $msg = $sale_locked
+             ? "Product updated. Note: price and sale settings were NOT changed — they are locked until the sale ends on " . date('d M Y, h:i A', strtotime($product['sale_ends_at'])) . "."
+             : "Product updated successfully.";
 
-        // ── Price drop → notify wishlisted users via notifications table ──
-        if($price < $old_price){
+        // ── Price drop → notify wishlisted users (in-site + Gmail via add_notification) ──
+        // Compare EFFECTIVE prices so putting a shoe on sale also counts as a drop,
+        // not just lowering the base price
+        $old_eff = effective_price($old_price, $old_pct);
+        $new_eff = effective_price($price, $sale_percent);
+        if($new_eff < $old_eff){
             $tbl_chk = $conn->query("SHOW TABLES LIKE 'wishlists'");
             if($tbl_chk && $tbl_chk->num_rows > 0){
                 $wl_users = $conn->prepare("SELECT user_id FROM wishlists WHERE product_id=?");
@@ -234,12 +264,14 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
                 $wl_users->execute();
                 $wl_result = $wl_users->get_result();
                 if($wl_result->num_rows > 0){
+                    $sale_tag = $sale_percent > 0 ? ' (' . $sale_percent . '% OFF)' : '';
                     $notif_count = 0;
                     while($wu = $wl_result->fetch_assoc()){
                         add_notification(
                             $conn, (int)$wu['user_id'],
                             'Price Drop — ' . $name,
-                            '"' . $name . '" is now RM ' . number_format($price,2) . ' (was RM ' . number_format($old_price,2) . '). Check it out before it\'s gone!',
+                            'Good news! "' . $name . '" from your wishlist is now RM ' . number_format($new_eff,2) . $sale_tag
+                            . ' (was RM ' . number_format($old_eff,2) . '). Grab it before it\'s gone!',
                             'info'
                         );
                         $notif_count++;
@@ -251,8 +283,9 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_product'])){
     }
 }
 
-$msg   = $msg   ?: ($_GET['msg']   ?? '');
-$mtype = $mtype ?: ($_GET['mtype'] ?? 'ok');
+$msg = $msg ?: ($_GET['msg'] ?? '');
+// Whitelist mtype — GET value must be able to override the 'ok' default, but only to 'err'
+if($mtype !== 'err') $mtype = (($_GET['mtype'] ?? '') === 'err') ? 'err' : 'ok';
 
 $categories = $conn->query("SELECT * FROM categories ORDER BY category_name");
 $var_images = $conn->query("SELECT * FROM product_images WHERE product_id=$pid ORDER BY sort_order");
@@ -287,6 +320,11 @@ if($prod_stocks && $prod_stocks->num_rows > 0){
     while($sr=$prod_stocks->fetch_assoc())
         $stock_by_color[$sr['color_name']][] = $sr;
 }
+
+// Sale lock state for the form UI (matches the server-side protection above)
+$ui_sale_locked = !empty($product['is_on_sale'])
+               && !empty($product['sale_ends_at'])
+               && strtotime($product['sale_ends_at']) > time();
 
 $previewSrc = !empty($product['image_url'])
     ? (str_starts_with($product['image_url'],'http') ? $product['image_url'] : '../'.$product['image_url'])
@@ -375,7 +413,10 @@ foreach($stock_by_color as $col => $entries)
                 </div>
                 <div class="form-group">
                   <label>Price (RM) *</label>
-                  <input type="number" name="price" step="0.01" min="0.01" value="<?=e($product['price'])?>" required>
+                  <input type="number" name="price" step="0.01" min="0.01" value="<?=e($product['price'])?>" <?=$ui_sale_locked?'disabled':'required'?>>
+                  <?php if($ui_sale_locked): ?>
+                  <div style="margin-top:4px;font-size:.72rem;color:#ca8a04;">🔒 Locked while the sale is running</div>
+                  <?php endif; ?>
                 </div>
                 <div class="form-group span-2">
                   <div style="display:inline-flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(200,84,60,.06);border:1px solid rgba(200,84,60,.2);border-radius:8px;font-size:.82rem;color:var(--muted);">
@@ -384,21 +425,48 @@ foreach($stock_by_color as $col => $entries)
                     <span style="color:var(--muted);font-size:.72rem;">— auto-calculated from size entries below</span>
                   </div>
                 </div>
-                <div class="form-group">
+                <div class="form-group span-2">
                   <label>Sale Discount %
                     <span style="font-size:.72rem;color:var(--muted);font-weight:400;">(0 = no sale)</span>
                   </label>
-                  <div style="display:flex;align-items:center;gap:10px;">
+
+                  <?php if($ui_sale_locked): ?>
+                  <!-- Active sale — everything locked until it ends -->
+                  <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:rgba(202,138,4,.08);border:1px solid rgba(202,138,4,.35);border-radius:8px;margin-bottom:10px;">
+                    <span style="font-size:1.3rem;">🔒</span>
+                    <div style="font-size:.82rem;color:#ca8a04;line-height:1.6;">
+                      <strong>Sale is active — price &amp; discount are locked.</strong><br>
+                      <?=(int)$product['sale_percent']?>% OFF (RM <?=number_format($product['price'],2)?> → RM <?=number_format(effective_price($product['price'],$product['sale_percent']),2)?>)
+                      until <strong><?=date('d M Y, h:i A', strtotime($product['sale_ends_at']))?></strong>.
+                      Changes to price or sale settings are not allowed while the sale is running — customers were promised this deal.
+                    </div>
+                  </div>
+                  <?php endif; ?>
+
+                  <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
                     <input type="number" name="sale_percent" min="0" max="99"
                            value="<?=(int)($product['sale_percent']??0)?>"
                            style="width:90px;text-align:center;"
-                           oninput="this.value=Math.min(99,Math.max(0,parseInt(this.value)||0))">
-                    <span style="color:var(--muted);font-size:.82rem;">% off — sets a SALE badge and discounted price. 0 = remove sale.</span>
+                           oninput="this.value=Math.min(99,Math.max(0,parseInt(this.value)||0))"
+                           <?=$ui_sale_locked?'disabled':''?>>
+                    <span style="color:var(--muted);font-size:.82rem;">% off</span>
+                    <label style="font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:0;">Sale ends</label>
+                    <input type="datetime-local" name="sale_ends_at"
+                           value="<?=!empty($product['sale_ends_at']) ? date('Y-m-d\TH:i', strtotime($product['sale_ends_at'])) : ''?>"
+                           min="<?=date('Y-m-d\TH:i')?>"
+                           style="background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;color:var(--text);font-size:.82rem;"
+                           <?=$ui_sale_locked?'disabled':''?>>
+                  </div>
+                  <?php if(!$ui_sale_locked): ?>
+                  <div style="margin-top:6px;font-size:.75rem;color:var(--muted);">
+                    Setting a discount requires an end date — customers see a live countdown, the sale ends automatically,
+                    and price/discount become <strong>locked</strong> until then.
                   </div>
                   <?php if((int)($product['sale_percent']??0) > 0): ?>
                   <div style="margin-top:6px;font-size:.8rem;color:var(--danger);">
                     Currently: RM <?=number_format($product['price'],2)?> → RM <?=number_format(effective_price($product['price'],$product['sale_percent']),2)?> (<?=(int)$product['sale_percent']?>% off)
                   </div>
+                  <?php endif; ?>
                   <?php endif; ?>
                 </div>
                 <div class="form-group span-2">

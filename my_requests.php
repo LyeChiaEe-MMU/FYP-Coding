@@ -48,10 +48,9 @@ $reqs = $conn->query("
 <?php else: while ($r = $reqs->fetch_assoc()):
   // Status colours
   $sc = match($r['status']) {
-    'Approved'  => ['bg'=>'rgba(82,196,26,.15)',  'color'=>'#73d13d',  'icon'=>''],
-    'Rejected'  => ['bg'=>'rgba(255,77,79,.15)',  'color'=>'#ff7070',  'icon'=>''],
-    'In Review' => ['bg'=>'rgba(100,149,237,.15)','color'=>'#8ab4f8',  'icon'=>''],
-    default     => ['bg'=>'rgba(255,200,0,.15)',  'color'=>'#ffc800',  'icon'=>''],
+    'Accepted' => ['bg'=>'rgba(82,196,26,.15)',  'color'=>'#73d13d',  'icon'=>''],
+    'Rejected' => ['bg'=>'rgba(255,77,79,.15)',  'color'=>'#ff7070',  'icon'=>''],
+    default    => ['bg'=>'rgba(100,149,237,.15)','color'=>'#8ab4f8',  'icon'=>''], // Received
   };
 ?>
   <div class="card" style="margin-bottom:18px;overflow:hidden;">

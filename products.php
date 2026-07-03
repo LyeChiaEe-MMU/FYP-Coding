@@ -49,7 +49,10 @@ $where = !empty($conditions) ? 'WHERE ' . implode(' AND ', $conditions) : '';
 // ── Sort ─────────────────────────────────────────────────────
 $order        = 'p.is_active DESC, p.created_at DESC';
 // Always fetch total_sold — needed for NEW badge (hide when >= 10 sold) on every page
-$extra_select = ', COALESCE(SUM(oi.quantity), 0) AS total_sold';
+// Rating uses subqueries (not a JOIN) so the GROUP BY SUM isn't inflated
+$extra_select = ', COALESCE(SUM(oi.quantity), 0) AS total_sold,
+    (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.product_id = p.product_id) AS avg_rating,
+    (SELECT COUNT(*) FROM reviews r2 WHERE r2.product_id = p.product_id) AS review_count';
 $extra_join   = 'LEFT JOIN order_items oi ON oi.product_id = p.product_id';
 $group_by     = 'GROUP BY p.product_id';
 
@@ -362,7 +365,7 @@ elseif ($sort === 'newest' && $sort_explicit && !$cat && !$q)             $page_
               <?php elseif(!empty($p['is_on_sale'])): ?>
               <?php $sp_badge=(int)($p['sale_percent']??0); ?>
               <span style="position:absolute;top:10px;right:10px;background:var(--danger);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;"><?=$sp_badge>0?$sp_badge.'% OFF':'SALE'?></span>
-              <?php elseif($page_mode !== 'newarrivals' && strtotime($p['created_at']) >= strtotime('-30 days') && (int)($p['total_sold'] ?? 0) < 10): ?>
+              <?php elseif($page_mode !== 'newarrivals' && date('Y-m', strtotime($p['created_at'])) === date('Y-m')): // NEW only during upload month ?>
               <span style="position:absolute;top:10px;right:10px;background:var(--success);color:#fff;font-size:.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;">NEW</span>
               <?php endif; ?>
             </div>
@@ -376,6 +379,7 @@ elseif ($sort === 'newest' && $sort_explicit && !$cat && !$q)             $page_
               <span style="color:var(--muted);"><?=$display_name?></span>
               <?php endif; ?>
             </div>
+            <?=star_rating_html($p['avg_rating'] ?? 0, $p['review_count'] ?? 0)?>
             <div class="prod-footer">
               <?php if(!$isActive): ?>
               <span class="prod-price" style="color:var(--muted);text-decoration:line-through;">RM <?=number_format($p['price'],2)?></span>

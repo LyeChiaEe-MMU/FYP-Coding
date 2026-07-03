@@ -9,7 +9,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_request'])) {
     $rid    = (int)$_POST['request_id'];
     $status = $_POST['status'];
     $note   = trim($_POST['admin_note'] ?? '');
-    $allowed_statuses = ['Pending','In Review','Approved','Rejected'];
+    // Admin only decides Accept or Reject — 'Received' is the automatic initial status
+    $allowed_statuses = ['Accepted','Rejected'];
 
     if (in_array($status, $allowed_statuses)) {
         $stmt = $conn->prepare("UPDATE design_requests SET status=?, admin_note=? WHERE request_id=?");
@@ -23,10 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_request'])) {
         $dr = $dq->get_result()->fetch_assoc();
         if($dr){
             $status_line = match($status){
-                'In Review' => 'Your design request is now being reviewed by our team.',
-                'Approved'  => 'Great news! Your design request has been approved.',
-                'Rejected'  => 'Your design request has not been accepted at this time.',
-                default     => 'Your design request status has been updated.',
+                'Accepted' => 'Great news! Your design request has been accepted.',
+                'Rejected' => 'Your design request has not been accepted at this time.',
+                default    => 'Your design request status has been updated.',
             };
             $notif_msg = $status_line;
             if($note !== '') $notif_msg .= "\n\nMessage from Apex: $note";
@@ -37,9 +37,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_request'])) {
                 $notif_msg,
                 'info'
             );
+
+            // ── Accepted design earns a RM 15 voucher — once per request ──
+            if($status === 'Accepted'){
+                $rid_tag = "(design request #{$rid})";
+                $vd = $conn->prepare("SELECT voucher_id FROM vouchers WHERE user_id=? AND reason LIKE ?");
+                $like = "%{$rid_tag}%";
+                $vd->bind_param("is", $dr['user_id'], $like);
+                $vd->execute();
+                if($vd->get_result()->num_rows === 0){
+                    grant_voucher(
+                        $conn, (int)$dr['user_id'], 15.00,
+                        'Your shoe idea "' . $dr['shoe_name'] . '" was accepted ' . $rid_tag . '. Thank you for your creativity!',
+                        60, 'Design Accepted — RM 15.00 Voucher'
+                    );
+                    $_SESSION['admin_flash'] = "Request #$rid accepted — RM 15 voucher sent to the customer.";
+                }
+            }
         }
 
-        $_SESSION['admin_flash'] = "Request #$rid updated to $status.";
+        if(empty($_SESSION['admin_flash'])) $_SESSION['admin_flash'] = "Request #$rid updated to $status.";
     }
     header("Location: admin_requests.php"); exit;
 }
@@ -51,7 +68,7 @@ if(!empty($_SESSION['admin_flash'])){
 
 // Filter — validated against allowlist
 $filter          = $_GET['filter'] ?? '';
-$allowed_filters = ['Pending','In Review','Approved','Rejected'];
+$allowed_filters = ['Received','Accepted','Rejected'];
 if($filter && !in_array($filter, $allowed_filters)) $filter = '';
 $where = $filter ? "WHERE dr.status='" . $conn->real_escape_string($filter) . "'" : '';
 
@@ -89,7 +106,7 @@ $reqs = $conn->query("
 
       <!-- Status filters -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;">
-        <?php foreach ([''=> 'All', 'Pending'=>'Pending', 'In Review'=>'In Review', 'Approved'=>'Approved', 'Rejected'=>'Rejected'] as $val=>$label): ?>
+        <?php foreach ([''=> 'All', 'Received'=>'Received', 'Accepted'=>'Accepted', 'Rejected'=>'Rejected'] as $val=>$label): ?>
         <a href="admin_requests.php?filter=<?=urlencode($val)?>"
            style="padding:7px 18px;border-radius:100px;font-size:.8rem;font-weight:<?=$filter===$val?'700':'500'?>;
                   border:1px solid <?=$filter===$val?'var(--accent)':'var(--border)'?>;
@@ -108,10 +125,9 @@ $reqs = $conn->query("
 
       <?php else: while ($r = $reqs->fetch_assoc()):
         $sc = match($r['status']) {
-          'Approved'  => 'st-completed',
-          'Rejected'  => 'st-cancelled',
-          'In Review' => 'st-shipped',
-          default     => 'st-processing',
+          'Accepted' => 'st-completed',
+          'Rejected' => 'st-cancelled',
+          default    => 'st-processing', // Received
         };
       ?>
       <div class="card" style="margin-bottom:20px;overflow:hidden;">
@@ -160,10 +176,13 @@ $reqs = $conn->query("
               <div style="font-size:.72px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-size:.7rem;">UPDATE REQUEST</div>
 
               <div style="margin-bottom:12px;">
-                <label style="display:block;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Status</label>
-                <select name="status"
+                <label style="display:block;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Decision</label>
+                <select name="status" required
                         style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--white);font-size:.875rem;">
-                  <?php foreach(['Pending','In Review','Approved','Rejected'] as $s): ?>
+                  <?php if($r['status'] === 'Received'): ?>
+                  <option value="" disabled selected>— Choose a decision —</option>
+                  <?php endif; ?>
+                  <?php foreach(['Accepted','Rejected'] as $s): ?>
                   <option value="<?=$s?>" <?=$r['status']===$s?'selected':''?>><?=$s?></option>
                   <?php endforeach; ?>
                 </select>

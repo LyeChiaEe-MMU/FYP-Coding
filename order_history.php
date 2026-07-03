@@ -9,9 +9,10 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['mark_received'])){
     csrf_check();
     $oid = (int)$_POST['order_id'];
     // Verify order belongs to user and is currently Delivered
-    $chk = $conn->prepare("SELECT order_id FROM orders WHERE order_id=? AND user_id=? AND status='Delivered'");
+    $chk = $conn->prepare("SELECT order_id, total_amount FROM orders WHERE order_id=? AND user_id=? AND status='Delivered'");
     $chk->bind_param("ii",$oid,$uid); $chk->execute();
-    if($chk->get_result()->num_rows > 0){
+    $ord_row = $chk->get_result()->fetch_assoc();
+    if($ord_row){
         $conn->query("UPDATE orders SET status='Completed' WHERE order_id=$oid");
         $conn->query("INSERT INTO order_status_history (order_id,status) VALUES ($oid,'Completed')");
         // Notification — received confirmed
@@ -22,8 +23,26 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['mark_received'])){
             'You have confirmed receipt of order ' . $order_num . '. We hope you love your new shoes! You can now write a review for any item in this order.',
             'success'
         );
+
+        // ── Reward voucher: 5% of the paid total back (RM 5 min, RM 30 cap) ──
+        $reward = (float)max(5, min(30, round((float)$ord_row['total_amount'] * 0.05)));
+        grant_voucher(
+            $conn, $uid, $reward,
+            'Thank-you reward for completing order ' . $order_num . '. Enjoy RM ' . number_format($reward,2) . ' off your next pair!',
+            30, 'Order Reward — RM ' . number_format($reward,2) . ' Voucher'
+        );
+
+        // ── Loyalty bonus: every 5th completed order earns an extra RM 15 ──
+        $cc = (int)$conn->query("SELECT COUNT(*) AS c FROM orders WHERE user_id=$uid AND status='Completed'")->fetch_assoc()['c'];
+        if($cc > 0 && $cc % 5 === 0){
+            grant_voucher(
+                $conn, $uid, 15.00,
+                "Loyalty reward — you've completed {$cc} orders with Apex. Thank you for sticking with us!",
+                60, 'Loyalty Reward — RM 15.00 Voucher'
+            );
+        }
     }
-    header("Location: order_history.php?msg=Order+marked+as+received."); exit;
+    header("Location: order_history.php?msg=Order+marked+as+received.+A+reward+voucher+has+been+added+to+your+account!"); exit;
 }
 
 // ── Submit Review ─────────────────────────────────────────────────
@@ -162,6 +181,15 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
       WHERE oi.order_id=$oid
   ");
   $items_arr = $oit->fetch_all(MYSQLI_ASSOC);
+
+  // Status history → first date each status was reached (for timeline dates)
+  $hist_map = [];
+  $hq = $conn->query("SELECT status, changed_at FROM order_status_history WHERE order_id=$oid ORDER BY changed_at ASC");
+  if($hq) while($h = $hq->fetch_assoc()){
+      if(!isset($hist_map[$h['status']])) $hist_map[$h['status']] = $h['changed_at'];
+  }
+  // Older orders may predate history logging — the order date covers Processing
+  if(!isset($hist_map['Processing'])) $hist_map['Processing'] = $o['order_date'];
 ?>
 <div class="card" style="margin-bottom:18px;overflow:hidden;">
 
@@ -243,6 +271,9 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
     <?php if($status === 'Cancelled'): ?>
     <div style="display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:100px;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);">
       <span style="color:#ef4444;font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;">✗ Order Cancelled</span>
+      <?php if(isset($hist_map['Cancelled'])): ?>
+      <span style="color:var(--muted);font-size:.68rem;"><?=date('d M Y, h:i A', strtotime($hist_map['Cancelled']))?></span>
+      <?php endif; ?>
     </div>
     <?php else: ?>
     <div style="display:flex;align-items:center;">
@@ -258,6 +289,9 @@ if($rv) while($r=$rv->fetch_assoc()) $reviewed[$r['order_id'].'_'.$r['product_id
           <?=$done?'✓':($i+1)?>
         </div>
         <div style="font-size:.65rem;letter-spacing:.5px;color:<?=$done?'var(--white)':'var(--muted)'?>;text-transform:uppercase;"><?=e($step)?></div>
+        <?php if($done && isset($hist_map[$step])): ?>
+        <div style="font-size:.6rem;color:var(--muted);margin-top:3px;"><?=date('d M, h:i A', strtotime($hist_map[$step]))?></div>
+        <?php endif; ?>
       </div>
       <?php endforeach; ?>
     </div>

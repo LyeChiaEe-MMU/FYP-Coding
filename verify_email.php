@@ -88,10 +88,29 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
             }
         } else {
             // OTP correct — create account
-            $p   = $pending;
+            $p = $pending;
+
+            // Re-check duplicates: someone else may have taken this email/phone while the OTP was pending
+            $phone_norm = preg_replace('/[\s\-]+/', '', (string)$p['phone']);
+            $dup = $conn->prepare("SELECT user_id FROM users WHERE email=? OR REPLACE(REPLACE(phone,'-',''),' ','')=?");
+            $dup->bind_param("ss", $p['email'], $phone_norm);
+            $dup->execute();
+            if($dup->get_result()->num_rows > 0){
+                unset($_SESSION['reg_pending'], $_SESSION['reg_otp'], $_SESSION['reg_otp_expires'],
+                      $_SESSION['reg_otp_attempts'], $_SESSION['reg_otp_sent_at']);
+                header("Location: register.php?err=exists"); exit;
+            }
+
             $ins = $conn->prepare("INSERT INTO users (name,email,password,phone,address,shopping_preference,date_of_birth) VALUES (?,?,?,?,?,?,?)");
             $ins->bind_param("sssssss", $p['name'], $p['email'], $p['hashed'], $p['phone'], $p['address'], $p['pref'], $p['dob']);
             if($ins->execute()){
+                // Welcome gift — RM 10 voucher for every new member
+                $new_uid = (int)$conn->insert_id;
+                grant_voucher(
+                    $conn, $new_uid, 10.00,
+                    'Welcome to Apex! Here is a little gift to kick off your first order.',
+                    30, 'Welcome Gift — RM 10.00 Voucher'
+                );
                 unset($_SESSION['reg_pending'], $_SESSION['reg_otp'], $_SESSION['reg_otp_expires'],
                       $_SESSION['reg_otp_attempts'], $_SESSION['reg_otp_sent_at']);
                 $success = true;
@@ -247,7 +266,10 @@ $cooldown_left = max(0, 60 - (time() - ($_SESSION['reg_otp_sent_at'] ?? 0)));
       <div class="success-card">
         <div class="success-icon"><i class="fa-solid fa-circle-check"></i></div>
         <h1 style="font-family:'Oswald',sans-serif;font-size:1.8rem;letter-spacing:2px;color:var(--white);margin-bottom:8px;">EMAIL VERIFIED</h1>
-        <p style="color:var(--muted);margin-bottom:24px;">Your Apex account has been created successfully.</p>
+        <p style="color:var(--muted);margin-bottom:12px;">Your Apex account has been created successfully.</p>
+        <div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:24px;padding:9px 18px;background:rgba(42,155,90,.1);border:1px solid rgba(42,155,90,.3);border-radius:100px;font-size:.82rem;color:#2a9b5a;font-weight:600;">
+          🎁 A RM 10 welcome voucher has been added to your account — check your email!
+        </div>
         <a href="login.php" class="btn btn-primary btn-lg" style="letter-spacing:2px;">
           <span>LOGIN NOW</span>
           <i class="fa-solid fa-arrow-right" style="margin-left:8px;"></i>
