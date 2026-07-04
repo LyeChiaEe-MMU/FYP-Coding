@@ -1,4 +1,5 @@
 <?php
+// Section for the navbar data: cart count, notification badges, mega menu links
 $cc         = cart_count($conn);
 $pg         = basename($_SERVER['PHP_SELF']);
 $nav_gender = ($pg === 'products.php') ? ($_GET['gender'] ?? '') : '';

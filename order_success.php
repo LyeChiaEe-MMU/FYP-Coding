@@ -7,6 +7,7 @@ if(!is_logged() || empty($_GET['order_id'])){ header("Location: index.php"); exi
 $oid = (int)$_GET['order_id'];
 $uid = (int)$_SESSION['user_id'];
 
+// Section for verifying the order belongs to the logged-in user
 $stmt = $conn->prepare("SELECT * FROM orders WHERE order_id=? AND user_id=?");
 $stmt->bind_param("ii",$oid,$uid);
 $stmt->execute();

@@ -22,9 +22,12 @@ if(isset($_POST['send_email'])){
     header("Location: admin_customers.php?msg=Please+fill+in+all+email+fields.&mtype=err"); exit;
 }
 
-// ── BAN / UNBAN USER ──────────────────────────────────────────────
+// ── BAN / UNBAN USER — superadmin only ────────────────────────────
 if(isset($_POST['toggle_ban'])){
     csrf_check();
+    if(!is_superadmin()){
+        header("Location: admin_customers.php?msg=Only+the+superadmin+can+ban+or+unban+customers.&mtype=err"); exit;
+    }
     $uid = (int)$_POST['user_id'];
     // Read the real current state from DB — never trust the client-supplied value
     $cur_row = $conn->query("SELECT is_banned FROM users WHERE user_id=$uid")->fetch_assoc();
@@ -43,6 +46,7 @@ $msg = $msg ?: ($_GET['msg'] ?? '');
 // Whitelist — GET may override the 'ok' default, but only to 'err'
 if($mtype !== 'err') $mtype = (($_GET['mtype'] ?? '') === 'err') ? 'err' : 'ok';
 
+// Section for fetching customers with their order statistics
 $customers = $conn->query("
     SELECT u.*,
            COUNT(o.order_id) AS order_count,
@@ -127,11 +131,13 @@ $customers = $conn->query("
                           onclick="openEmailModal('<?=e(addslashes($c['email']))?>', '<?=e(addslashes($c['name']))?>')">
                     Email
                   </button>
+                  <?php if(is_superadmin()): ?>
                   <button type="button"
                           class="btn btn-sm <?=$banned?'btn-secondary':'btn-danger'?>"
                           onclick="openBanModal(<?=(int)$c['user_id']?>, '<?=e(addslashes($c['name']))?>', <?=$banned?1:0?>)">
                     <?=$banned?'Unban':'Ban'?>
                   </button>
+                  <?php endif; ?>
                 </div>
               </td>
             </tr>

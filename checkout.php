@@ -4,10 +4,12 @@ require 'db.php';
 if(!is_logged()){ header("Location: login.php"); exit; }
 $uid = (int)$_SESSION['user_id'];
 
+// Section for loading the customer's saved details
 $user = $conn->prepare("SELECT name,email,phone,address FROM users WHERE user_id=?");
 $user->bind_param("i",$uid); $user->execute();
 $u = $user->get_result()->fetch_assoc();
 
+// Section for fetching cart items for checkout
 $cs = $conn->prepare("SELECT c.quantity,c.size,c.color,c.product_id,p.name,p.price,p.sale_percent,p.image_url,
     COALESCE(ps.stock,0) AS avail_stock,
     (SELECT pi.image_url FROM product_images pi WHERE pi.product_id=c.product_id AND pi.color_name=c.color ORDER BY pi.sort_order ASC LIMIT 1) AS color_image

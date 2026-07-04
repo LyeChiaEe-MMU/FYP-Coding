@@ -9,6 +9,7 @@ $pid = (int)$_GET['id'];
 $_allowed_genders = ['Men','Women','Kids'];
 $back_gender = (isset($_GET['gender']) && in_array($_GET['gender'], $_allowed_genders)) ? $_GET['gender'] : '';
 
+// Section for fetching the product details
 $stmt = $conn->prepare("SELECT p.*, c.category_name FROM products p JOIN categories c ON p.category_id=c.category_id WHERE p.product_id=? AND p.is_active=1");
 $stmt->bind_param("i",$pid); $stmt->execute();
 $product = $stmt->get_result()->fetch_assoc();

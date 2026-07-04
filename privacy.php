@@ -20,6 +20,7 @@
 <body>
 <?php include 'includes/navbar.php'; ?>
 
+<!-- Section for the privacy policy content -->
 <div class="policy-wrap">
   <h1>PRIVACY <span style="color:var(--accent)">POLICY</span></h1>
   <p class="updated">Last updated: June 2026</p>

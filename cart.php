@@ -5,6 +5,7 @@ require 'db.php';
 if(!is_logged()){ header("Location: login.php"); exit; }
 $uid = (int)$_SESSION['user_id'];
 
+// Section for fetching the user's cart items
 $stmt = $conn->prepare("
     SELECT c.cart_id, c.quantity, c.size, c.color,
            p.product_id, p.name, p.price, p.sale_percent, p.image_url,
@@ -31,6 +32,7 @@ while($r=$cart->fetch_assoc()){
     $rows[] = $r;
 }
 
+// Section for calculating subtotal, shipping and total
 $shipping = $subtotal>=300 ? 0 : ($subtotal>0 ? 10 : 0);
 $total    = $subtotal + $shipping;
 ?>

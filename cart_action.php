@@ -30,6 +30,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     csrf_check();
     $action = $_POST['action'] ?? '';
 
+    // Section for adding an item to the cart
     if($action==='add'){
         $product_id = (int)$_POST['product_id'];
         $size       = trim($_POST['size']);
@@ -90,6 +91,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         header("Location: product_detail.php?id=$product_id$back_gender_suffix");
         exit;
 
+    // Section for updating a cart item's quantity
     } elseif($action==='update'){
         $cart_id  = (int)$_POST['cart_id'];
         $quantity = max(1,(int)$_POST['quantity']);
@@ -116,6 +118,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
         header("Location: cart.php"); exit;
 
+    // Section for removing an item from the cart
     } elseif($action==='remove'){
         $cart_id = (int)$_POST['cart_id'];
         $stmt = $conn->prepare("DELETE FROM cart_items WHERE cart_id=? AND user_id=?");

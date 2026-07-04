@@ -25,6 +25,7 @@ $mask_len    = max(0, strlen($local) - 2);
 $masked      = (strlen($local) > 2 ? substr($local, 0, 2) : $local)
              . str_repeat('*', $mask_len) . '@' . $domain;
 
+// Section for OTP verification and resend handling
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
     csrf_check();
     $action = $_POST['action'] ?? 'verify';

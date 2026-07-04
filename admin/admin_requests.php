@@ -72,6 +72,7 @@ $allowed_filters = ['Received','Accepted','Rejected'];
 if($filter && !in_array($filter, $allowed_filters)) $filter = '';
 $where = $filter ? "WHERE dr.status='" . $conn->real_escape_string($filter) . "'" : '';
 
+// Section for fetching design requests with customer info
 $reqs = $conn->query("
     SELECT dr.*, u.name AS customer_name, u.email
     FROM design_requests dr

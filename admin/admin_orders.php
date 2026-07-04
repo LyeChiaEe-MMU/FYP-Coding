@@ -3,6 +3,8 @@
 require_once 'auth_check.php';
 
 $msg = '';
+
+// Section for updating the order status (with customer notification)
 if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
     csrf_check();
     $oid        = (int)$_POST['order_id'];
@@ -75,6 +77,7 @@ $allowed_filters = ['Processing','Delivered','Completed','Cancelled'];
 if($filter && !in_array($filter, $allowed_filters)) $filter = '';
 $where = $filter ? "WHERE o.status='".$conn->real_escape_string($filter)."'" : '';
 
+// Section for fetching all orders with customer info
 $orders = $conn->query("
     SELECT o.*, u.name AS customer_name, u.email,
            COUNT(oi.order_item_id) AS item_count

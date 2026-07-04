@@ -5,6 +5,7 @@ require 'db.php';
 $success = false;
 $errors  = [];
 
+// Section for the contact form submission and validation
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $name    = trim($_POST['name']    ?? '');

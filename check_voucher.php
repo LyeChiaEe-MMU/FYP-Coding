@@ -18,6 +18,7 @@ if($code === ''){
     echo json_encode(['valid'=>false,'msg'=>'Please enter a voucher code.']); exit;
 }
 
+// Section for validating the voucher code
 $stmt = $conn->prepare("
     SELECT voucher_id, amount, reason
     FROM vouchers

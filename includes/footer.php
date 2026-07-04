@@ -1,4 +1,5 @@
 <?php $depth = (strpos($_SERVER['PHP_SELF'],'/admin/')!==false)?'../':''; ?>
+<!-- Section for the site footer -->
 <footer class="footer">
   <div class="wrap">
     <div class="footer-grid">

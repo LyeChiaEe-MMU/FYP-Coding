@@ -10,7 +10,7 @@ function check_remember_me_cookie(){
         $token_hash = hash('sha256', $_COOKIE['admin_remember']);
         $current_time = time();
 
-        $stmt = $conn->prepare("SELECT admin_id, username FROM admins WHERE remember_token = ? AND token_expiry > ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT admin_id, username FROM admins WHERE remember_token = ? AND token_expiry > ? AND is_banned = 0 LIMIT 1");
         $stmt->bind_param("si", $token_hash, $current_time);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -42,16 +42,21 @@ if(check_remember_me_cookie()){
 // Check if any admin account exists
 $check = $conn->query("SELECT 1 FROM admins LIMIT 1");
 
-// If no admin exists, create a default admin account
+// If no admin exists, create a default SUPERADMIN account (the owner)
 if($check->num_rows === 0){
     $hashed = password_hash('admin123', PASSWORD_DEFAULT);
-    $conn->query("INSERT INTO admins (username, password) VALUES ('admin', '$hashed')");
+    $conn->query("INSERT INTO admins (username, password, role) VALUES ('admin', '$hashed', 'superadmin')");
 }
 
 $error = '';
+$show_banned_modal = false;
+
+// Banned admin was kicked out mid-session by auth_check — explain why
+if(isset($_GET['banned'])) $show_banned_modal = true;
 
 // Process login form submission
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
+    csrf_check();
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
     $remember_me = isset($_POST['remember_me']) ? true : false;
@@ -59,12 +64,16 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     if(!$username || !$password){
         $error = "Please enter your username and password.";
     } else {
-        $stmt = $conn->prepare("SELECT admin_id, username, password FROM admins WHERE username = ?");
+        $stmt = $conn->prepare("SELECT admin_id, username, password, is_banned FROM admins WHERE username = ?");
         $stmt->bind_param("s", $username);
         $stmt->execute();
         $admin = $stmt->get_result()->fetch_assoc();
 
         if($admin && password_verify($password, $admin['password'])){
+            if(!empty($admin['is_banned'])){
+                // Correct credentials, but the account is banned — popup, no session
+                $show_banned_modal = true;
+            } else {
             session_regenerate_id(true);
             // Clear any leftover user session so admin never inherits customer view
             unset($_SESSION['user_id'], $_SESSION['user_name']);
@@ -102,6 +111,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
 
             header("Location: admin_dashboard.php");
             exit;
+            }
         } else {
             $error = "Invalid username or password.";
         }
@@ -387,6 +397,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
       <?php endif; ?>
 
       <form method="POST">
+        <?=csrf_field()?>
         <div class="form-group">
           <label>Username</label>
           <div class="input-icon-wrap">
@@ -429,6 +440,49 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
   </div>
 
 </div>
+
+<?php if($show_banned_modal): ?>
+<!-- ── Banned account popup ── -->
+<style>
+.ban-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.ban-box{
+  background:var(--card,#fff);border:1px solid var(--border);
+  border-radius:14px;max-width:430px;width:100%;padding:32px;text-align:center;
+  box-shadow:0 24px 60px rgba(0,0,0,.5);
+  animation:apxFadeUp .3s cubic-bezier(.22,1,.36,1) both;
+}
+.ban-box-icon{
+  width:64px;height:64px;border-radius:50%;margin:0 auto 18px;
+  background:rgba(214,64,64,.12);border:1.5px solid rgba(214,64,64,.35);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--danger,#d64040);font-size:1.6rem;
+}
+.ban-box h2{
+  font-family:'Oswald',sans-serif;font-size:1.2rem;letter-spacing:2px;
+  color:var(--danger,#d64040);margin-bottom:12px;
+}
+.ban-box p{ font-size:.875rem;color:var(--text,#444);line-height:1.8;margin-bottom:22px; }
+</style>
+<div class="ban-overlay" id="banOverlay">
+  <div class="ban-box">
+    <div class="ban-box-icon"><i class="fa-solid fa-user-slash"></i></div>
+    <h2>ACCOUNT BANNED</h2>
+    <p>
+      Your admin account has been <strong style="color:var(--danger,#d64040);">banned by the superadmin</strong>
+      and you can no longer access the admin panel.<br><br>
+      If you believe this is a mistake, or you want your account to be
+      <strong>unbanned</strong>, please contact the superadmin directly.
+    </p>
+    <button type="button" class="btn btn-primary" style="min-width:130px;"
+            onclick="document.getElementById('banOverlay').remove()">
+      OK, I Understand
+    </button>
+  </div>
+</div>
+<?php endif; ?>
 
 <script>
 function toggleAdminPw(){

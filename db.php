@@ -221,6 +221,24 @@ if($_vccol && $_vccol->num_rows === 0){
     $conn->query("ALTER TABLE orders ADD COLUMN voucher_code VARCHAR(20) DEFAULT NULL AFTER discount_amount");
 }
 
+// ── One-time migration: admin roles (superadmin manages admin accounts) ──
+$_admt = $conn->query("SHOW TABLES LIKE 'admins'");
+if($_admt && $_admt->num_rows > 0){
+    $_admr = $conn->query("SHOW COLUMNS FROM admins LIKE 'role'");
+    if($_admr && $_admr->num_rows === 0){
+        $conn->query("ALTER TABLE admins ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'admin'");
+    }
+    $_admb = $conn->query("SHOW COLUMNS FROM admins LIKE 'is_banned'");
+    if($_admb && $_admb->num_rows === 0){
+        $conn->query("ALTER TABLE admins ADD COLUMN is_banned TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    // Ensure a superadmin exists — promote the oldest account (the original owner)
+    $_sa = $conn->query("SELECT admin_id FROM admins WHERE role='superadmin' LIMIT 1");
+    if($_sa && $_sa->num_rows === 0){
+        $conn->query("UPDATE admins SET role='superadmin' ORDER BY admin_id ASC LIMIT 1");
+    }
+}
+
 // ── Mailer (used by add_notification to send Gmail copies) ───────
 require_once __DIR__ . '/admin/Mailer.php';
 

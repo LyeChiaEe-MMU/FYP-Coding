@@ -1,5 +1,5 @@
 <?php
-// admin/sidebar.php
+// Section for the admin sidebar navigation
 $pg = basename($_SERVER['PHP_SELF']);
 ?>
 <aside class="admin-sidebar">
@@ -48,6 +48,11 @@ $pg = basename($_SERVER['PHP_SELF']);
   </a>
 
   <div class="sidebar-section">Account</div>
+  <?php if(function_exists('is_superadmin') && is_superadmin()): ?>
+  <a href="admin_manage.php" class="sidebar-link <?=$pg==='admin_manage.php'?'active':''?>">
+    ★ Manage Admins
+  </a>
+  <?php endif; ?>
   <a href="../index.php" class="sidebar-link">View Store</a>
   <a href="admin_logout.php" class="sidebar-link" style="color:var(--danger);">Logout</a>
 </aside>

@@ -20,6 +20,7 @@
 <body>
 <?php include 'includes/navbar.php'; ?>
 
+<!-- Section for the terms of use content -->
 <div class="policy-wrap">
   <h1>TERMS OF <span style="color:var(--accent)">USE</span></h1>
   <p class="updated">Last updated: June 2026</p>

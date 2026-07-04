@@ -25,6 +25,7 @@ if(isset($_GET['err']) && $_GET['err'] === 'exists'){
     $error = "This email or phone number was just registered by another account. Please use a different one.";
 }
 
+// Section for the registration form submission and validation
 if($_SERVER['REQUEST_METHOD']==='POST'){
     csrf_check();
     $name    = trim($_POST['name']    ?? '');

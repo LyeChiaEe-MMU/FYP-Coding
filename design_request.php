@@ -14,6 +14,7 @@ $success = false;
 // Get user name
 $urow = $conn->query("SELECT name FROM users WHERE user_id=$uid")->fetch_assoc();
 
+// Section for the design request form submission and validation
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $shoe_name  = trim($_POST['shoe_name']      ?? '');

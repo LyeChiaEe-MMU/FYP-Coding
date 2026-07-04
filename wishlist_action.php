@@ -49,7 +49,7 @@ if (!$pid) {
     exit;
 }
 
-// Toggle
+// Section for toggling the product in/out of the wishlist
 $chk = $conn->prepare("SELECT wishlist_id FROM wishlists WHERE user_id=? AND product_id=?");
 $chk->bind_param("ii", $uid, $pid);
 $chk->execute();

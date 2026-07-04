@@ -27,6 +27,7 @@
 <body>
 <?php include 'includes/navbar.php'; ?>
 
+<!-- Section for the page header -->
 <div class="info-hero">
   <div class="wrap">
     <div class="breadcrumb"><a href="index.php">Home</a><span class="sep">/</span><span>About Apex</span></div>

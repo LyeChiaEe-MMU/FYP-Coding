@@ -1,12 +1,14 @@
 ﻿<?php
 require_once 'auth_check.php';
 
+// Section for the dashboard KPI statistics
 $total_sales     = $conn->query("SELECT COALESCE(SUM(total_amount),0) AS s FROM orders WHERE status = 'Completed'")->fetch_assoc()['s'];
 $total_orders    = $conn->query("SELECT COUNT(*) AS c FROM orders")->fetch_assoc()['c'];
 $total_customers = $conn->query("SELECT COUNT(*) AS c FROM users")->fetch_assoc()['c'];
 $total_products  = $conn->query("SELECT COUNT(*) AS c FROM products")->fetch_assoc()['c'];
 $pending_designs = $conn->query("SELECT COUNT(*) AS c FROM design_requests WHERE status='Received'")->fetch_assoc()['c'];
 
+// Section for the recent orders list
 $recent_orders = $conn->query("
     SELECT o.order_id, u.name, o.total_amount, o.status, o.order_date
     FROM orders o JOIN users u ON o.user_id=u.user_id

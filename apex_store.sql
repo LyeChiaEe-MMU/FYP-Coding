@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 17, 2026 at 06:46 AM
+-- Generation Time: Jul 04, 2026 at 07:47 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -33,15 +33,17 @@ CREATE TABLE `admins` (
   `password` varchar(255) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `remember_token` varchar(255) DEFAULT NULL,
-  `token_expiry` int(11) DEFAULT NULL
+  `token_expiry` int(11) DEFAULT NULL,
+  `role` varchar(20) NOT NULL DEFAULT 'admin',
+  `is_banned` tinyint(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `admins`
 --
 
-INSERT INTO `admins` (`admin_id`, `username`, `password`, `created_at`, `remember_token`, `token_expiry`) VALUES
-(1, 'admin', '$2y$10$iMb4ED02vNT6tJueiFRhuu3PxnlCJcxGPASAag7rVQzg4Ai44axoS', '2026-05-20 14:04:00', NULL, NULL);
+INSERT INTO `admins` (`admin_id`, `username`, `password`, `created_at`, `remember_token`, `token_expiry`, `role`, `is_banned`) VALUES
+(1, 'admin', '$2y$10$iMb4ED02vNT6tJueiFRhuu3PxnlCJcxGPASAag7rVQzg4Ai44axoS', '2026-05-20 14:04:00', NULL, NULL, 'superadmin', 0);
 
 -- --------------------------------------------------------
 
@@ -93,8 +95,17 @@ CREATE TABLE `contact_messages` (
   `subject` varchar(120) NOT NULL,
   `message` text NOT NULL,
   `is_read` tinyint(1) NOT NULL DEFAULT 0,
+  `admin_reply` text DEFAULT NULL,
+  `replied_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `contact_messages`
+--
+
+INSERT INTO `contact_messages` (`message_id`, `name`, `email`, `subject`, `message`, `is_read`, `admin_reply`, `replied_at`, `created_at`) VALUES
+(1, 'Lye Chia Ee', 'darren060621@gmail.com', 'Size Help', 'No stock anymore', 1, 'restock already', '2026-07-03 14:41:44', '2026-07-01 02:21:47');
 
 -- --------------------------------------------------------
 
@@ -111,7 +122,7 @@ CREATE TABLE `design_requests` (
   `description` text NOT NULL,
   `specifications` text DEFAULT NULL,
   `ref_image` varchar(300) DEFAULT NULL,
-  `status` enum('Pending','In Review','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+  `status` varchar(20) NOT NULL DEFAULT 'Received',
   `admin_note` text DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -122,7 +133,8 @@ CREATE TABLE `design_requests` (
 --
 
 INSERT INTO `design_requests` (`request_id`, `user_id`, `shoe_name`, `category`, `color_pref`, `description`, `specifications`, `ref_image`, `status`, `admin_note`, `created_at`, `updated_at`) VALUES
-(1, 1, 'AP Strider', 'Running', 'Electric Cobalt / Neon Lime', 'The shoe features a sleek, aerodynamic silhouette with a dominant electric cobalt blue mesh upper, providing a modern and energetic aesthetic. It includes neon lime accent detailing on the heel tab and midsole, which provides a high-contrast pop of color. The design is finished with a crisp white transition layer in the midsole, balancing the bold color choices with a clean, professional look.', 'Upper: Breathable engineered mesh for lightweight comfort and airflow.\r\n\r\nMidsole: Dual-density foam construction for impact absorption and responsive energy return.\r\n\r\nOutsole: Durable rubber tread optimized for multi-surface traction and stability.\r\n\r\nHeel: Integrated pull tab for ease of wear and reinforced heel counter for added support.', 'uploads/designs/design_1_1781634445.png', 'In Review', 'So far looking great, will go to review and might add changes', '2026-06-17 02:27:25', '2026-06-17 03:46:19');
+(1, 1, 'AP Strider', 'Running', 'Electric Cobalt / Neon Lime', 'The shoe features a sleek, aerodynamic silhouette with a dominant electric cobalt blue mesh upper, providing a modern and energetic aesthetic. It includes neon lime accent detailing on the heel tab and midsole, which provides a high-contrast pop of color. The design is finished with a crisp white transition layer in the midsole, balancing the bold color choices with a clean, professional look.', 'Upper: Breathable engineered mesh for lightweight comfort and airflow.\r\n\r\nMidsole: Dual-density foam construction for impact absorption and responsive energy return.\r\n\r\nOutsole: Durable rubber tread optimized for multi-surface traction and stability.\r\n\r\nHeel: Integrated pull tab for ease of wear and reinforced heel counter for added support.', 'uploads/designs/design_1_1781634445.png', 'Received', 'So far looking great, will go to review and might add changes', '2026-06-17 02:27:25', '2026-07-03 23:53:23'),
+(2, 1, 'AP Celebrate', 'Lifestyle', 'White Pink', 'Look unique. When go celebrate event with ur friend.', '', 'uploads/designs/design_1_1782871756.png', 'Received', NULL, '2026-07-01 10:09:16', '2026-07-03 23:53:23');
 
 -- --------------------------------------------------------
 
@@ -159,7 +171,16 @@ INSERT INTO `notifications` (`notif_id`, `user_id`, `title`, `message`, `type`, 
 (12, 1, 'Design Request Update — AP Strider', 'Great news! Your design request has been approved.\n\nMessage from Apex: So far looking great, will go to review and might add changes', 'info', 1, '2026-06-16 19:46:01'),
 (13, 1, 'Design Request Update — AP Strider', 'Great news! Your design request has been approved.\n\nMessage from Apex: So far looking great, will go to review and might add changes', 'info', 1, '2026-06-16 19:46:04'),
 (14, 1, 'Design Request Update — AP Strider', 'Great news! Your design request has been approved.\n\nMessage from Apex: So far looking great, will go to review and might add changes', 'info', 1, '2026-06-16 19:46:07'),
-(15, 1, 'Design Request Update — AP Strider', 'Your design request is now being reviewed by our team.\n\nMessage from Apex: So far looking great, will go to review and might add changes', 'info', 1, '2026-06-16 19:46:19');
+(15, 1, 'Design Request Update — AP Strider', 'Your design request is now being reviewed by our team.\n\nMessage from Apex: So far looking great, will go to review and might add changes', 'info', 1, '2026-06-16 19:46:19'),
+(16, 1, 'Order Placed — #000002', 'Your order #000002 has been placed successfully via Online Banking — CIMB Bank. Total paid: RM 449.00. We will process it shortly.', 'order', 1, '2026-07-01 01:51:32'),
+(17, 1, 'Order #000002 Has Been Delivered!', 'Great news! Your order #000002 has been delivered to your address. Please click \"Mark as Received\" on your order once you have the package in hand.', 'delivery', 1, '2026-07-01 02:03:20'),
+(18, 1, 'Order #000002 Received — Thank You!', 'You have confirmed receipt of order #000002. We hope you love your new shoes! You can now write a review for any item in this order.', 'success', 1, '2026-07-01 02:03:52'),
+(19, 1, 'Review Submitted — Thank You!', 'Your ★★★★☆ review for \"AP Blossom\" has been published. Your feedback helps other shoppers make better choices!', 'review', 1, '2026-07-01 02:04:13'),
+(20, 1, 'Order Placed — #000003', 'Your order #000003 has been placed successfully via Online Banking — CIMB Bank. Total paid: RM 239.00. We will process it shortly.', 'order', 1, '2026-07-01 02:14:49'),
+(21, 1, 'Order #000003 Has Been Delivered!', 'Great news! Your order #000003 has been delivered to your address. Please click \"Mark as Received\" on your order once you have the package in hand.', 'delivery', 1, '2026-07-01 02:15:26'),
+(22, 1, 'Order #000003 Received — Thank You!', 'You have confirmed receipt of order #000003. We hope you love your new shoes! You can now write a review for any item in this order.', 'success', 1, '2026-07-01 02:16:30'),
+(23, 1, 'Price Drop — AP Dinasour', 'Good news! \"AP Dinasour\" from your wishlist is now RM 436.00 (5% OFF) (was RM 459.00). Grab it before it\'s gone!', 'info', 1, '2026-07-03 14:46:03'),
+(24, 1, 'Order Placed — #000004', 'Your order #000004 has been placed successfully via Online Banking — Hong Leong Bank. Total paid: RM 436.00. We will process it shortly.', 'order', 1, '2026-07-03 14:46:56');
 
 -- --------------------------------------------------------
 
@@ -186,7 +207,10 @@ CREATE TABLE `orders` (
 --
 
 INSERT INTO `orders` (`order_id`, `user_id`, `total_amount`, `discount_amount`, `voucher_code`, `promo_id`, `status`, `shipping_address`, `payment_method`, `payment_detail`, `order_date`) VALUES
-(1, 1, 449.00, 0.00, '', NULL, 'Completed', '57,Jalan Raja Endut,Kampung Merdeka, Batu Pahat, Johor, 83000', 'Online Banking', 'RHB Bank', '2026-06-16 18:12:57');
+(1, 1, 449.00, 0.00, '', NULL, 'Completed', '57,Jalan Raja Endut,Kampung Merdeka, Batu Pahat, Johor, 83000', 'Online Banking', 'RHB Bank', '2026-06-16 18:12:57'),
+(2, 1, 449.00, 0.00, '', NULL, 'Completed', '57,Jalan Raja Endut,Kampung Merdeka, Batu Pahat, Johor, 83000', 'Online Banking', 'CIMB Bank', '2026-07-01 01:51:32'),
+(3, 1, 239.00, 0.00, '', NULL, 'Completed', '57,Jalan Raja Endut,Kampung Merdeka, Batu Pahat, Johor, 83000', 'Online Banking', 'CIMB Bank', '2026-07-01 02:14:49'),
+(4, 1, 436.00, 0.00, '', NULL, 'Processing', '57,Jalan Raja Endut,Kampung Merdeka, Batu Pahat, Johor, 83000', 'Online Banking', 'Hong Leong Bank', '2026-07-03 14:46:56');
 
 -- --------------------------------------------------------
 
@@ -210,7 +234,10 @@ CREATE TABLE `order_items` (
 --
 
 INSERT INTO `order_items` (`order_item_id`, `order_id`, `product_id`, `size`, `color`, `quantity`, `price`, `original_price`) VALUES
-(1, 1, 14, '7.5', 'Soft Petal Pink', 1, 449.00, 449.00);
+(1, 1, 14, '7.5', 'Soft Petal Pink', 1, 449.00, 449.00),
+(2, 2, 14, '6', 'Soft Petal Pink', 1, 449.00, 449.00),
+(3, 3, 12, '6', 'Candy Peach', 1, 229.00, 229.00),
+(4, 4, 15, '1', 'White', 1, 436.00, 459.00);
 
 -- --------------------------------------------------------
 
@@ -232,7 +259,14 @@ CREATE TABLE `order_status_history` (
 INSERT INTO `order_status_history` (`history_id`, `order_id`, `status`, `changed_at`) VALUES
 (1, 1, 'Processing', '2026-06-16 18:12:57'),
 (2, 1, 'Delivered', '2026-06-16 18:21:28'),
-(3, 1, 'Completed', '2026-06-16 18:21:52');
+(3, 1, 'Completed', '2026-06-16 18:21:52'),
+(4, 2, 'Processing', '2026-07-01 01:51:32'),
+(5, 2, 'Delivered', '2026-07-01 02:03:20'),
+(6, 2, 'Completed', '2026-07-01 02:03:52'),
+(7, 3, 'Processing', '2026-07-01 02:14:49'),
+(8, 3, 'Delivered', '2026-07-01 02:15:26'),
+(9, 3, 'Completed', '2026-07-01 02:16:30'),
+(10, 4, 'Processing', '2026-07-03 14:46:56');
 
 -- --------------------------------------------------------
 
@@ -250,6 +284,7 @@ CREATE TABLE `products` (
   `stock` int(11) NOT NULL DEFAULT 0,
   `is_on_sale` tinyint(1) NOT NULL DEFAULT 0,
   `sale_percent` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,
+  `sale_ends_at` datetime DEFAULT NULL,
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `image_url` varchar(255) NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
@@ -259,18 +294,19 @@ CREATE TABLE `products` (
 -- Dumping data for table `products`
 --
 
-INSERT INTO `products` (`product_id`, `name`, `description`, `category_id`, `gender`, `price`, `stock`, `is_on_sale`, `sale_percent`, `is_active`, `image_url`, `created_at`) VALUES
-(4, 'Apex Court', 'Run', 1, 'Women', 459.00, 260, 0, 0, 0, 'uploads/product_1781532838_Gemini_Generated_Image_gvdhuhgvdhuhgvdh.png', '2026-05-21 01:10:34'),
-(5, 'AP Velocity', 'The AP Velocity is designed for athletes who demand precision and speed, blending professional performance with a refined aesthetic. Featuring our signature Midnight Carbon / Cloud White colorway, the shoe utilizes a high-traction outsole pattern that ensures superior grip on varied surfaces. The upper is constructed from an advanced breathable mesh, specifically engineered to provide a lightweight, secure fit that conforms to the foot during intense training sessions.\r\n\r\nAt the core of the shoe’s performance is a high-response cushioned midsole, meticulously balanced to maximize energy return while minimizing impact stress on the joints. The seamless integration of the AP branding across the quarter panel and heel provides a modern, professional look that adheres to a clean and minimalist design language. By removing unnecessary embellishments, the silhouette remains streamlined, focusing entirely on structural integrity and aerodynamic efficiency.\r\n\r\nPerfect for both marathon pacing and daily training, the AP Velocity represents the intersection of technical capability and modern athletic style. The structural layout—from the reinforced heel counter to the responsive forefoot—is built to sustain performance over long distances. This combination of comfort, durability, and a clean visual profile makes it an essential component for any serious runner’s gear collection.', 1, 'Men', 599.00, 616, 0, 0, 0, 'uploads/product_1781532445_product_1780763578_dreamina-2026-06-07-6600-make_me_a_running_shoe_with_AP_Logo__can....png', '2026-06-15 14:07:25'),
-(6, 'AP Pulse', 'The AP Pulse is built for high-visibility performance and bold style. Featuring a muted charcoal mesh upper that contrasts sharply with a vibrant, high-energy fuchsia midsole, this shoe is engineered for runners who want to stand out during evening training sessions. The construction balances a secure lockdown fit with a plush, responsive foam base designed to absorb impact while providing a springy feel.', 1, 'Men', 459.00, 322, 0, 0, 1, 'uploads/product_1781533420_product_1780931220_Gemini_Generated_Image_8qt6pl8qt6pl8qt6.png', '2026-06-15 14:23:40'),
-(7, 'AP Endurance', 'The AP Endurance is engineered for high-mileage training, prioritizing comfort and structural stability for the dedicated runner. The upper features a high-density, multi-layered mesh that provides exceptional breathability and foot-locking support, while the vibrant crimson accents highlight the shoe\'s aggressive, performance-focused silhouette. Designed with a focus on long-distance durability, the exterior maintains a crisp, professional appearance that stands out on both the track and the road.\r\n\r\nBuilt upon a high-performance, segmented outsole, this model delivers superior shock absorption and consistent traction across various terrains. The midsole utilizes advanced cushioning technology to ensure a smooth transition from heel-strike to toe-off, effectively reducing fatigue during extended runs. By combining a clean, technical aesthetic with rugged construction, the AP Endurance offers a reliable and stylish solution for athletes who refuse to compromise on performance.', 1, 'Men', 449.00, 156, 0, 0, 0, 'uploads/product_1781534363_product_1780939229_Gemini_Generated_Image_r2ieszr2ieszr2ie.png', '2026-06-15 14:39:23'),
-(8, 'AP Ignite', 'The AP Ignite is engineered to deliver high-energy performance with a striking visual profile. The shoe features an innovative gradient mesh upper that transitions smoothly from deep onyx at the collar to a fiery orange and radiant yellow silhouette toward the forefoot. This seamless construction provides exceptional breathability and lightweight containment, ensuring the foot stays cool and secure through intensive speed workouts or fast-paced road races.\r\n\r\nThe performance-driven sole unit is built with a dual-density cushioned midsole that optimizes shock absorption and maximizes forward propulsion. Its bold neon accents along the midsole and structured heel counter accentuate the shoe\'s sleek, aerodynamic design. Completed with a durable rubber outsole pattern optimized for multi-surface grip, the AP Ignite brings a clean yet fiercely energetic aesthetic to the track, offering serious runners the perfect balance of responsiveness, stability, and bold modern style.', 1, 'Men', 349.00, 299, 0, 0, 1, 'uploads/product_1781535137_product_1780980089_Gemini_Generated_Image_uv65xguv65xguv65.png', '2026-06-15 14:52:17'),
-(9, 'AP Terra', 'The AP Terra is designed for the modern explorer, blending rugged trail functionality with a versatile lifestyle aesthetic. Crafted with a premium suede upper in a rich desert ochre, the shoe features reinforced deep navy overlays that provide structural integrity and a distinctive color-blocked look. Its trail-ready architecture includes a high-traction, lugged outsole designed to handle varied terrain, making it the perfect companion for both off-road adventures and casual urban settings.\r\n\r\nBeyond its durable exterior, the AP Terra prioritizes all-day comfort with an ergonomic fit and responsive cushioning that absorbs impact on uneven surfaces. The vibrant orange laces and matching branding add a touch of high-energy flair to the earthy tones, ensuring a stylish presence whether on the trails or the street. By marrying technical outdoor performance with a clean, contemporary design, the AP Terra delivers a robust and reliable option for those who demand both versatility and resilience in their everyday footwear.', 3, 'Men', 669.00, 150, 0, 0, 1, 'uploads/product_1781535496_product_1780981586_Gemini_Generated_Image_nuth5bnuth5bnuth.png', '2026-06-15 14:58:16'),
-(10, 'AP Terra W', 'The AP Terra W is a refined, adventure-ready lifestyle shoe tailored specifically for women, offering the perfect blend of outdoor durability and everyday comfort. Featuring a sophisticated tonal palette of clay dust suede and sandstone accents, this model maintains the signature trail-capable rugged outsole while presenting a softer, more versatile aesthetic suitable for both hiking trails and city commutes.\r\n\r\nDesigned with ergonomics in mind, the shoe provides a secure, lightweight fit that supports natural movement on uneven terrain. The monochromatic color approach, paired with premium materials, creates a polished look that transitions easily from active outings to casual wear. By balancing technical grip and structural resilience with an elegant, earthy design, the AP Terra W offers a versatile and stylish choice for the active, modern woman.', 3, 'Women', 669.00, 110, 0, 0, 1, 'uploads/product_1781535569_product_1780981692_Gemini_Generated_Image_6d4fir6d4fir6d4f.png', '2026-06-15 14:59:29'),
-(11, 'AP Court', 'The AP Court is a high-performance basketball sneaker designed to provide elite-level support and explosive responsiveness on the hardwood. Featuring a mid-top silhouette, it offers superior ankle stabilization without sacrificing the agility required for quick cuts and fast breaks. The lightweight, breathable mesh upper is reinforced with durable synthetic overlays, ensuring a secure lockdown fit that withstands the high-intensity demands of competitive play.\r\n\r\nEngineered for optimal court feel and energy return, the midsole utilizes a high-rebound cushioning system that effectively absorbs impact during landings and transitions. The specialized rubber outsole features a multidirectional herringbone tread pattern, delivering exceptional grip for precise pivoting and explosive starts. By combining a modern, sharp aesthetic with technical functionality, the AP Court empowers players to maintain peak performance and style throughout the game.', 2, 'Men', 559.00, 315, 1, 20, 1, 'uploads/product_1781536033_product_1780982762_Gemini_Generated_Image_o7q3uwo7q3uwo7q3.png', '2026-06-15 15:07:13'),
-(12, 'AP Apex', 'The AP Apex is a premium training shoe engineered specifically to meet the rigorous demands of high-intensity gym sessions, functional fitness, and weight training. The upper is constructed from a high-tensile, abrasion-resistant woven mesh that offers maximum durability while maintaining exceptional breathability. A low-profile, flat-sole architecture ensures close-to-the-ground contact, providing a rock-solid foundation for lifting and explosive lateral movements.\r\n\r\nFeaturing a dual-density midsole, this model provides firm stability in the heel for heavy lifts alongside a flexible, responsive forefoot that adapts to short sprints and box jumps. The sleek dark charcoal aesthetic is paired with dynamic neon green support bands wrap around the midfoot, ensuring superior lockdown and lateral stability during fast cuts. Completed with a full-coverage, high-traction rubber outsole, the AP Apex delivers the perfect combination of unyielding support, agility, and aggressive modern styling.', 4, 'Men', 229.00, 157, 0, 0, 1, 'uploads/product_1781536282_product_1781113107_Gemini_Generated_Image_xo69cbxo69cbxo69.png', '2026-06-15 15:11:22'),
-(13, 'AP Velocity Carbon', 'The AP Velocity Carbon is engineered for runners who prioritize speed and a high-energy response. Featuring a vibrant Infrared Flare mesh upper, the shoe provides superior airflow and a lightweight fit. The bold, minimalist design is accented by a striking carbon fiber-textured midsole, which serves as the foundation for both stability and forward propulsion.\r\n\r\nAt its core, the shoe utilizes a specialized outsole tread pattern designed for optimal traction on hard surfaces, making it an ideal choice for road training or competitive track sessions. The integrated AP branding and sleek aesthetic ensure a professional, modern look that matches its high-performance capabilities. This combination of structural durability, responsive cushioning, and eye-catching color makes the AP Velocity Carbon a standout choice for athletes looking to improve their pace.', 1, 'Men', 568.97, 150, 0, 0, 1, 'uploads/product_1781633028_product_1781117666_Gemini_Generated_Image_ayagztayagztayag.png', '2026-06-16 18:03:48'),
-(14, 'AP Blossom', 'The AP Blossom is a lightweight running shoe designed for comfort and effortless style, perfect for daily training and casual movement. The upper is crafted from a breathable, open-knit mesh that ensures excellent ventilation and a soft, flexible fit that adapts to the foot\'s natural motion.\r\n\r\nBuilt for everyday versatility, the shoe features a supportive, cushioned midsole that provides smooth impact absorption and a comfortable stride on various surfaces. The durable outsole is engineered with a specialized grip pattern to ensure reliable traction, while the minimalist, monochromatic Soft Petal Pink aesthetic offers a clean and elegant look for any athletic or lifestyle outfit.', 1, 'Men', 449.00, 159, 0, 0, 1, 'uploads/product_1781633369_product_1781118292_Gemini_Generated_Image_imfr84imfr84imfr.png', '2026-06-16 18:09:29');
+INSERT INTO `products` (`product_id`, `name`, `description`, `category_id`, `gender`, `price`, `stock`, `is_on_sale`, `sale_percent`, `sale_ends_at`, `is_active`, `image_url`, `created_at`) VALUES
+(4, 'Apex Court', 'Run', 1, 'Women', 459.00, 260, 0, 0, NULL, 0, 'uploads/product_1781532838_Gemini_Generated_Image_gvdhuhgvdhuhgvdh.png', '2026-05-21 01:10:34'),
+(5, 'AP Velocity', 'The AP Velocity is designed for athletes who demand precision and speed, blending professional performance with a refined aesthetic. Featuring our signature Midnight Carbon / Cloud White colorway, the shoe utilizes a high-traction outsole pattern that ensures superior grip on varied surfaces. The upper is constructed from an advanced breathable mesh, specifically engineered to provide a lightweight, secure fit that conforms to the foot during intense training sessions.\r\n\r\nAt the core of the shoe’s performance is a high-response cushioned midsole, meticulously balanced to maximize energy return while minimizing impact stress on the joints. The seamless integration of the AP branding across the quarter panel and heel provides a modern, professional look that adheres to a clean and minimalist design language. By removing unnecessary embellishments, the silhouette remains streamlined, focusing entirely on structural integrity and aerodynamic efficiency.\r\n\r\nPerfect for both marathon pacing and daily training, the AP Velocity represents the intersection of technical capability and modern athletic style. The structural layout—from the reinforced heel counter to the responsive forefoot—is built to sustain performance over long distances. This combination of comfort, durability, and a clean visual profile makes it an essential component for any serious runner’s gear collection.', 1, 'Men', 599.00, 616, 0, 0, NULL, 0, 'uploads/product_1781532445_product_1780763578_dreamina-2026-06-07-6600-make_me_a_running_shoe_with_AP_Logo__can....png', '2026-06-15 14:07:25'),
+(6, 'AP Pulse', 'The AP Pulse is built for high-visibility performance and bold style. Featuring a muted charcoal mesh upper that contrasts sharply with a vibrant, high-energy fuchsia midsole, this shoe is engineered for runners who want to stand out during evening training sessions. The construction balances a secure lockdown fit with a plush, responsive foam base designed to absorb impact while providing a springy feel.', 1, 'Men', 459.00, 322, 0, 0, NULL, 1, 'uploads/product_1781533420_product_1780931220_Gemini_Generated_Image_8qt6pl8qt6pl8qt6.png', '2026-06-15 14:23:40'),
+(7, 'AP Endurance', 'The AP Endurance is engineered for high-mileage training, prioritizing comfort and structural stability for the dedicated runner. The upper features a high-density, multi-layered mesh that provides exceptional breathability and foot-locking support, while the vibrant crimson accents highlight the shoe\'s aggressive, performance-focused silhouette. Designed with a focus on long-distance durability, the exterior maintains a crisp, professional appearance that stands out on both the track and the road.\r\n\r\nBuilt upon a high-performance, segmented outsole, this model delivers superior shock absorption and consistent traction across various terrains. The midsole utilizes advanced cushioning technology to ensure a smooth transition from heel-strike to toe-off, effectively reducing fatigue during extended runs. By combining a clean, technical aesthetic with rugged construction, the AP Endurance offers a reliable and stylish solution for athletes who refuse to compromise on performance.', 1, 'Men', 449.00, 156, 0, 0, NULL, 0, 'uploads/product_1781534363_product_1780939229_Gemini_Generated_Image_r2ieszr2ieszr2ie.png', '2026-06-15 14:39:23'),
+(8, 'AP Ignite', 'The AP Ignite is engineered to deliver high-energy performance with a striking visual profile. The shoe features an innovative gradient mesh upper that transitions smoothly from deep onyx at the collar to a fiery orange and radiant yellow silhouette toward the forefoot. This seamless construction provides exceptional breathability and lightweight containment, ensuring the foot stays cool and secure through intensive speed workouts or fast-paced road races.\r\n\r\nThe performance-driven sole unit is built with a dual-density cushioned midsole that optimizes shock absorption and maximizes forward propulsion. Its bold neon accents along the midsole and structured heel counter accentuate the shoe\'s sleek, aerodynamic design. Completed with a durable rubber outsole pattern optimized for multi-surface grip, the AP Ignite brings a clean yet fiercely energetic aesthetic to the track, offering serious runners the perfect balance of responsiveness, stability, and bold modern style.', 1, 'Men', 349.00, 299, 0, 0, NULL, 1, 'uploads/product_1781535137_product_1780980089_Gemini_Generated_Image_uv65xguv65xguv65.png', '2026-06-15 14:52:17'),
+(9, 'AP Terra', 'The AP Terra is designed for the modern explorer, blending rugged trail functionality with a versatile lifestyle aesthetic. Crafted with a premium suede upper in a rich desert ochre, the shoe features reinforced deep navy overlays that provide structural integrity and a distinctive color-blocked look. Its trail-ready architecture includes a high-traction, lugged outsole designed to handle varied terrain, making it the perfect companion for both off-road adventures and casual urban settings.\r\n\r\nBeyond its durable exterior, the AP Terra prioritizes all-day comfort with an ergonomic fit and responsive cushioning that absorbs impact on uneven surfaces. The vibrant orange laces and matching branding add a touch of high-energy flair to the earthy tones, ensuring a stylish presence whether on the trails or the street. By marrying technical outdoor performance with a clean, contemporary design, the AP Terra delivers a robust and reliable option for those who demand both versatility and resilience in their everyday footwear.', 3, 'Men', 669.00, 150, 0, 0, NULL, 1, 'uploads/product_1781535496_product_1780981586_Gemini_Generated_Image_nuth5bnuth5bnuth.png', '2026-06-15 14:58:16'),
+(10, 'AP Terra W', 'The AP Terra W is a refined, adventure-ready lifestyle shoe tailored specifically for women, offering the perfect blend of outdoor durability and everyday comfort. Featuring a sophisticated tonal palette of clay dust suede and sandstone accents, this model maintains the signature trail-capable rugged outsole while presenting a softer, more versatile aesthetic suitable for both hiking trails and city commutes.\r\n\r\nDesigned with ergonomics in mind, the shoe provides a secure, lightweight fit that supports natural movement on uneven terrain. The monochromatic color approach, paired with premium materials, creates a polished look that transitions easily from active outings to casual wear. By balancing technical grip and structural resilience with an elegant, earthy design, the AP Terra W offers a versatile and stylish choice for the active, modern woman.', 3, 'Women', 669.00, 110, 0, 0, NULL, 1, 'uploads/product_1781535569_product_1780981692_Gemini_Generated_Image_6d4fir6d4fir6d4f.png', '2026-06-15 14:59:29'),
+(11, 'AP Court', 'The AP Court is a high-performance basketball sneaker designed to provide elite-level support and explosive responsiveness on the hardwood. Featuring a mid-top silhouette, it offers superior ankle stabilization without sacrificing the agility required for quick cuts and fast breaks. The lightweight, breathable mesh upper is reinforced with durable synthetic overlays, ensuring a secure lockdown fit that withstands the high-intensity demands of competitive play.\r\n\r\nEngineered for optimal court feel and energy return, the midsole utilizes a high-rebound cushioning system that effectively absorbs impact during landings and transitions. The specialized rubber outsole features a multidirectional herringbone tread pattern, delivering exceptional grip for precise pivoting and explosive starts. By combining a modern, sharp aesthetic with technical functionality, the AP Court empowers players to maintain peak performance and style throughout the game.', 2, 'Men', 559.00, 315, 1, 20, NULL, 1, 'uploads/product_1781536033_product_1780982762_Gemini_Generated_Image_o7q3uwo7q3uwo7q3.png', '2026-06-15 15:07:13'),
+(12, 'AP Apex', 'The AP Apex is a premium training shoe engineered specifically to meet the rigorous demands of high-intensity gym sessions, functional fitness, and weight training. The upper is constructed from a high-tensile, abrasion-resistant woven mesh that offers maximum durability while maintaining exceptional breathability. A low-profile, flat-sole architecture ensures close-to-the-ground contact, providing a rock-solid foundation for lifting and explosive lateral movements.\r\n\r\nFeaturing a dual-density midsole, this model provides firm stability in the heel for heavy lifts alongside a flexible, responsive forefoot that adapts to short sprints and box jumps. The sleek dark charcoal aesthetic is paired with dynamic neon green support bands wrap around the midfoot, ensuring superior lockdown and lateral stability during fast cuts. Completed with a full-coverage, high-traction rubber outsole, the AP Apex delivers the perfect combination of unyielding support, agility, and aggressive modern styling.', 4, 'Men', 229.00, 156, 0, 0, NULL, 1, 'uploads/product_1781536282_product_1781113107_Gemini_Generated_Image_xo69cbxo69cbxo69.png', '2026-06-15 15:11:22'),
+(13, 'AP Velocity Carbon', 'The AP Velocity Carbon is engineered for runners who prioritize speed and a high-energy response. Featuring a vibrant Infrared Flare mesh upper, the shoe provides superior airflow and a lightweight fit. The bold, minimalist design is accented by a striking carbon fiber-textured midsole, which serves as the foundation for both stability and forward propulsion.\r\n\r\nAt its core, the shoe utilizes a specialized outsole tread pattern designed for optimal traction on hard surfaces, making it an ideal choice for road training or competitive track sessions. The integrated AP branding and sleek aesthetic ensure a professional, modern look that matches its high-performance capabilities. This combination of structural durability, responsive cushioning, and eye-catching color makes the AP Velocity Carbon a standout choice for athletes looking to improve their pace.', 1, 'Men', 568.97, 150, 0, 0, NULL, 1, 'uploads/product_1781633028_product_1781117666_Gemini_Generated_Image_ayagztayagztayag.png', '2026-06-16 18:03:48'),
+(14, 'AP Blossom', 'The AP Blossom is a lightweight running shoe designed for comfort and effortless style, perfect for daily training and casual movement. The upper is crafted from a breathable, open-knit mesh that ensures excellent ventilation and a soft, flexible fit that adapts to the foot\'s natural motion.\r\n\r\nBuilt for everyday versatility, the shoe features a supportive, cushioned midsole that provides smooth impact absorption and a comfortable stride on various surfaces. The durable outsole is engineered with a specialized grip pattern to ensure reliable traction, while the minimalist, monochromatic Soft Petal Pink aesthetic offers a clean and elegant look for any athletic or lifestyle outfit.', 1, 'Men', 449.00, 158, 0, 0, NULL, 1, 'uploads/product_1781633369_product_1781118292_Gemini_Generated_Image_imfr84imfr84imfr.png', '2026-06-16 18:09:29'),
+(15, 'AP Dinasour', 'Dinosaurs were a diverse group of reptiles that dominated the Earth for roughly 160 million years during the Mesozoic Era. Characterized by their upright, columnar leg posture and specialized skulls, they ranged from tiny pigeon-sized predators to the massive, long-necked giants we know today.\r\n\r\nBecause the term \"dinosaur\" encompasses thousands of distinct species, they are best understood by looking at their shared traits and main groups', 3, 'Kids', 459.00, 119, 0, 0, NULL, 1, 'uploads/product_1782871313_product_1781127234_Gemini_Generated_Image_p39rwlp39rwlp39r.png', '2026-07-01 02:01:53');
 
 -- --------------------------------------------------------
 
@@ -535,7 +571,7 @@ INSERT INTO `product_stock` (`stock_id`, `product_id`, `color_name`, `size`, `st
 (203, 11, 'Deep Navy', '11.5', 15),
 (204, 11, 'Deep Navy', '12', 10),
 (205, 11, 'Deep Navy', '13', 7),
-(206, 12, 'Candy Peach', '6', 6),
+(206, 12, 'Candy Peach', '6', 5),
 (207, 12, 'Candy Peach', '6.5', 7),
 (208, 12, 'Candy Peach', '7', 8),
 (209, 12, 'Candy Peach', '7.5', 9),
@@ -563,7 +599,7 @@ INSERT INTO `product_stock` (`stock_id`, `product_id`, `color_name`, `size`, `st
 (231, 13, 'Infrared Flare', '11.5', 11),
 (232, 13, 'Infrared Flare', '12', 10),
 (233, 13, 'Infrared Flare', '13', 5),
-(234, 14, 'Soft Petal Pink', '6', 7),
+(234, 14, 'Soft Petal Pink', '6', 6),
 (235, 14, 'Soft Petal Pink', '6.5', 8),
 (236, 14, 'Soft Petal Pink', '7', 9),
 (237, 14, 'Soft Petal Pink', '7.5', 10),
@@ -576,7 +612,18 @@ INSERT INTO `product_stock` (`stock_id`, `product_id`, `color_name`, `size`, `st
 (244, 14, 'Soft Petal Pink', '11', 11),
 (245, 14, 'Soft Petal Pink', '11.5', 12),
 (246, 14, 'Soft Petal Pink', '12', 13),
-(247, 14, 'Soft Petal Pink', '13', 12);
+(247, 14, 'Soft Petal Pink', '13', 12),
+(248, 15, 'White', '1', 10),
+(249, 15, 'White', '1.5', 10),
+(250, 15, 'White', '2', 14),
+(251, 15, 'White', '2.5', 11),
+(252, 15, 'White', '3', 8),
+(253, 15, 'White', '3.5', 9),
+(254, 15, 'White', '4', 11),
+(255, 15, 'White', '4.5', 12),
+(256, 15, 'White', '5', 13),
+(257, 15, 'White', '5.5', 11),
+(258, 15, 'White', '6', 10);
 
 -- --------------------------------------------------------
 
@@ -621,7 +668,8 @@ CREATE TABLE `reviews` (
 --
 
 INSERT INTO `reviews` (`review_id`, `product_id`, `order_id`, `user_id`, `rating`, `comment`, `created_at`) VALUES
-(1, 14, 1, 1, 5, 'Good Design, and very soft material', '2026-06-16 18:22:14');
+(1, 14, 1, 1, 5, 'Good Design, and very soft material', '2026-06-16 18:22:14'),
+(2, 14, 2, 1, 4, 'zzzzz', '2026-07-01 02:04:13');
 
 -- --------------------------------------------------------
 
@@ -640,7 +688,20 @@ CREATE TABLE `site_settings` (
 --
 
 INSERT INTO `site_settings` (`setting_key`, `setting_value`, `updated_at`) VALUES
-('hero_image', 'uploads/banners/hero_1781535921.png', '2026-06-15 15:05:21');
+('hero_image', 'uploads/banners/hero_1782872708.png', '2026-07-01 02:25:08');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `stock_alerts`
+--
+
+CREATE TABLE `stock_alerts` (
+  `alert_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -666,7 +727,8 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `name`, `email`, `password`, `phone`, `shopping_preference`, `date_of_birth`, `address`, `created_at`, `is_banned`) VALUES
-(1, 'Lye Chia Ee', 'darren060621@gmail.com', '$2y$10$y.HyQm5lEIFj0J48WEGfA.NCOyBwNmR2lAZcSki3d0m.Dml3n3ZRW', '01131908939', 'men', '2006-06-21', '57,Jalan Raja Endut,Kampung Merdeka, Batu Pahat, Johor, 83000', '2026-06-16 17:34:29', 0);
+(1, 'Lye Chia Ee', 'darren060621@gmail.com', '$2y$10$QJ7bWKgPKqabsIDbeY3pH.qjN2qZLMC5f5ArM.uU4kxjgiSyc1016', '01131908939', 'men', '2006-06-21', '57,Jalan Raja Endut,Kampung Merdeka, Batu Pahat, Johor, 83000', '2026-06-16 17:34:29', 0),
+(2, 'Darren Lye', 'darrenlye060621@gmail.com', '$2y$10$BwJk3zxkFxZG0N7rWjgoZOCmjWQUAkFaXaRFbKxYqos/nnXmi//0W', '0123456789', 'men', '2006-06-21', '57,Jalan D1, Ayer Keroh, Melaka, 75450', '2026-07-01 01:47:04', 0);
 
 -- --------------------------------------------------------
 
@@ -697,6 +759,13 @@ CREATE TABLE `wishlists` (
   `product_id` int(11) NOT NULL,
   `added_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `wishlists`
+--
+
+INSERT INTO `wishlists` (`wishlist_id`, `user_id`, `product_id`, `added_at`) VALUES
+(1, 1, 15, '2026-07-03 14:45:33');
 
 -- --------------------------------------------------------
 
@@ -834,6 +903,14 @@ ALTER TABLE `site_settings`
   ADD PRIMARY KEY (`setting_key`);
 
 --
+-- Indexes for table `stock_alerts`
+--
+ALTER TABLE `stock_alerts`
+  ADD PRIMARY KEY (`alert_id`),
+  ADD UNIQUE KEY `uq_sa_user_product` (`user_id`,`product_id`),
+  ADD KEY `idx_sa_product` (`product_id`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -870,13 +947,13 @@ ALTER TABLE `wishlist_notifications`
 -- AUTO_INCREMENT for table `admins`
 --
 ALTER TABLE `admins`
-  MODIFY `admin_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `admin_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `cart_items`
 --
 ALTER TABLE `cart_items`
-  MODIFY `cart_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `cart_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `categories`
@@ -888,43 +965,43 @@ ALTER TABLE `categories`
 -- AUTO_INCREMENT for table `contact_messages`
 --
 ALTER TABLE `contact_messages`
-  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `message_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `design_requests`
 --
 ALTER TABLE `design_requests`
-  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `request_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `notif_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `notif_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=25;
 
 --
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `order_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `order_item_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `order_status_history`
 --
 ALTER TABLE `order_status_history`
-  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `product_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `product_images`
@@ -942,7 +1019,7 @@ ALTER TABLE `product_size`
 -- AUTO_INCREMENT for table `product_stock`
 --
 ALTER TABLE `product_stock`
-  MODIFY `stock_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=248;
+  MODIFY `stock_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=259;
 
 --
 -- AUTO_INCREMENT for table `promo_codes`
@@ -954,13 +1031,19 @@ ALTER TABLE `promo_codes`
 -- AUTO_INCREMENT for table `reviews`
 --
 ALTER TABLE `reviews`
-  MODIFY `review_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `review_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `stock_alerts`
+--
+ALTER TABLE `stock_alerts`
+  MODIFY `alert_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `vouchers`
@@ -972,7 +1055,7 @@ ALTER TABLE `vouchers`
 -- AUTO_INCREMENT for table `wishlists`
 --
 ALTER TABLE `wishlists`
-  MODIFY `wishlist_id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `wishlist_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `wishlist_notifications`

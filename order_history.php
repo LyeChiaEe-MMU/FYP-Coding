@@ -81,6 +81,7 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['submit_review'])){
 
 $msg = $_GET['msg'] ?? '';
 
+// Section for fetching the user's orders
 $orders = $conn->prepare("
     SELECT o.order_id, o.total_amount,
            COALESCE(o.discount_amount,0) AS discount_amount,

@@ -1,8 +1,11 @@
 ﻿<?php
 session_start();
 require 'db.php';
+
+// Section for redirecting users who are already logged in
 if(is_logged()){ header("Location: index.php"); exit; }
 
+// Section for the customer login process
 $error = '';
 if($_SERVER['REQUEST_METHOD']==='POST'){
     csrf_check();

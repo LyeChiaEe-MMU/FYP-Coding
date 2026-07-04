@@ -5,6 +5,7 @@ require 'db.php';
 if (!is_logged()) { header("Location: login.php"); exit; }
 $uid = (int)$_SESSION['user_id'];
 
+// Section for fetching the user's design requests
 $reqs = $conn->query("
     SELECT * FROM design_requests
     WHERE user_id = $uid
