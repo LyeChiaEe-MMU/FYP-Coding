@@ -30,12 +30,14 @@ if(isset($_POST['toggle_status'])){
             $refund_count = 0;
             $conn->begin_transaction();
             try {
+                // Deactivate FIRST so restock alerts never fire for a discontinued shoe
+                $stmt = $conn->prepare("UPDATE products SET is_active=0 WHERE product_id=?");
+                $stmt->bind_param("i", $id); $stmt->execute();
+
                 if($affected && $affected->num_rows > 0){
                     $osh_exists = (bool)$conn->query("SHOW TABLES LIKE 'order_status_history'")->num_rows;
                     while($ord = $affected->fetch_assoc()){
                         $oid       = (int)$ord['order_id'];
-                        $uid_c     = (int)$ord['user_id'];
-                        $amt       = (float)$ord['total_amount'];
                         $ord_label = str_pad($oid, 6, '0', STR_PAD_LEFT);
 
                         // Cancel the order
@@ -46,38 +48,14 @@ if(isset($_POST['toggle_status'])){
                             $conn->query("INSERT INTO order_status_history (order_id,status) VALUES ($oid,'Cancelled')");
                         }
 
-                        // Generate a unique voucher code: APEX-XXXXXXXX
-                        do {
-                            $vcode    = 'APEX-'.strtoupper(bin2hex(random_bytes(4)));
-                            $vcode_e  = $conn->real_escape_string($vcode);
-                            $v_exists = $conn->query("SELECT voucher_id FROM vouchers WHERE code='$vcode_e'");
-                        } while($v_exists && $v_exists->num_rows > 0);
-
-                        $expires  = date('Y-m-d', strtotime('+90 days'));
-                        $v_reason = "Refund — Order #$ord_label ($prod_name discontinued)";
-
-                        $sv = $conn->prepare("INSERT INTO vouchers (user_id,code,amount,reason,expires_at) VALUES (?,?,?,?,?)");
-                        $sv->bind_param("isdss", $uid_c, $vcode, $amt, $v_reason, $expires);
-                        $sv->execute();
-
-                        // Create in-app notification for the customer
-                        $n_title   = "Order Cancelled — Refund Voucher Issued";
-                        $n_message = "Your order #$ord_label has been cancelled because \"$prod_name\" is no longer available. "
-                                   . "We apologise for the inconvenience. A full refund voucher of RM ".number_format($amt,2)
-                                   . " has been added to your account (Voucher Code: $vcode). Valid for 90 days. "
-                                   . "Check My Vouchers in your profile to use it on your next purchase!";
-
-                        $sn = $conn->prepare("INSERT INTO notifications (user_id,title,message,type) VALUES (?,?,?,'refund')");
-                        $sn->bind_param("iss", $uid_c, $n_title, $n_message);
-                        $sn->execute();
+                        // Shared cancel bundle: restores stock (per size + product totals),
+                        // one voucher per item + shipping + apology, one summary email
+                        cancel_order_refund($conn, $oid,
+                            "We're sorry — your order #$ord_label has been cancelled because \"$prod_name\" is no longer available.");
 
                         $refund_count++;
                     }
                 }
-
-                // Deactivate the product
-                $stmt = $conn->prepare("UPDATE products SET is_active=0 WHERE product_id=?");
-                $stmt->bind_param("i", $id); $stmt->execute();
 
                 $conn->commit();
             } catch(Exception $e){

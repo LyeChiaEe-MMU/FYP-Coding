@@ -479,7 +479,7 @@ if(isset($_SESSION['cart_msg'])){ $flash=$_SESSION['cart_msg']; $ftype=$_SESSION
     <!-- Accordion -->
     <div style="margin-top:28px;border-top:1px solid var(--border);">
       <?php foreach([
-        ['Free Shipping','Free standard shipping on orders above RM300. Estimated 2–4 business days.'],
+        ['Free Shipping','Free standard shipping on orders above RM500 — and your first order always ships FREE. Estimated 2–4 business days.'],
         ['Returns Policy','30-day hassle-free returns on all unworn shoes in original packaging.'],
         ['Authenticity','Every Apex pair includes a certificate of authenticity and quality-control seal.'],
       ] as $i=>[$title,$body]): ?>

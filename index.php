@@ -251,8 +251,8 @@ $stat_price_label      = $stat_min_price > 0 ? 'RM'.number_format($stat_min_pric
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);">
       <?php foreach([
         ['HyperFoam™ Tech','Proprietary midsole returning 68% energy per stride.'],
-        ['5-Year Sole Warranty','Premium durability on every pair, guaranteed.'],
-        ['Free Shipping >RM300','Fast 2–4 day delivery across Malaysia.'],
+        ['1-Year Warranty','Premium durability on every pair, guaranteed.'],
+        ['Free Shipping >RM500','First order ships FREE. Fast 2–4 day delivery across Malaysia.'],
         ['30-Day Returns','Hassle-free returns within 30 days.'],
       ] as $f): ?>
       <div style="background:var(--card);padding:36px 28px;text-align:center;">

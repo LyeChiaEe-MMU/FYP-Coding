@@ -57,7 +57,13 @@ while ($r = $cart->fetch_assoc()) {
     $total += ($ep * $r['quantity']);
     $items[] = $r;
 }
-$shipping = $total >= 300 ? 0 : 10;
+// First order ships FREE (as promised at registration); otherwise free above RM500
+$foc = $conn->prepare("SELECT COUNT(*) AS c FROM orders WHERE user_id=? AND status<>'Cancelled'");
+$foc->bind_param("i", $uid);
+$foc->execute();
+$is_first_order = ((int)$foc->get_result()->fetch_assoc()['c'] === 0);
+
+$shipping = ($is_first_order || $total >= 500) ? 0 : 10;
 $grand    = $total + $shipping;
 
 // ── Pre-validate voucher (read-only check before transaction) ───

@@ -33,7 +33,13 @@ while($r=$cart->fetch_assoc()){
 }
 
 // Section for calculating subtotal, shipping and total
-$shipping = $subtotal>=300 ? 0 : ($subtotal>0 ? 10 : 0);
+// First order ships FREE; otherwise free above RM500
+$fo = $conn->prepare("SELECT COUNT(*) AS c FROM orders WHERE user_id=? AND status<>'Cancelled'");
+$fo->bind_param("i", $uid);
+$fo->execute();
+$is_first_order = ((int)$fo->get_result()->fetch_assoc()['c'] === 0);
+
+$shipping = ($subtotal > 0 && !$is_first_order && $subtotal < 500) ? 10 : 0;
 $total    = $subtotal + $shipping;
 ?>
 <!DOCTYPE html>

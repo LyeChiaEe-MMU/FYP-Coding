@@ -318,9 +318,10 @@ function add_notification($conn, $user_id, $title, $message, $type = 'info', $se
 // then clear their alerts. Returns how many customers were notified.
 function notify_stock_alerts($conn, $product_id){
     $product_id = (int)$product_id;
-    $pr = $conn->query("SELECT name, stock FROM products WHERE product_id=$product_id");
+    $pr = $conn->query("SELECT name, stock, COALESCE(is_active,1) AS is_active FROM products WHERE product_id=$product_id");
     $p  = $pr ? $pr->fetch_assoc() : null;
-    if(!$p || (int)$p['stock'] <= 0) return 0;
+    // Never announce restocks for missing, empty, or deactivated products
+    if(!$p || (int)$p['stock'] <= 0 || !(int)$p['is_active']) return 0;
 
     $res = $conn->query("SELECT alert_id, user_id FROM stock_alerts WHERE product_id=$product_id");
     if(!$res || $res->num_rows === 0) return 0;
@@ -341,7 +342,9 @@ function notify_stock_alerts($conn, $product_id){
 
 // Create a reward voucher for a user and notify them (in-site + Gmail).
 // Code format matches the existing refund vouchers (APEX-XXXXXXXX). Returns the code.
-function grant_voucher($conn, $user_id, $amount, $reason, $days_valid = 30, $title = 'You Earned a Voucher!'){
+// $notify=false skips the notification — used when the caller sends ONE summary
+// notification covering several vouchers (e.g. per-item refunds on cancellation)
+function grant_voucher($conn, $user_id, $amount, $reason, $days_valid = 30, $title = 'You Earned a Voucher!', $notify = true){
     do {
         $code   = 'APEX-' . strtoupper(bin2hex(random_bytes(4)));
         $code_e = $conn->real_escape_string($code);
@@ -353,14 +356,92 @@ function grant_voucher($conn, $user_id, $amount, $reason, $days_valid = 30, $tit
     $ins->bind_param("isdss", $user_id, $code, $amount, $reason, $expires);
     $ins->execute();
 
-    add_notification(
-        $conn, $user_id, $title,
-        $reason . "\n\nVoucher code: {$code}\nValue: RM " . number_format($amount, 2)
-        . "\nValid until: " . date('d M Y', strtotime($expires))
-        . "\n\nEnter the code at checkout to redeem it. View all your vouchers in My Profile → My Vouchers.",
+    if($notify){
+        add_notification(
+            $conn, $user_id, $title,
+            $reason . "\n\nVoucher code: {$code}\nValue: RM " . number_format($amount, 2)
+            . "\nValid until: " . date('d M Y', strtotime($expires))
+            . "\n\nEnter the code at checkout to redeem it. View all your vouchers in My Profile → My Vouchers.",
+            'refund'
+        );
+    }
+    return $code;
+}
+
+// Full cancellation refund bundle for an order: restores per-size stock and each
+// product's total stock (firing back-in-stock alerts), then issues one refund
+// voucher PER item line + a shipping-fee voucher (if one was paid) + an RM10
+// apology voucher, and sends ONE summary notification (in-site + Gmail).
+// $cancel_note overrides the first line of the notification. Returns voucher count.
+function cancel_order_refund($conn, $order_id, $cancel_note = ''){
+    $order_id  = (int)$order_id;
+    $order_num = '#' . str_pad($order_id, 6, '0', STR_PAD_LEFT);
+
+    $ow = $conn->prepare("SELECT user_id, total_amount, COALESCE(discount_amount,0) AS discount_amount FROM orders WHERE order_id=?");
+    $ow->bind_param("i", $order_id);
+    $ow->execute();
+    $ord = $ow->get_result()->fetch_assoc();
+    if(!$ord) return 0;
+    $cust_uid = (int)$ord['user_id'];
+
+    // Restore stock and refund each item line with its own voucher
+    $si = $conn->prepare("SELECT oi.product_id, oi.size, oi.color, oi.quantity, oi.price, p.name
+                          FROM order_items oi JOIN products p ON p.product_id = oi.product_id
+                          WHERE oi.order_id=?");
+    $si->bind_param("i", $order_id);
+    $si->execute();
+    $si_res = $si->get_result();
+    $sr = $conn->prepare("UPDATE product_stock SET stock = stock + ? WHERE product_id=? AND size=? AND color_name=?");
+
+    $voucher_lines  = [];
+    $items_sum      = 0;
+    $restocked_pids = [];
+    while($si_row = $si_res->fetch_assoc()){
+        $sr->bind_param("iiss", $si_row['quantity'], $si_row['product_id'], $si_row['size'], $si_row['color']);
+        $sr->execute();
+        $restocked_pids[(int)$si_row['product_id']] = true;
+
+        $line_amt   = (float)$si_row['price'] * (int)$si_row['quantity'];
+        $items_sum += $line_amt;
+        $v_label    = $si_row['name'] . ' (UK ' . $si_row['size']
+                    . ($si_row['color'] !== 'Default' ? ', ' . $si_row['color'] : '')
+                    . ') × ' . (int)$si_row['quantity'];
+        $vcode = grant_voucher($conn, $cust_uid, $line_amt,
+                 "Refund — {$v_label} — Order {$order_num} cancelled", 90, 'Refund Voucher', false);
+        $voucher_lines[] = "{$vcode} — RM " . number_format($line_amt, 2) . " ({$v_label})";
+    }
+
+    // Re-sync each product's TOTAL stock from its per-size entries,
+    // and email anyone waiting on a restock alert
+    foreach(array_keys($restocked_pids) as $rp_pid){
+        $tot = (int)$conn->query("SELECT COALESCE(SUM(stock),0) AS t FROM product_stock WHERE product_id=$rp_pid")->fetch_assoc()['t'];
+        $conn->query("UPDATE products SET stock=$tot WHERE product_id=$rp_pid");
+        notify_stock_alerts($conn, $rp_pid);
+    }
+
+    // Refund the shipping fee too, if this order paid one
+    $ship_part = max(0, round((float)$ord['total_amount'] + (float)$ord['discount_amount'] - $items_sum, 2));
+    if($ship_part > 0){
+        $vcode = grant_voucher($conn, $cust_uid, $ship_part,
+                 "Refund — Shipping fee — Order {$order_num} cancelled", 90, 'Refund Voucher', false);
+        $voucher_lines[] = "{$vcode} — RM " . number_format($ship_part, 2) . " (Shipping fee)";
+    }
+
+    // Small apology voucher on top of the refunds
+    $vcode = grant_voucher($conn, $cust_uid, 10.00,
+             "Our apologies — order {$order_num} had to be cancelled. Please accept this small gift from Apex.", 60, 'Apology Voucher', false);
+    $voucher_lines[] = "{$vcode} — RM 10.00 (Apology gift)";
+
+    // ONE summary notification (in-site + email) listing every voucher
+    $intro = $cancel_note !== '' ? $cancel_note : "We're sorry — your order {$order_num} has been cancelled.";
+    add_notification($conn, $cust_uid,
+        'Order '.$order_num.' Cancelled — '.count($voucher_lines).' Vouchers Issued',
+        $intro . " You have been refunded with one voucher per item, plus a small apology gift:\n\n"
+        . implode("\n", $voucher_lines)
+        . "\n\nRefund vouchers are valid for 90 days (apology gift: 60 days). Use them at checkout anytime.",
         'refund'
     );
-    return $code;
+    return count($voucher_lines);
 }
 
 // Small star row for product cards — returns '' when the product has no reviews

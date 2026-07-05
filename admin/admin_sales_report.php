@@ -117,8 +117,27 @@ if($view_mode === 'year'){
 $show_trend = count($trend_labels) > 0 && ($view_mode==='year' || count($trend_labels)>1);
 
 // ── Period totals ────────────────────────────────────────────────────
-$period_total_units   = array_sum($shoe_units);
-$period_total_revenue = array_sum($shoe_revenue);
+// TOTAL REVENUE = actual money collected (orders.total_amount = items + shipping
+// − voucher discounts) — the SAME definition as the Dashboard and the trend chart.
+// The per-shoe/category charts above show gross item value (qty × price) for
+// comparison, and the shoe chart is capped to the top 10 — so the period totals
+// use their own unlimited queries instead of summing the chart data.
+$_pt = $conn->query("
+    SELECT COALESCE(SUM(o.total_amount),0) AS net_revenue
+    FROM orders o
+    WHERE $date_cond AND o.status = 'Completed'
+")->fetch_assoc();
+$period_total_revenue = (float)$_pt['net_revenue'];
+
+$_pu = $conn->query("
+    SELECT COALESCE(SUM(oi.quantity),0)    AS units,
+           COUNT(DISTINCT oi.product_id)   AS prods
+    FROM order_items oi
+    JOIN orders o ON o.order_id = oi.order_id
+    WHERE $date_cond AND o.status = 'Completed'
+")->fetch_assoc();
+$period_total_units    = (int)$_pu['units'];
+$period_total_products = (int)$_pu['prods'];
 
 // Chart colours (PHP mirror for progress bars)
 $bar_colors = ['#C8543C','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'];
@@ -209,7 +228,7 @@ $bar_colors = ['#C8543C','#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4
         </div>
         <?php if($view_mode === 'year'): ?>
         <div class="kpi-sm">
-          <div class="val"><?=count($rows)?></div>
+          <div class="val"><?=$period_total_products?></div>
           <div class="lbl">Products Sold</div>
         </div>
         <?php endif; ?>

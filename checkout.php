@@ -30,7 +30,13 @@ while($r=$cart->fetch_assoc()){
     if((int)$r['quantity'] > (int)$r['avail_stock']) $has_stock_issue = true;
     $items[] = $r;
 }
-$shipping = $subtotal>=300 ? 0 : 10;
+// First order ships FREE; otherwise free above RM500
+$fo = $conn->prepare("SELECT COUNT(*) AS c FROM orders WHERE user_id=? AND status<>'Cancelled'");
+$fo->bind_param("i", $uid);
+$fo->execute();
+$is_first_order = ((int)$fo->get_result()->fetch_assoc()['c'] === 0);
+
+$shipping = ($is_first_order || $subtotal >= 500) ? 0 : 10;
 $total    = $subtotal+$shipping;
 
 // Load user's valid vouchers for hint
@@ -245,7 +251,7 @@ if($mv) while($vr=$mv->fetch_assoc()) $my_vouchers[] = $vr;
 
     <div class="cs-row" style="margin-top:14px;"><span>Subtotal</span><span>RM <?=number_format($subtotal,2)?></span></div>
     <div class="cs-row">
-      <span>Shipping</span>
+      <span>Shipping<?php if($is_first_order && $shipping===0): ?> <span style="font-size:.68rem;color:#22c55e;font-weight:700;">🎉 first order</span><?php endif; ?></span>
       <span><?=$shipping===0?'<span style="color:var(--accent)">FREE</span>':'RM '.number_format($shipping,2)?></span>
     </div>
 
@@ -342,6 +348,9 @@ function fmtExpiry(input){
 
 // ── Voucher ───────────────────────────────────────────────────────
 function fillVoucher(code){
+    // Switching to a different voucher — clear the applied one first so the
+    // discount and hidden fields always match the code shown
+    if(_voucherApplied) removeVoucher();
     document.getElementById('voucherDisplay').value = code;
     applyVoucher();
 }
@@ -366,6 +375,8 @@ function applyVoucher(){
             _voucherApplied = true;
             document.getElementById('voucherCodeInput').value = code;
             document.getElementById('discountAmountInput').value = _discountAmt.toFixed(2);
+            // Lock the input while applied — remove first to change vouchers
+            document.getElementById('voucherDisplay').readOnly = true;
             showVoucherMsg(data.msg, 'ok');
             document.getElementById('discountRow').style.display = 'flex';
             document.getElementById('discountDisplay').textContent = '-RM '+_discountAmt.toFixed(2);
@@ -388,6 +399,7 @@ function removeVoucher(){
     document.getElementById('voucherCodeInput').value = '';
     document.getElementById('discountAmountInput').value = '0';
     document.getElementById('voucherDisplay').value = '';
+    document.getElementById('voucherDisplay').readOnly = false;
     document.getElementById('discountRow').style.display = 'none';
     document.getElementById('removeVoucherBtn').style.display = 'none';
     document.getElementById('applyVoucherBtn').style.display = 'inline-flex';
@@ -464,8 +476,29 @@ document.getElementById('checkoutForm').addEventListener('submit', function(e){
 
         if(cardNum.length !== 16){ setFieldErr('grp_card_number','cardNumberErr', true);  ok=false; }
         else                     { setFieldErr('grp_card_number','cardNumberErr', false); }
-        if(expiry.length < 7)    { setFieldErr('grp_card_expiry','cardExpiryErr', true);  ok=false; }
-        else                     { setFieldErr('grp_card_expiry','cardExpiryErr', false); }
+
+        // Expiry: must be a real month (01-12) AND not in the past —
+        // a card is valid through the last day of its expiry month
+        let expiryOk  = false;
+        let expiryMsg = 'Please enter a valid expiry date (MM / YY).';
+        const expMatch = expiry.match(/^(\d{2}) \/ (\d{2})$/);
+        if(expMatch){
+            const mm = parseInt(expMatch[1], 10);
+            const yy = 2000 + parseInt(expMatch[2], 10);
+            if(mm >= 1 && mm <= 12){
+                const now = new Date();
+                if(yy > now.getFullYear() || (yy === now.getFullYear() && mm >= now.getMonth() + 1)){
+                    expiryOk = true;
+                } else {
+                    expiryMsg = 'This card has expired — please use a valid card.';
+                }
+            } else {
+                expiryMsg = 'Month must be between 01 and 12.';
+            }
+        }
+        document.getElementById('cardExpiryErr').textContent = expiryMsg;
+        if(!expiryOk){ setFieldErr('grp_card_expiry','cardExpiryErr', true);  ok=false; }
+        else         { setFieldErr('grp_card_expiry','cardExpiryErr', false); }
         if(cvv.length !== 3)     { setFieldErr('grp_card_cvv',   'cardCvvErr',    true);  ok=false; }
         else                     { setFieldErr('grp_card_cvv',   'cardCvvErr',    false); }
         if(cardName.length < 2)  { setFieldErr('grp_card_name',  'cardNameErr',   true);  ok=false; }

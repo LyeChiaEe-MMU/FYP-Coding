@@ -12,16 +12,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_request'])) {
     // Admin only decides Accept or Reject — 'Received' is the automatic initial status
     $allowed_statuses = ['Accepted','Rejected'];
 
-    if (in_array($status, $allowed_statuses)) {
+    // Load the request first — a decision can only be made ONCE (while status is 'Received')
+    $dq = $conn->prepare("SELECT user_id, shoe_name, status FROM design_requests WHERE request_id=? LIMIT 1");
+    $dq->bind_param("i", $rid);
+    $dq->execute();
+    $dr = $dq->get_result()->fetch_assoc();
+
+    if(!$dr){
+        $_SESSION['admin_flash'] = "Request #$rid not found.";
+    } elseif($dr['status'] !== 'Received'){
+        $_SESSION['admin_flash'] = "Request #$rid is already {$dr['status']} — the decision is final and cannot be changed.";
+    } elseif (in_array($status, $allowed_statuses)) {
         $stmt = $conn->prepare("UPDATE design_requests SET status=?, admin_note=? WHERE request_id=?");
         $stmt->bind_param("ssi", $status, $note, $rid);
         $stmt->execute();
 
-        // Notify the user about the status change
-        $dq = $conn->prepare("SELECT user_id, shoe_name FROM design_requests WHERE request_id=? LIMIT 1");
-        $dq->bind_param("i", $rid);
-        $dq->execute();
-        $dr = $dq->get_result()->fetch_assoc();
+        // Notify the user about the decision
         if($dr){
             $status_line = match($status){
                 'Accepted' => 'Great news! Your design request has been accepted.',
@@ -170,23 +176,23 @@ $reqs = $conn->query("
                  style="max-width:100%;border-radius:8px;border:1px solid var(--border);object-fit:cover;max-height:200px;margin-bottom:16px;">
             <?php endif; ?>
 
-            <!-- Update form -->
+            <?php if($r['status'] === 'Received'): ?>
+            <!-- Decision form — only while the request is still undecided -->
             <form method="POST" style="background:rgba(17,34,64,.5);border:1px solid var(--border);border-radius:8px;padding:18px;">
               <?=csrf_field()?>
               <input type="hidden" name="request_id" value="<?=(int)$r['request_id']?>">
-              <div style="font-size:.72px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-size:.7rem;">UPDATE REQUEST</div>
+              <div style="letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-size:.7rem;">MAKE A DECISION</div>
 
               <div style="margin-bottom:12px;">
                 <label style="display:block;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Decision</label>
                 <select name="status" required
                         style="width:100%;background:var(--navy2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--white);font-size:.875rem;">
-                  <?php if($r['status'] === 'Received'): ?>
                   <option value="" disabled selected>— Choose a decision —</option>
-                  <?php endif; ?>
                   <?php foreach(['Accepted','Rejected'] as $s): ?>
-                  <option value="<?=$s?>" <?=$r['status']===$s?'selected':''?>><?=$s?></option>
+                  <option value="<?=$s?>"><?=$s?></option>
                   <?php endforeach; ?>
                 </select>
+                <div style="font-size:.7rem;color:#ca8a04;margin-top:6px;">⚠ The decision is final — it cannot be changed afterwards.</div>
               </div>
 
               <div style="margin-bottom:14px;">
@@ -199,9 +205,24 @@ $reqs = $conn->query("
               </div>
 
               <button type="submit" name="update_request" class="btn btn-primary btn-sm btn-full">
-                SAVE UPDATE
+                SAVE DECISION
               </button>
             </form>
+
+            <?php else: ?>
+            <!-- Decision already made — final, no more actions -->
+            <div style="background:rgba(17,34,64,.5);border:1px solid var(--border);border-radius:8px;padding:18px;">
+              <div style="letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;font-size:.7rem;">DECISION</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span class="status-badge <?=$r['status']==='Accepted'?'st-completed':'st-cancelled'?>"><?=e($r['status'])?></span>
+                <span style="font-size:.75rem;color:var(--muted);">🔒 Final — cannot be changed</span>
+              </div>
+              <?php if(!empty($r['admin_note'])): ?>
+              <div style="margin-top:12px;font-size:.72rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);">Message sent to customer</div>
+              <div style="margin-top:4px;font-size:.85rem;color:var(--text);line-height:1.7;"><?=e($r['admin_note'])?></div>
+              <?php endif; ?>
+            </div>
+            <?php endif; ?>
           </div>
         </div>
       </div>

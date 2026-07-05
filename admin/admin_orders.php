@@ -9,58 +9,46 @@ if($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['update_status'])){
     csrf_check();
     $oid        = (int)$_POST['order_id'];
     $new_status = $_POST['status'];
-    $allowed    = ['Processing','Delivered','Cancelled']; // Completed is set by customer only
-    if(in_array($new_status,$allowed)){
+    $allowed    = ['Delivered','Cancelled']; // Completed is set by customer only
+    $order_num  = '#' . str_pad($oid, 6, '0', STR_PAD_LEFT);
+
+    // Load the order first — a status change is only allowed while Processing.
+    // Delivered / Cancelled / Completed are FINAL (also prevents double refunds)
+    $ow = $conn->prepare("SELECT user_id, total_amount, COALESCE(discount_amount,0) AS discount_amount, status FROM orders WHERE order_id=?");
+    $ow->bind_param("i", $oid);
+    $ow->execute();
+    $row_o = $ow->get_result()->fetch_assoc();
+
+    if(!$row_o){
+        $_SESSION['admin_flash'] = "Order $order_num not found.";
+    } elseif($row_o['status'] !== 'Processing'){
+        $_SESSION['admin_flash'] = "Order $order_num is already {$row_o['status']} — this status is final and cannot be changed.";
+    } elseif(!in_array($new_status, $allowed)){
+        $_SESSION['admin_flash'] = "No change made to order $order_num.";
+    } else {
         $upd = $conn->prepare("UPDATE orders SET status=? WHERE order_id=?");
         $upd->bind_param("si",$new_status,$oid);
         $upd->execute();
         $h = $conn->prepare("INSERT INTO order_status_history (order_id,status) VALUES (?,?)");
         $h->bind_param("is",$oid,$new_status);
         $h->execute();
-        $_SESSION['admin_flash'] = "Order #".str_pad($oid,6,'0',STR_PAD_LEFT)." updated to $new_status.";
+        $_SESSION['admin_flash'] = "Order $order_num updated to $new_status.";
 
-        // Notify the customer
-        $order_num = '#' . str_pad($oid, 6, '0', STR_PAD_LEFT);
-        $owner = $conn->query("SELECT user_id, total_amount FROM orders WHERE order_id=$oid");
-        if($owner && $row_o = $owner->fetch_assoc()){
-            $cust_uid = (int)$row_o['user_id'];
-            if($new_status === 'Delivered'){
-                add_notification(
-                    $conn, $cust_uid,
-                    'Order ' . $order_num . ' Has Been Delivered!',
-                    'Great news! Your order ' . $order_num . ' has been delivered to your address. Please click "Mark as Received" on your order once you have the package in hand.',
-                    'delivery'
-                );
-            } elseif($new_status === 'Cancelled'){
-                // Restore stock for every item in the cancelled order
-                $si = $conn->prepare("SELECT product_id, size, color, quantity FROM order_items WHERE order_id=?");
-                $si->bind_param("i", $oid);
-                $si->execute();
-                $si_res = $si->get_result();
-                $sr = $conn->prepare("UPDATE product_stock SET stock = stock + ? WHERE product_id=? AND size=? AND color_name=?");
-                while($si_row = $si_res->fetch_assoc()){
-                    $sr->bind_param("iiss", $si_row['quantity'], $si_row['product_id'], $si_row['size'], $si_row['color']);
-                    $sr->execute();
-                }
+        $cust_uid = (int)$row_o['user_id'];
 
-                // Auto-issue a full refund voucher
-                $refund_amt = (float)$row_o['total_amount'];
-                do {
-                    $vcode   = 'APEX-'.strtoupper(bin2hex(random_bytes(4)));
-                    $vcode_e = $conn->real_escape_string($vcode);
-                    $v_ck    = $conn->query("SELECT voucher_id FROM vouchers WHERE code='$vcode_e'");
-                } while($v_ck && $v_ck->num_rows > 0);
-                $expires  = date('Y-m-d', strtotime('+90 days'));
-                $v_reason = "Refund — Order ".str_pad($oid,6,'0',STR_PAD_LEFT)." cancelled";
-                $sv = $conn->prepare("INSERT INTO vouchers (user_id,code,amount,reason,expires_at) VALUES (?,?,?,?,?)");
-                $sv->bind_param("isdss", $cust_uid, $vcode, $refund_amt, $v_reason, $expires);
-                $sv->execute();
-                add_notification($conn, $cust_uid,
-                    'Order '.$order_num.' Cancelled — Refund Voucher Issued',
-                    'Your order '.$order_num.' has been cancelled. A full refund voucher of RM '.number_format($refund_amt,2).' (Code: '.$vcode.') has been added to your account. Valid for 90 days — use it at checkout.',
-                    'refund'
-                );
-            }
+        if($new_status === 'Delivered'){
+            add_notification(
+                $conn, $cust_uid,
+                'Order ' . $order_num . ' Has Been Delivered!',
+                'Great news! Your order ' . $order_num . ' has been delivered to your address. Please click "Mark as Received" on your order once you have the package in hand.',
+                'delivery'
+            );
+
+        } elseif($new_status === 'Cancelled'){
+            // Shared cancel bundle: restores stock (per size + product totals),
+            // issues one voucher per item + shipping + apology, one summary email
+            $v_count = cancel_order_refund($conn, $oid);
+            $_SESSION['admin_flash'] = "Order $order_num cancelled — stock restored and {$v_count} vouchers issued (per-item refunds + apology gift).";
         }
     }
     header("Location: admin_orders.php"); exit;
@@ -153,25 +141,32 @@ $orders = $conn->query("
               <td style="font-weight:600;color:var(--white);">RM <?=number_format($o['total_amount'],2)?></td>
               <td><?=status_badge($o['status'])?></td>
               <td>
+                <?php if($o['status'] !== 'Processing'):
+                  // Delivered / Completed / Cancelled are FINAL — no more admin actions
+                  $final_note = match($o['status']){
+                      'Delivered' => 'Waiting for customer to confirm receipt',
+                      'Completed' => 'Marked received by the customer',
+                      'Cancelled' => 'Refund vouchers issued & stock restored',
+                      default     => '',
+                  };
+                ?>
+                <div style="font-size:.72rem;color:var(--muted);line-height:1.6;">
+                  🔒 <strong>Status is final</strong><br><?=$final_note?>
+                </div>
+                <?php else: ?>
                 <form method="POST" style="display:flex;gap:8px;align-items:center;">
                   <?=csrf_field()?>
                   <input type="hidden" name="order_id" value="<?=(int)$o['order_id']?>">
                   <select name="status"
                     style="background:var(--navy2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:.82rem;cursor:pointer;">
-                    <?php
-                    // Completed is set by the customer via "Mark as Received" — not by admin
-                    $admin_statuses = ['Processing','Delivered','Cancelled'];
-                    // If currently Completed, show it as readonly label instead of dropdown
-                    if($o['status']==='Completed'): ?>
-                    <option value="Completed" selected>Completed</option>
-                    <?php else:
-                    foreach($admin_statuses as $s): ?>
+                    <?php // Completed is set by the customer via "Mark as Received" — not by admin
+                    foreach(['Processing','Delivered','Cancelled'] as $s): ?>
                     <option value="<?=$s?>" <?=$o['status']===$s?'selected':''?>><?=$s?></option>
-                    <?php endforeach; endif; ?>
+                    <?php endforeach; ?>
                   </select>
-                  <button type="submit" name="update_status" class="btn btn-primary btn-sm"
-                    <?=$o['status']==='Completed'?'disabled title="Marked received by customer — cannot change"':''?>>Save</button>
+                  <button type="submit" name="update_status" class="btn btn-primary btn-sm">Save</button>
                 </form>
+                <?php endif; ?>
               </td>
             </tr>
             <?php endwhile; ?>
